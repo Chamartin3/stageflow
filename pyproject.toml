@@ -20,16 +20,21 @@ classifiers = [
 dependencies = [
     "pydantic>=2.0.0",
     "ruamel.yaml>=0.18.0",
-    "click>=8.0.0"
+    "click>=8.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-html>=3.1.0",
     "ruff>=0.1.0",
-    "pylint>=3.0.0",
-    "hypothesis>=6.0.0",
-    "pytest-cov>=4.0.0"
+    "pyright>=1.1.0",
+    "hypothesis>=6.0.0"
 ]
 visualization = [
     "graphviz>=0.20.0",
@@ -46,18 +51,23 @@ build-backend = "hatchling.build"
 [tool.uv]
 dev-dependencies = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-html>=3.1.0",
     "ruff>=0.1.0",
-    "pylint>=3.0.0",
-    "hypothesis>=6.0.0",
-    "pytest-cov>=4.0.0"
+    "pyright>=1.1.0",
+    "hypothesis>=6.0.0"
 ]
 
-# Note: UV scripts will be available in a future version
+# UV scripts will be available in a future version
 # For now, use commands directly:
 # uv run pytest
 # uv run ruff check .
 # uv run ruff check --fix .
-# uv run pylint stageflow
+# uv run pyright
 # uv run ruff format .
 # uv run pytest --cov=stageflow --cov-report=term-missing
 
@@ -85,7 +95,7 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "stageflow"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -93,33 +103,84 @@ addopts = [
     "-v",
     "--strict-markers",
     "--strict-config",
-    "--color=yes"
+    "--color=yes",
+    "--tb=short",
+    "--durations=10",
+    "--cov=stageflow",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-fail-under=90"
 ]
 markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "slow: Slow running tests"
+    "unit: Fast unit tests that test individual components in isolation",
+    "integration: Integration tests that test multiple components working together",
+    "property: Property-based tests using Hypothesis to validate invariants",
+    "slow: Tests that take longer than 1 second to complete",
+    "database: Tests that require database access or setup",
+    "external: Tests that require external services or network access",
+    "benchmark: Performance benchmarking tests",
+    "asyncio: Tests that use async/await functionality",
+    "mock: Tests that heavily use mocking",
+    "regression: Tests that verify bug fixes remain fixed",
+    "smoke: Quick smoke tests for basic functionality"
 ]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+minversion = "7.0"
+asyncio_mode = "auto"
 
-[tool.pylint.messages_control]
-disable = [
-    "too-few-public-methods",
-    "too-many-arguments",
-    "line-too-long"  # handled by ruff
-]
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+include = ["stageflow"]
+exclude = ["tests", "**/__pycache__"]
 
 [tool.coverage.run]
 source = ["stageflow"]
 omit = [
     "stageflow/examples/*",
-    "tests/*"
+    "tests/*",
+    "*/__init__.py",
+    "*/migrations/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/site-packages/*",
+    "*/.pytest_cache/*",
+    "*/htmlcov/*"
 ]
+branch = true
+concurrency = ["thread", "multiprocessing"]
+parallel = true
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
+    "def __str__",
     "raise AssertionError",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:"
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "@overload",
+    "\\.\\.\\."
 ]
+fail_under = 90
+show_missing = true
+skip_covered = false
+skip_empty = true
+sort = "Cover"
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"
+show_contexts = true
+
+[tool.coverage.xml]
+output = "coverage.xml"
