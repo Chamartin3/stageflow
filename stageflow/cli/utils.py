@@ -4,7 +4,7 @@ import json
 
 import click
 
-from stageflow.core.result import StatusResult
+from stageflow.process.result import StatusResult
 
 
 def handle_error(error: Exception, verbose: bool = False):

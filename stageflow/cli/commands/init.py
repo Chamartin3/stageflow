@@ -6,7 +6,7 @@ from typing import Any
 import click
 
 from stageflow.cli.utils import handle_error
-from stageflow.loaders.yaml_loader import YamlLoader
+from stageflow.process.schema.loaders.yaml import YamlLoader
 
 
 @click.command()

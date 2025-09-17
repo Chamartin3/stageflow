@@ -5,8 +5,8 @@ from pathlib import Path
 import click
 
 from stageflow.cli.utils import handle_error
-from stageflow.loaders import load_process
-from stageflow.validation import ProcessLinter
+from stageflow.process.schema.loaders import load_process
+from stageflow.process.validation import ProcessValidator
 
 
 @click.command()
@@ -59,8 +59,8 @@ def validate_command(
         # Validate process
         if verbose:
             click.echo("Validating process structure...")
-        linter = ProcessLinter()
-        result = linter.lint_process(process)
+        validator = ProcessValidator()
+        result = validator.validate_process(process)
 
         # Filter by severity
         severity_order = {"error": 0, "warning": 1, "info": 2}

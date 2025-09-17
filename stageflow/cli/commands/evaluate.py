@@ -7,7 +7,7 @@ import click
 
 from stageflow.cli.utils import format_result, handle_error
 from stageflow.core.element import DictElement
-from stageflow.loaders import load_process
+from stageflow.process.schema.loaders import load_process
 
 
 @click.command()

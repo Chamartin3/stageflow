@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 
 from stageflow.cli.utils import handle_error
-from stageflow.loaders import load_process
+from stageflow.process.schema.loaders import load_process
 
 
 @click.command()
