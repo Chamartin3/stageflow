@@ -1,0 +1,8 @@
+
+⚠️ Evaluation Result
+   Current Stage: registration
+   Status: action_required
+   Possible Transitions:
+     • To transition via 'email_verification' to stage 'profile_setup':
+         → Property 'email' should match pattern '^+@+\.{2,}$' but is 
+'not-a-valid-email'

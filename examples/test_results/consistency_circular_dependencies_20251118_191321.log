@@ -1,0 +1,19 @@
+
+❌ Process: circular_dependencies (Invalid)
+   Initial Stage: stage_a
+   Final Stage: stage_d
+   Total Stages: 4
+
+Stages:
+├─ stage_a → stage_b
+├─ stage_b → stage_c
+├─ stage_c → stage_a, stage_d
+└─ stage_d → stage_b (final)
+
+❌ Consistency Issues:
+   • Circular dependency detected: stages can transition in a cycle without 
+reaching the final stage
+   • Circular dependency detected: stages can transition in a cycle without 
+reaching the final stage
+
+⚠️  This process is not valid for execution due to the above consistency issues.

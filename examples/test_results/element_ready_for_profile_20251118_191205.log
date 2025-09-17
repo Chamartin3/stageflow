@@ -1,0 +1,8 @@
+
+✅ Evaluation Result
+   Current Stage: registration
+   Status: ready
+   Possible Transitions:
+       Element is ready to transition to profile_setup via gate 
+'email_verification'
+   Passed Gate(s): email_verification

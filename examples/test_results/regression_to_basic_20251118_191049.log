@@ -1,0 +1,7 @@
+Usage: stageflow evaluate [OPTIONS] SOURCE
+Try 'stageflow evaluate --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ Got unexpected extra argument                                                │
+│ (./examples/case2_element_validation/regression/backward_regression/element_ │
+│ regressed_to_basic.json)                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯

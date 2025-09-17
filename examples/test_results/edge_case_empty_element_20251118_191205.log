@@ -1,0 +1,10 @@
+
+⚠️ Evaluation Result
+   Current Stage: registration
+   Status: action_required
+   Possible Transitions:
+     • To transition via 'email_verification' to stage 'profile_setup':
+         → Property 'email' is required but missing or empty
+         → Property 'email' should match pattern '^+@+\.{2,}$' but is 'None'
+         → Property 'verification.email_verified_at' is required but missing or 
+empty

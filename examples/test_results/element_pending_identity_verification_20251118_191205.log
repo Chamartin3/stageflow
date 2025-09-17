@@ -1,0 +1,10 @@
+
+⚠️ Evaluation Result
+   Current Stage: verification
+   Status: action_required
+   Possible Transitions:
+     • To transition via 'identity_verified' to stage 'active':
+         → Property 'verification.identity_verified_at' is required but missing 
+or empty
+         → Property 'verification.status' should equal 'verified' but is 
+'pending'

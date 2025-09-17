@@ -1,0 +1,22 @@
+
+❌ Process: content_moderation (Invalid)
+   Initial Stage: submitted
+   Final Stage: published
+   Total Stages: 7
+
+Stages:
+├─ submitted → published, under_review, rejected
+├─ published (final)
+├─ under_review → published, rejected, revision_requested, senior_review
+├─ rejected
+├─ revision_requested → under_review, abandoned
+├─ abandoned
+└─ senior_review → published, rejected
+
+❌ Consistency Issues:
+   • Stage 'rejected' cannot reach final stage 'published'
+   • Stage 'abandoned' cannot reach final stage 'published'
+   • Circular dependency detected: stages can transition in a cycle without 
+reaching the final stage
+
+⚠️  This process is not valid for execution due to the above consistency issues.

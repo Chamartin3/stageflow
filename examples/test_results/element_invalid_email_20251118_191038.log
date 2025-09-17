@@ -1,0 +1,7 @@
+Usage: stageflow evaluate [OPTIONS] SOURCE
+Try 'stageflow evaluate --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ Got unexpected extra argument                                                │
+│ (./examples/case2_element_validation/normal_flow/invalid_schema/user_invalid │
+│ _email.json)                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯

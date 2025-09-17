@@ -1,0 +1,9 @@
+
+✅ Process: simple_approval (Valid)
+   Initial Stage: draft
+   Final Stage: approved
+   Total Stages: 2
+
+Stages:
+├─ draft → approved
+└─ approved (final)

@@ -1,0 +1,35 @@
+$schema: http://json-schema.org/draft-07/schema#
+description: 'Schema for stage: delivered'
+properties:
+  cart_id: {type: string}
+  customer_id: {type: string}
+  delivered_at: {type: string}
+  delivery_confirmed: {type: string}
+  items:
+    properties:
+      price: {type: string}
+      product_id: {type: string}
+      quantity: {type: string}
+    type: object
+  order_id: {type: string}
+  order_status: {type: string}
+  payment_method:
+    properties:
+      card_number: {type: string}
+      type: {type: string}
+    required: [card_number, type]
+    type: object
+  processing_started_at: {type: string}
+  shipped_at: {type: string}
+  shipping_address:
+    properties:
+      city: {type: string}
+      street: {type: string}
+      zip_code: {type: string}
+    required: [city, street]
+    type: object
+  tracking_number: {type: string}
+required: [cart_id, customer_id, order_id, payment_method, processing_started_at,
+  shipped_at, shipping_address, tracking_number]
+title: ecommerce_order - delivered (Cumulative)
+type: object

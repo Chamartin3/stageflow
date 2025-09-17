@@ -1,0 +1,7 @@
+
+✅ Evaluation Result
+   Current Stage: verification
+   Status: ready
+   Possible Transitions:
+       Element is ready to transition to active via gate 'identity_verified'
+   Passed Gate(s): identity_verified

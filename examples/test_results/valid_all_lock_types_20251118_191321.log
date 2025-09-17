@@ -1,0 +1,11 @@
+
+✅ Process: comprehensive_validation (Valid)
+   Initial Stage: data_entry
+   Final Stage: validated
+   Total Stages: 4
+
+Stages:
+├─ data_entry → advanced_validation
+├─ advanced_validation → final_checks
+├─ final_checks → validated
+└─ validated (final)

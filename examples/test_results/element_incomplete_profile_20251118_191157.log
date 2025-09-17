@@ -1,0 +1,9 @@
+
+⚠️ Evaluation Result
+   Current Stage: profile_setup
+   Status: action_required
+   Possible Transitions:
+     • To transition via 'profile_completion' to stage 'verification':
+         → Property 'profile.last_name' is required but missing or empty
+         → Property 'profile.last_name' failed validation for lock type 
+'not_empty'

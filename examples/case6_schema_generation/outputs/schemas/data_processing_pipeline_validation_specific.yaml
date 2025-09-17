@@ -1,0 +1,18 @@
+$schema: http://json-schema.org/draft-07/schema#
+description: 'Schema for stage: validation'
+properties:
+  dataset_id: {type: string}
+  estimated_size_mb: {type: string}
+  ingestion_timestamp: {type: string}
+  quality_score: {type: string}
+  raw_data_format: {type: string}
+  source_system: {type: string}
+  validation_completed_at: {type: string}
+  validation_rules:
+    properties:
+      field_name: {type: string}
+      rule_type: {type: string}
+    type: object
+required: [quality_score]
+title: data_processing_pipeline - validation (Stage-Specific)
+type: object

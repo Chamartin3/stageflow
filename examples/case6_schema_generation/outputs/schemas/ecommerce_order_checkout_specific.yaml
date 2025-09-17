@@ -1,0 +1,27 @@
+$schema: http://json-schema.org/draft-07/schema#
+description: 'Schema for stage: checkout'
+properties:
+  cart_id: {type: string}
+  customer_id: {type: string}
+  items:
+    properties:
+      price: {type: string}
+      product_id: {type: string}
+      quantity: {type: string}
+    type: object
+  payment_method:
+    properties:
+      card_number: {type: string}
+      type: {type: string}
+    required: [card_number, type]
+    type: object
+  shipping_address:
+    properties:
+      city: {type: string}
+      street: {type: string}
+      zip_code: {type: string}
+    required: [city, street]
+    type: object
+required: [payment_method, shipping_address]
+title: ecommerce_order - checkout (Stage-Specific)
+type: object

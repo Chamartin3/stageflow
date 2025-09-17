@@ -1,0 +1,12 @@
+✗ Failed to load process from: 
+examples/case1_process_creation/invalid_structure/malformed_syntax.yaml
+  Status: file_error
+  Errors: 1
+
+Errors:
+  1. Failed to read file: while scanning a simple key
+  in "examples/case1_process_creation/invalid_structure/malformed_syntax.yaml", 
+line 26, column 5
+could not find expected ':'
+  in "examples/case1_process_creation/invalid_structure/malformed_syntax.yaml", 
+line 27, column 13

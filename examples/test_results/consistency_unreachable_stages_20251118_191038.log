@@ -1,0 +1,28 @@
+
+❌ Process: unreachable_stages (Invalid)
+   Initial Stage: start
+   Final Stage: reachable_end
+   Total Stages: 7
+
+Stages:
+├─ start → middle
+├─ middle → reachable_end
+├─ reachable_end (final)
+├─ isolated_stage_1 → isolated_stage_2
+├─ isolated_stage_2 → isolated_stage_1
+├─ orphaned_stage
+└─ dead_end
+
+❌ Consistency Issues:
+   • Stage 'isolated_stage_1' cannot reach final stage 'reachable_end'
+   • Stage 'isolated_stage_2' cannot reach final stage 'reachable_end'
+   • Stage 'orphaned_stage' cannot reach final stage 'reachable_end'
+   • Stage 'dead_end' cannot reach final stage 'reachable_end'
+   • Stage 'orphaned_stage' has no gates, is not marked as final, and is not 
+referenced by any other stage
+   • Stage 'dead_end' has no gates, is not marked as final, and is not 
+referenced by any other stage
+   • Circular dependency detected: stages can transition in a cycle without 
+reaching the final stage
+
+⚠️  This process is not valid for execution due to the above consistency issues.

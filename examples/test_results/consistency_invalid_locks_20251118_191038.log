@@ -1,0 +1,9 @@
+✗ Failed to load process from: 
+examples/case1_process_creation/consistency_errors/invalid_locks.yaml
+  Status: validation_error
+  Errors: 2
+
+Errors:
+  1. Final stage 'nonexistent_final' not found in stages
+  2. Validation error: Process must have a valid final stage 
+('nonexistent_final' not found)

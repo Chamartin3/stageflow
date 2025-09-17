@@ -1,0 +1,8 @@
+✗ Failed to load process from: 
+examples/case1_process_creation/invalid_structure/missing_required.yaml
+  Status: validation_error
+  Errors: 2
+
+Errors:
+  1. Process missing required field: 'name'
+  2. Process missing required field: 'final_stage'

@@ -1,0 +1,8 @@
+✗ Failed to load process from: 
+examples/case1_process_creation/invalid_structure/invalid_locks.yaml
+  Status: file_error
+  Errors: 1
+
+Errors:
+  1. Process file not found: 
+examples/case1_process_creation/invalid_structure/invalid_locks.yaml

@@ -1,0 +1,8 @@
+
+⚠️ Evaluation Result
+   Current Stage: registration
+   Status: action_required
+   Possible Transitions:
+     • To transition via 'email_verification' to stage 'profile_setup':
+         → Property 'verification.email_verified_at' is required but missing or 
+empty

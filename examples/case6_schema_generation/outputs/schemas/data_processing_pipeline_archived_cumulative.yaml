@@ -1,0 +1,41 @@
+$schema: http://json-schema.org/draft-07/schema#
+description: 'Schema for stage: archived'
+properties:
+  archive_location: {type: string}
+  archive_timestamp: {type: string}
+  dataset_id: {type: string}
+  enrichment_completed_at: {type: string}
+  enrichment_sources:
+    properties:
+      name: {type: string}
+      record_count: {type: string}
+    type: object
+  estimated_size_mb: {type: string}
+  final_quality_score: {type: string}
+  ingestion_timestamp: {type: string}
+  quality_score: {type: string}
+  raw_data_format: {type: string}
+  source_system: {type: string}
+  total_processing_time_ms: {type: string}
+  transformation_config:
+    properties:
+      field_mappings:
+        properties:
+          source_field: {type: string}
+          target_field: {type: string}
+        type: object
+      output_format: {type: string}
+    required: [output_format]
+    type: object
+  transformation_duration_ms: {type: string}
+  transformed_record_count: {type: string}
+  validation_completed_at: {type: string}
+  validation_rules:
+    properties:
+      field_name: {type: string}
+      rule_type: {type: string}
+    type: object
+required: [dataset_id, final_quality_score, ingestion_timestamp, quality_score, 
+      source_system, transformation_config, transformed_record_count]
+title: data_processing_pipeline - archived (Cumulative)
+type: object

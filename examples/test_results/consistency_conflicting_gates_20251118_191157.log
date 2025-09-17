@@ -1,0 +1,21 @@
+
+❌ Process: conflicting_gates (Invalid)
+   Initial Stage: start
+   Final Stage: end
+   Total Stages: 5
+
+Stages:
+├─ start → middle_a, middle_b, impossible_stage
+├─ middle_a → end
+├─ end (final)
+├─ middle_b → end
+└─ impossible_stage → end
+
+❌ Consistency Issues:
+   • Gate 'impossible_path' in stage 'start' has conflicting conditions for 
+property 'value': EQUALS 75 conflicts with GREATER_THAN 100; EQUALS 75 conflicts
+with LESS_THAN 50; GREATER_THAN 100 conflicts with LESS_THAN 50
+   • Gate 'finish_path_a' in stage 'middle_a' has conflicting conditions for 
+property 'completion_status': multiple EQUALS conditions (done, pending)
+
+⚠️  This process is not valid for execution due to the above consistency issues.

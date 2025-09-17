@@ -1,0 +1,20 @@
+$schema: http://json-schema.org/draft-07/schema#
+description: 'Schema for stage: profile_completion'
+properties:
+  address:
+    properties:
+      city: {type: string}
+      country: {type: string}
+    required: [city, country]
+    type: object
+  date_of_birth: {type: string}
+  email: {type: string}
+  email_verified_at: {type: string}
+  first_name: {type: string}
+  last_name: {type: string}
+  password: {type: string}
+  phone_number: {type: string}
+  verification_token: {type: string}
+required: [address, date_of_birth, phone_number]
+title: simple_user_profile - profile_completion (Stage-Specific)
+type: object

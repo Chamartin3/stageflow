@@ -1,0 +1,22 @@
+
+❌ Process: ecommerce_order_processing (Invalid)
+   Initial Stage: cart
+   Final Stage: completed
+   Total Stages: 8
+
+Stages:
+├─ cart → checkout
+├─ checkout → payment_processing
+├─ payment_processing → fulfillment, payment_retry
+├─ fulfillment → shipped
+├─ shipped → completed
+├─ completed (final)
+├─ payment_retry → payment_processing, abandoned
+└─ abandoned
+
+❌ Consistency Issues:
+   • Stage 'abandoned' cannot reach final stage 'completed'
+   • Circular dependency detected: stages can transition in a cycle without 
+reaching the final stage
+
+⚠️  This process is not valid for execution due to the above consistency issues.

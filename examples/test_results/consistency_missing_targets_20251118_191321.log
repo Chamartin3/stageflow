@@ -1,0 +1,20 @@
+
+❌ Process: missing_targets (Invalid)
+   Initial Stage: start
+   Final Stage: unreachable_final
+   Total Stages: 4
+
+Stages:
+├─ start → middle
+├─ middle → start, dead_end
+├─ dead_end
+└─ unreachable_final (final)
+
+❌ Consistency Issues:
+   • Stage 'start' cannot reach final stage 'unreachable_final'
+   • Stage 'middle' cannot reach final stage 'unreachable_final'
+   • Stage 'dead_end' cannot reach final stage 'unreachable_final'
+   • Circular dependency detected: stages can transition in a cycle without 
+reaching the final stage
+
+⚠️  This process is not valid for execution due to the above consistency issues.
