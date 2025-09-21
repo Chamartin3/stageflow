@@ -1,15 +1,29 @@
-"""Pytest configuration and fixtures for StageFlow tests."""
+"""Pytest configuration and fixtures for StageFlow tests.
+
+This module provides shared fixtures and pytest configuration for the StageFlow
+test suite. It imports fixtures from specialized modules and provides backwards
+compatibility with existing tests.
+"""
 
 from typing import Any
 
 import pytest
 
 from stageflow.core.element import DictElement
-from stageflow.core.gate import Gate, GateLogic
-from stageflow.core.lock import Lock, LockType
-from stageflow.core.process import Process
-from stageflow.core.schema import ItemSchema
 from stageflow.core.stage import Stage
+from stageflow.gates import Gate, GateOperation, Lock, LockType
+from stageflow.process import Process
+from stageflow.process.schema.core import ItemSchema
+
+# Import fixtures from specialized modules
+# These imports make fixtures available to all test modules
+pytest_plugins = [
+    "tests.fixtures.core_models",
+    "tests.fixtures.sample_data",
+    "tests.fixtures.process_schemas",
+    "tests.fixtures.mock_objects",
+    "tests.fixtures.parameters"
+]
 
 
 @pytest.fixture
@@ -69,7 +83,7 @@ def basic_gate(basic_lock) -> Gate:
     return Gate(
         name="basic_validation",
         locks=[basic_lock],
-        logic=GateLogic.AND,
+        logic=GateOperation.AND,
     )
 
 
@@ -79,7 +93,7 @@ def email_gate(email_lock) -> Gate:
     return Gate(
         name="email_validation",
         locks=[email_lock],
-        logic=GateLogic.AND,
+        logic=GateOperation.AND,
     )
 
 
@@ -115,7 +129,7 @@ def multi_stage_process(basic_stage) -> Process:
     profile_gate = Gate(
         name="profile_complete",
         locks=[profile_lock],
-        logic=GateLogic.AND,
+        logic=GateOperation.AND,
     )
     profile_stage = Stage(
         name="profile_setup",
@@ -130,7 +144,7 @@ def multi_stage_process(basic_stage) -> Process:
     verification_gate = Gate(
         name="email_verified",
         locks=[verification_lock],
-        logic=GateLogic.AND,
+        logic=GateOperation.AND,
     )
     verification_stage = Stage(
         name="verification",
@@ -219,3 +233,11 @@ def complex_element_data() -> dict[str, Any]:
 def complex_element(complex_element_data) -> DictElement:
     """Complex element for testing advanced scenarios."""
     return DictElement(complex_element_data)
+
+
+# Note: The fixtures below are maintained for backwards compatibility with existing tests.
+# New tests should use the more comprehensive fixtures from the fixtures/ modules which provide:
+# - Broader coverage of edge cases and scenarios
+# - Better organization by domain (core models, sample data, schemas, mocks)
+# - Parameterized fixtures for comprehensive testing
+# - Factory fixtures for dynamic test data generation
