@@ -4,8 +4,110 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from stageflow.core.element import Element
-from stageflow.core.gate import Gate, GateResult
-from stageflow.core.schema import ItemSchema
+from stageflow.gates import Gate, GateResult
+from stageflow.process.result import Action, ActionType, Priority
+from stageflow.process.schema.core import ItemSchema
+
+
+@dataclass(frozen=True)
+class ActionDefinition:
+    """
+    Declarative action definition for stage states.
+
+    Defines what actions should be generated when the stage
+    is in a specific evaluation state.
+    """
+
+    type: ActionType
+    description: str
+    priority: Priority = Priority.NORMAL
+    conditions: list[str] = field(default_factory=list)
+    template_vars: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def resolve_action(self, element: Element, context: dict[str, Any] | None = None) -> Action:
+        """
+        Resolve this action definition into a concrete Action.
+
+        Args:
+            element: The element being evaluated
+            context: Additional context for template resolution
+
+        Returns:
+            Resolved Action instance
+        """
+        resolved_description = self._resolve_template(self.description, element, context or {})
+        resolved_conditions = [self._resolve_template(cond, element, context or {}) for cond in self.conditions]
+        resolved_metadata = {
+            key: self._resolve_template(str(value), element, context or {}) if isinstance(value, str) else value
+            for key, value in self.metadata.items()
+        }
+
+        return Action(
+            type=self.type,
+            description=resolved_description,
+            priority=self.priority,
+            conditions=resolved_conditions,
+            metadata=resolved_metadata
+        )
+
+    def _resolve_template(self, template: str, element: Element, context: dict[str, Any]) -> str:
+        """
+        Resolve template variables in a string.
+
+        Args:
+            template: Template string with variables like {field_name}
+            element: Element for property resolution
+            context: Additional context variables
+
+        Returns:
+            Resolved string
+        """
+        # Create variable mapping
+        variables = {}
+
+        # Add template variables
+        for var_name, property_path in self.template_vars.items():
+            try:
+                value = element.get_property(property_path)
+                variables[var_name] = str(value) if value is not None else ""
+            except Exception:
+                variables[var_name] = ""
+
+        # Add context variables
+        variables.update(context)
+
+        # Simple template resolution (can be enhanced with proper templating engine)
+        try:
+            return template.format(**variables)
+        except (KeyError, ValueError):
+            return template
+
+
+@dataclass(frozen=True)
+class StageActionDefinitions:
+    """
+    Collection of action definitions for different stage evaluation states.
+    """
+
+    fulfilling: list[ActionDefinition] = field(default_factory=list)
+    qualifying: list[ActionDefinition] = field(default_factory=list)
+    awaiting: list[ActionDefinition] = field(default_factory=list)
+    advancing: list[ActionDefinition] = field(default_factory=list)
+    regressing: list[ActionDefinition] = field(default_factory=list)
+    completed: list[ActionDefinition] = field(default_factory=list)
+
+    def get_actions_for_state(self, state: str) -> list[ActionDefinition]:
+        """Get action definitions for a specific evaluation state."""
+        state_map = {
+            "fulfilling": self.fulfilling,
+            "qualifying": self.qualifying,
+            "awaiting": self.awaiting,
+            "advancing": self.advancing,
+            "regressing": self.regressing,
+            "completed": self.completed,
+        }
+        return state_map.get(state, [])
 
 
 @dataclass(frozen=True)
@@ -50,6 +152,7 @@ class Stage:
     schema: ItemSchema | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     allow_partial: bool = False  # Whether partial gate fulfillment is acceptable
+    action_definitions: StageActionDefinitions = field(default_factory=StageActionDefinitions)
 
     def __post_init__(self):
         """Validate stage configuration after initialization."""
@@ -237,3 +340,22 @@ class Stage:
             return f"Stage '{self.name}'{schema_desc} with no gates{partial_desc}"
 
         return f"Stage '{self.name}' with {gate_count} gate(s){schema_desc}{partial_desc}"
+
+    def resolve_actions_for_state(self, state: str, element: Element, context: dict[str, Any] | None = None) -> list[Action]:
+        """
+        Resolve declarative action definitions for a specific evaluation state.
+
+        Args:
+            state: The evaluation state (fulfilling, qualifying, etc.)
+            element: The element being evaluated
+            context: Additional context for template resolution
+
+        Returns:
+            List of resolved Action instances
+        """
+        action_definitions = self.action_definitions.get_actions_for_state(state)
+        return [action_def.resolve_action(element, context) for action_def in action_definitions]
+
+    def has_action_definitions_for_state(self, state: str) -> bool:
+        """Check if this stage has action definitions for a specific state."""
+        return len(self.action_definitions.get_actions_for_state(state)) > 0
