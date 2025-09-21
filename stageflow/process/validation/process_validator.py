@@ -1,13 +1,17 @@
-"""Process schema validation and linting for StageFlow."""
+"""Process schema validation for StageFlow."""
 
 from dataclasses import dataclass
 from enum import Enum
 
-from stageflow.core.process import Process
+# Lazy import to avoid circular dependency
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    pass
 
 
-class LintSeverity(Enum):
-    """Severity levels for lint messages."""
+class ValidationSeverity(Enum):
+    """Severity levels for validation messages."""
 
     ERROR = "error"
     WARNING = "warning"
@@ -15,10 +19,10 @@ class LintSeverity(Enum):
 
 
 @dataclass(frozen=True)
-class LintMessage:
-    """Individual lint message."""
+class ValidationMessage:
+    """Individual validation message."""
 
-    severity: LintSeverity
+    severity: ValidationSeverity
     code: str
     message: str
     location: str
@@ -26,21 +30,21 @@ class LintMessage:
 
 
 @dataclass(frozen=True)
-class LintResult:
-    """Result of process linting."""
+class ProcessValidationResult:
+    """Result of process validation."""
 
     process_name: str
-    messages: list[LintMessage]
+    messages: list[ValidationMessage]
     errors: int
     warnings: int
     info: int
 
     @classmethod
-    def from_messages(cls, process_name: str, messages: list[LintMessage]) -> "LintResult":
-        """Create LintResult from list of messages."""
-        errors = sum(1 for msg in messages if msg.severity == LintSeverity.ERROR)
-        warnings = sum(1 for msg in messages if msg.severity == LintSeverity.WARNING)
-        info = sum(1 for msg in messages if msg.severity == LintSeverity.INFO)
+    def from_messages(cls, process_name: str, messages: list[ValidationMessage]) -> "ProcessValidationResult":
+        """Create ProcessValidationResult from list of messages."""
+        errors = sum(1 for msg in messages if msg.severity == ValidationSeverity.ERROR)
+        warnings = sum(1 for msg in messages if msg.severity == ValidationSeverity.WARNING)
+        info = sum(1 for msg in messages if msg.severity == ValidationSeverity.INFO)
 
         return cls(
             process_name=process_name,
@@ -61,16 +65,16 @@ class LintResult:
         return len(self.messages) == 0
 
 
-class ProcessLinter:
+class ProcessValidator:
     """
-    Comprehensive linter for StageFlow processes.
+    Comprehensive validator for StageFlow processes.
 
     Validates process structure, checks for common issues, and provides
     actionable suggestions for improvement.
     """
 
     def __init__(self):
-        """Initialize linter with default rules."""
+        """Initialize validator with default rules."""
         self._rules = [
             self._check_stage_reachability,
             self._check_dead_end_stages,
@@ -79,38 +83,40 @@ class ProcessLinter:
             self._check_gate_logic,
             self._check_naming_conventions,
             self._check_schema_consistency,
+            self._check_stage_ordering,
+            self._check_transition_validity,
         ]
 
-    def lint_process(self, process: Process) -> LintResult:
+    def validate_process(self, process: Any) -> ProcessValidationResult:
         """
-        Lint a process for structural and semantic issues.
+        Validate a process for structural and semantic issues.
 
         Args:
-            process: Process to lint
+            process: Any to validate
 
         Returns:
-            LintResult with findings and suggestions
+            ProcessValidationResult with findings and suggestions
         """
         messages = []
 
-        # Run all linting rules
+        # Run all validation rules
         for rule in self._rules:
             try:
                 rule_messages = rule(process)
                 messages.extend(rule_messages)
             except Exception as e:
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.ERROR,
-                        code="LINT_ERROR",
-                        message=f"Linting rule failed: {str(e)}",
+                    ValidationMessage(
+                        severity=ValidationSeverity.ERROR,
+                        code="VALIDATION_ERROR",
+                        message=f"Validation rule failed: {str(e)}",
                         location="process",
                     )
                 )
 
-        return LintResult.from_messages(process.name, messages)
+        return ProcessValidationResult.from_messages(process.name, messages)
 
-    def _check_stage_reachability(self, process: Process) -> list[LintMessage]:
+    def _check_stage_reachability(self, process: Any) -> list[ValidationMessage]:
         """Check if all stages are reachable."""
         messages = []
 
@@ -130,8 +136,8 @@ class ProcessLinter:
                 # Check for property continuity
                 if prev_props.isdisjoint(curr_props):
                     messages.append(
-                        LintMessage(
-                            severity=LintSeverity.WARNING,
+                        ValidationMessage(
+                            severity=ValidationSeverity.WARNING,
                             code="UNREACHABLE_STAGE",
                             message=f"Stage '{stage_name}' may be unreachable from '{prev_stage_name}'",
                             location=f"stage.{stage_name}",
@@ -141,7 +147,7 @@ class ProcessLinter:
 
         return messages
 
-    def _check_dead_end_stages(self, process: Process) -> list[LintMessage]:
+    def _check_dead_end_stages(self, process: Any) -> list[ValidationMessage]:
         """Check for stages that cannot advance."""
         messages = []
 
@@ -157,8 +163,8 @@ class ProcessLinter:
             # Check if there's any way to progress
             if stage_props.isdisjoint(next_props):
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.WARNING,
+                    ValidationMessage(
+                        severity=ValidationSeverity.WARNING,
                         code="DEAD_END_STAGE",
                         message=f"Stage '{stage.name}' has no property continuity to next stage",
                         location=f"stage.{stage.name}",
@@ -168,7 +174,7 @@ class ProcessLinter:
 
         return messages
 
-    def _check_circular_dependencies(self, process: Process) -> list[LintMessage]:
+    def _check_circular_dependencies(self, process: Any) -> list[ValidationMessage]:
         """Check for circular dependencies in stage flow."""
         messages = []
 
@@ -177,8 +183,8 @@ class ProcessLinter:
         for stage_name in process.stage_order:
             if stage_name in seen_stages:
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.ERROR,
+                    ValidationMessage(
+                        severity=ValidationSeverity.ERROR,
                         code="CIRCULAR_DEPENDENCY",
                         message=f"Stage '{stage_name}' appears multiple times in process order",
                         location=f"stage.{stage_name}",
@@ -189,7 +195,7 @@ class ProcessLinter:
 
         return messages
 
-    def _check_property_coverage(self, process: Process) -> list[LintMessage]:
+    def _check_property_coverage(self, process: Any) -> list[ValidationMessage]:
         """Check for unused or missing property coverage."""
         messages = []
 
@@ -207,8 +213,8 @@ class ProcessLinter:
             using_stages = [name for name, props in stage_properties.items() if prop in props]
             if len(using_stages) == 1:
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.INFO,
+                    ValidationMessage(
+                        severity=ValidationSeverity.INFO,
                         code="SINGLE_USE_PROPERTY",
                         message=f"Property '{prop}' only used by stage '{using_stages[0]}'",
                         location=f"property.{prop}",
@@ -218,7 +224,7 @@ class ProcessLinter:
 
         return messages
 
-    def _check_gate_logic(self, process: Process) -> list[LintMessage]:
+    def _check_gate_logic(self, process: Any) -> list[ValidationMessage]:
         """Check gate logic for common issues."""
         messages = []
 
@@ -227,8 +233,8 @@ class ProcessLinter:
                 # Check for gates with only one lock using AND logic
                 if len(gate.locks) == 1 and gate.logic.value == "and":
                     messages.append(
-                        LintMessage(
-                            severity=LintSeverity.INFO,
+                        ValidationMessage(
+                            severity=ValidationSeverity.INFO,
                             code="UNNECESSARY_AND_LOGIC",
                             message=f"Gate '{gate.name}' has only one lock but uses AND logic",
                             location=f"stage.{stage.name}.gate.{gate.name}",
@@ -239,8 +245,8 @@ class ProcessLinter:
                 # Check for gates with no locks
                 if len(gate.locks) == 0:
                     messages.append(
-                        LintMessage(
-                            severity=LintSeverity.ERROR,
+                        ValidationMessage(
+                            severity=ValidationSeverity.ERROR,
                             code="EMPTY_GATE",
                             message=f"Gate '{gate.name}' contains no locks",
                             location=f"stage.{stage.name}.gate.{gate.name}",
@@ -250,15 +256,15 @@ class ProcessLinter:
 
         return messages
 
-    def _check_naming_conventions(self, process: Process) -> list[LintMessage]:
+    def _check_naming_conventions(self, process: Any) -> list[ValidationMessage]:
         """Check naming conventions for consistency."""
         messages = []
 
         # Check process name
         if not process.name or not process.name.strip():
             messages.append(
-                LintMessage(
-                    severity=LintSeverity.ERROR,
+                ValidationMessage(
+                    severity=ValidationSeverity.ERROR,
                     code="EMPTY_PROCESS_NAME",
                     message="Process has empty or missing name",
                     location="process",
@@ -270,8 +276,8 @@ class ProcessLinter:
         for stage in process.stages:
             if not stage.name or not stage.name.strip():
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.ERROR,
+                    ValidationMessage(
+                        severity=ValidationSeverity.ERROR,
                         code="EMPTY_STAGE_NAME",
                         message="Stage has empty or missing name",
                         location="stage",
@@ -282,8 +288,8 @@ class ProcessLinter:
             # Check for stage names with spaces (may cause issues)
             if " " in stage.name:
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.WARNING,
+                    ValidationMessage(
+                        severity=ValidationSeverity.WARNING,
                         code="STAGE_NAME_SPACES",
                         message=f"Stage name '{stage.name}' contains spaces",
                         location=f"stage.{stage.name}",
@@ -293,7 +299,7 @@ class ProcessLinter:
 
         return messages
 
-    def _check_schema_consistency(self, process: Process) -> list[LintMessage]:
+    def _check_schema_consistency(self, process: Any) -> list[ValidationMessage]:
         """Check schema definitions for consistency."""
         messages = []
 
@@ -311,13 +317,130 @@ class ProcessLinter:
         for schema_name, stage_names in schemas_with_same_name.items():
             if len(stage_names) > 1:
                 messages.append(
-                    LintMessage(
-                        severity=LintSeverity.INFO,
+                    ValidationMessage(
+                        severity=ValidationSeverity.INFO,
                         code="DUPLICATE_SCHEMA_NAME",
                         message=f"Schema '{schema_name}' used by multiple stages: {', '.join(stage_names)}",
                         location=f"schema.{schema_name}",
                         suggestion="Verify schemas are truly identical or use unique names",
                     )
                 )
+
+        return messages
+
+    def _check_stage_ordering(self, process: Any) -> list[ValidationMessage]:
+        """Check stage ordering for logical consistency."""
+        messages = []
+
+        # Check if initial_stage exists and is in the process
+        if process.initial_stage:
+            if not process.get_stage(process.initial_stage):
+                messages.append(
+                    ValidationMessage(
+                        severity=ValidationSeverity.ERROR,
+                        code="INVALID_INITIAL_STAGE",
+                        message=f"Initial stage '{process.initial_stage}' not found in process",
+                        location="process.initial_stage",
+                        suggestion="Set initial_stage to an existing stage name or remove it",
+                    )
+                )
+            elif process.initial_stage != process.stage_order[0]:
+                messages.append(
+                    ValidationMessage(
+                        severity=ValidationSeverity.WARNING,
+                        code="INITIAL_STAGE_NOT_FIRST",
+                        message=f"Initial stage '{process.initial_stage}' is not first in stage order",
+                        location="process.initial_stage",
+                        suggestion="Consider reordering stages or updating initial_stage",
+                    )
+                )
+
+        # Check if final_stage exists and is in the process
+        if process.final_stage:
+            if not process.get_stage(process.final_stage):
+                messages.append(
+                    ValidationMessage(
+                        severity=ValidationSeverity.ERROR,
+                        code="INVALID_FINAL_STAGE",
+                        message=f"Final stage '{process.final_stage}' not found in process",
+                        location="process.final_stage",
+                        suggestion="Set final_stage to an existing stage name or remove it",
+                    )
+                )
+            elif process.final_stage != process.stage_order[-1]:
+                messages.append(
+                    ValidationMessage(
+                        severity=ValidationSeverity.WARNING,
+                        code="FINAL_STAGE_NOT_LAST",
+                        message=f"Final stage '{process.final_stage}' is not last in stage order",
+                        location="process.final_stage",
+                        suggestion="Consider reordering stages or updating final_stage",
+                    )
+                )
+
+        # Check for single-stage processes
+        if len(process.stages) == 1:
+            messages.append(
+                ValidationMessage(
+                    severity=ValidationSeverity.INFO,
+                    code="SINGLE_STAGE_PROCESS",
+                    message="Process contains only one stage",
+                    location="process.stages",
+                    suggestion="Consider if this process really needs multi-stage validation",
+                )
+            )
+
+        return messages
+
+    def _check_transition_validity(self, process: Any) -> list[ValidationMessage]:
+        """Check validity of stage transitions."""
+        messages = []
+
+        if len(process.stages) <= 1:
+            return messages
+
+        # Check if stage skipping is disabled but transitions would require it
+        if not process.allow_stage_skipping:
+            for i, stage_name in enumerate(process.stage_order[:-1]):
+                next_stage_name = process.stage_order[i + 1]
+                current_stage = process.get_stage(stage_name)
+                next_stage = process.get_stage(next_stage_name)
+
+                if current_stage and next_stage:
+                    # Check if there's a logical progression path
+                    current_props = current_stage.get_required_properties()
+                    next_props = next_stage.get_required_properties()
+
+                    # If no property overlap, might be difficult to progress
+                    if current_props.isdisjoint(next_props):
+                        messages.append(
+                            ValidationMessage(
+                                severity=ValidationSeverity.WARNING,
+                                code="DIFFICULT_TRANSITION",
+                                message=f"No property overlap between '{stage_name}' and '{next_stage_name}'",
+                                location=f"stage.{stage_name}",
+                                suggestion="Ensure stages have logical progression or enable stage skipping",
+                            )
+                        )
+
+        # Check for stages that can never be reached due to strict ordering
+        if not process.allow_stage_skipping and len(process.stage_order) > 2:
+            for i, stage_name in enumerate(process.stage_order[1:-1], 1):
+                prev_stage_name = process.stage_order[i - 1]
+                prev_stage = process.get_stage(prev_stage_name)
+                current_stage = process.get_stage(stage_name)
+
+                if prev_stage and current_stage:
+                    # Check if progression from previous stage is possible
+                    if not prev_stage.gates:
+                        messages.append(
+                            ValidationMessage(
+                                severity=ValidationSeverity.WARNING,
+                                code="UNGATED_INTERMEDIATE_STAGE",
+                                message=f"Stage '{prev_stage_name}' has no gates but is not final",
+                                location=f"stage.{prev_stage_name}",
+                                suggestion="Add gates to control progression or reconsider stage order",
+                            )
+                        )
 
         return messages
