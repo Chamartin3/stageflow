@@ -5,14 +5,15 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from stageflow.process.main import Process
-    from stageflow.core.stage import Stage
+    from stageflow.core.stage import Stage, ActionDefinition, StageActionDefinitions
 
 from ruamel.yaml import YAML
 from ruamel.yaml.constructor import ConstructorError
 from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 
-from stageflow.gates import Gate, GateOperation, Lock, LockType
+from stageflow.gates import Gate, Lock, LockType
+from stageflow.gates.lock import LockFactory
 from stageflow.process.schema.core import ItemSchema
 from stageflow.process.schema.models import (
     ValidationContext,
@@ -361,9 +362,9 @@ class YamlLoader:
                         gate_data = gate_def.copy()
                         gate_data["name"] = gate_name
 
-                        # Transform gate logic to uppercase
+                        # Reject deprecated logic field
                         if "logic" in gate_data:
-                            gate_data["logic"] = gate_data["logic"].upper()
+                            raise ValueError(f"Gate '{gate_name}' contains deprecated 'logic' field. Gates are now AND-only by design. Remove the 'logic' field.")
 
                         # Transform locks to expected format
                         if "locks" in gate_data and isinstance(gate_data["locks"], list):
@@ -409,22 +410,25 @@ class YamlLoader:
 
     def _validate_schema_legacy(self, data: dict[str, Any], file_path: str | None) -> None:
         """Legacy schema validation for backward compatibility."""
+        # Handle process wrapper
+        process_data = data.get("process", data)
+
         # Required top-level fields
-        if "name" not in data:
+        if "name" not in process_data:
             raise YAMLSchemaError(
                 "Process definition must include 'name' field",
                 file_path=file_path
             )
 
-        if not isinstance(data["name"], str) or not data["name"].strip():
+        if not isinstance(process_data["name"], str) or not process_data["name"].strip():
             raise YAMLSchemaError(
                 "Process 'name' must be a non-empty string",
                 file_path=file_path
             )
 
         # Validate stages structure
-        if "stages" in data:
-            stages = data["stages"]
+        if "stages" in process_data:
+            stages = process_data["stages"]
             if not isinstance(stages, dict):
                 raise YAMLSchemaError(
                     "'stages' must be a dictionary",
@@ -435,16 +439,16 @@ class YamlLoader:
                 self._validate_stage_schema(stage_name, stage_def, file_path)
 
         # Validate stage_order if present
-        if "stage_order" in data:
-            stage_order = data["stage_order"]
+        if "stage_order" in process_data:
+            stage_order = process_data["stage_order"]
             if not isinstance(stage_order, list):
                 raise YAMLSchemaError(
                     "'stage_order' must be a list",
                     file_path=file_path
                 )
 
-            if "stages" in data:
-                stage_names = set(data["stages"].keys())
+            if "stages" in process_data:
+                stage_names = set(process_data["stages"].keys())
                 missing_stages = set(stage_order) - stage_names
                 if missing_stages:
                     raise YAMLSchemaError(
@@ -480,12 +484,12 @@ class YamlLoader:
                 file_path=file_path
             )
 
-        # Validate logic if present
-        if "logic" in gate_def:
-            logic = gate_def["logic"]
-            if logic not in ["and", "or", "not"]:
+        # Validate target_stage if present
+        if "target_stage" in gate_def:
+            target_stage = gate_def["target_stage"]
+            if not isinstance(target_stage, str) or not target_stage.strip():
                 raise YAMLSchemaError(
-                    f"Invalid gate logic '{logic}' in gate '{gate_name}' of stage '{stage_name}'. Must be 'and', 'or', or 'not'",
+                    f"target_stage in gate '{gate_name}' of stage '{stage_name}' must be a non-empty string",
                     file_path=file_path
                 )
 
@@ -511,21 +515,21 @@ class YamlLoader:
                 file_path=file_path
             )
 
-        # Required fields
-        if "property" not in lock_def:
+        # Required fields (support both old and new formats)
+        if "property" not in lock_def and "property_path" not in lock_def:
             raise YAMLSchemaError(
-                f"Lock at {location} must include 'property' field",
+                f"Lock at {location} must include 'property' or 'property_path' field",
                 file_path=file_path
             )
 
-        if "type" not in lock_def:
+        if "type" not in lock_def and "lock_type" not in lock_def:
             raise YAMLSchemaError(
-                f"Lock at {location} must include 'type' field",
+                f"Lock at {location} must include 'type' or 'lock_type' field",
                 file_path=file_path
             )
 
-        # Validate lock type
-        lock_type = lock_def["type"]
+        # Validate lock type (support both formats)
+        lock_type = lock_def.get("type") or lock_def.get("lock_type")
         valid_types = [t.value for t in LockType]
         if lock_type not in valid_types:
             raise YAMLSchemaError(
@@ -550,25 +554,28 @@ class YamlLoader:
         file_path = str(self._current_file) if self._current_file else None
 
         try:
+            # Handle process wrapper
+            process_data = data.get("process", data)
+
             # Transform data to match ProcessConfig structure
             config: ProcessConfig = {
-                "name": data["name"],
-                "stages": self._parse_stages_to_config(data.get("stages", {})),
+                "name": process_data["name"],
+                "stages": self._parse_stages_to_config(process_data.get("stages", {})),
             }
 
             # Add optional fields
-            if "stage_order" in data:
-                config["stage_order"] = data["stage_order"]
-            if "initial_stage" in data:
-                config["initial_stage"] = data["initial_stage"]
-            if "final_stage" in data:
-                config["final_stage"] = data["final_stage"]
-            if "allow_stage_skipping" in data:
-                config["allow_stage_skipping"] = data["allow_stage_skipping"]
-            if "regression_detection" in data:
-                config["regression_detection"] = data["regression_detection"]
-            if "metadata" in data:
-                config["metadata"] = data["metadata"]
+            if "stage_order" in process_data:
+                config["stage_order"] = process_data["stage_order"]
+            if "initial_stage" in process_data:
+                config["initial_stage"] = process_data["initial_stage"]
+            if "final_stage" in process_data:
+                config["final_stage"] = process_data["final_stage"]
+            if "allow_stage_skipping" in process_data:
+                config["allow_stage_skipping"] = process_data["allow_stage_skipping"]
+            if "regression_detection" in process_data:
+                config["regression_detection"] = process_data["regression_detection"]
+            if "metadata" in process_data:
+                config["metadata"] = process_data["metadata"]
 
             return config
 
@@ -690,10 +697,11 @@ class YamlLoader:
         for gate_name, gate_def in gates_data.items():
             gate_config = {
                 "name": gate_name,
-                "operation": gate_def.get("logic", "and").upper(),
                 "components": gate_def.get("locks", [])
             }
 
+            if "target_stage" in gate_def:
+                gate_config["target_stage"] = gate_def["target_stage"]
             if "metadata" in gate_def:
                 gate_config["metadata"] = gate_def["metadata"]
 
@@ -755,15 +763,6 @@ class YamlLoader:
         locks = []
         gate_name = gate_config["name"]
 
-        # Parse logic
-        logic_str = gate_config.get("operation", "and").lower()
-        try:
-            logic = GateOperation(logic_str)
-        except ValueError:
-            raise YAMLSchemaError(
-                f"Invalid gate logic '{logic_str}' for gate '{gate_name}'"
-            )
-
         # Parse locks from components
         components_data = gate_config.get("components", [])
         for i, lock_def in enumerate(components_data):
@@ -771,14 +770,14 @@ class YamlLoader:
             locks.append(lock)
 
         # Wrap locks in LockWrapper to make them evaluable
-        from stageflow.core.gate import LockWrapper
+        from stageflow.gates.gate import LockWrapper
         components = [LockWrapper(lock) for lock in locks]
 
-        return Gate(
+        return Gate.create(
+            *locks,
             name=gate_name,
-            operation=logic,
-            components=components,
-            metadata=gate_config.get("metadata", {}),
+            target_stage=gate_config.get("target_stage"),
+            **gate_config.get("metadata", {})
         )
 
     def _parse_stage(self, stage_name: str, stage_def: dict[str, Any]) -> "Stage":
@@ -854,16 +853,6 @@ class YamlLoader:
         locks = []
 
         try:
-            # Parse logic
-            logic_str = gate_def.get("logic", "and").lower()
-            try:
-                logic = GateOperation(logic_str)
-            except ValueError:
-                raise YAMLSchemaError(
-                    f"Invalid gate logic '{logic_str}' for gate '{gate_name}'",
-                    file_path=file_path
-                )
-
             # Parse locks
             locks_data = gate_def.get("locks", [])
             # Validation is already done in validate_schema
@@ -872,15 +861,12 @@ class YamlLoader:
                 lock = self._parse_lock(lock_def, f"{gate_name}[{i}]")
                 locks.append(lock)
 
-            # Wrap locks in LockWrapper to make them evaluable
-            from stageflow.core.gate import LockWrapper
-            components = [LockWrapper(lock) for lock in locks]
-
-            return Gate(
+            # Create gate using new unified format
+            return Gate.create(
+                *locks,
                 name=gate_name,
-                operation=logic,
-                components=components,
-                metadata=gate_def.get("metadata", {}),
+                target_stage=gate_def.get("target_stage"),
+                **gate_def.get("metadata", {})
             )
         except Exception as e:
             if isinstance(e, (YAMLLoadError, YAMLSchemaError)):
@@ -907,37 +893,15 @@ class YamlLoader:
         file_path = str(self._current_file) if self._current_file else None
 
         try:
-            # Validation is already done in validate_schema
-            property_path = lock_def["property"]
-            type_str = lock_def["type"].lower()
-
-            try:
-                lock_type = LockType(type_str)
-            except ValueError:
-                raise YAMLSchemaError(
-                    f"Invalid lock type '{type_str}' at {location}",
-                    file_path=file_path
-                )
-
-            expected_value = lock_def.get("value")
-            validator_name = lock_def.get("validator")
-
-            return Lock(
-                property_path,
-                lock_type,
-                expected_value,
-                validator_name,
-                lock_def.get("metadata", {}),
-            )
+            # Use LockFactory to handle both old and new syntax formats
+            return LockFactory.create_lock(lock_def)
         except Exception as e:
-            if isinstance(e, (YAMLLoadError, YAMLSchemaError)):
-                raise
             raise YAMLSchemaError(
                 f"Failed to parse lock at {location}: {str(e)}",
                 file_path=file_path
             ) from e
 
-    def _parse_action_definitions(self, action_defs_data: dict[str, Any]) -> "StageActionDefinitions":
+    def _parse_action_definitions(self, action_defs_data: dict[str, Any]):
         """
         Parse action definitions from dictionary with enhanced error handling.
 
@@ -1098,14 +1062,13 @@ class YamlLoader:
 
             for gate in stage.gates:
                 gate_data = {
-                    "logic": gate.operation.value,
                     "metadata": gate.metadata,
                     "locks": [],
                 }
 
                 # Extract locks from LockWrapper components
                 for component in gate.components:
-                    from stageflow.core.gate import LockWrapper
+                    from stageflow.gates.gate import LockWrapper
                     if isinstance(component, LockWrapper):
                         lock = component.lock
                         lock_data = {

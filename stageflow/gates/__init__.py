@@ -50,7 +50,6 @@ from stageflow.gates.lock import (
 
 from stageflow.gates.gate import (
     Gate,
-    GateOperation,
     GateResult,
     Evaluable,
     LockWrapper,
@@ -101,7 +100,6 @@ __all__ = [
 
     # Core gate functionality
     "Gate",
-    "GateOperation",
     "GateResult",
     "Evaluable",
     "LockWrapper",

@@ -113,7 +113,7 @@ def _generate_text_visualization(process, include_details: bool) -> str:
         if include_details and stage.gates:
             for j, gate in enumerate(stage.gates):
                 gate_prefix = "   └─" if j == len(stage.gates) - 1 else "   ├─"
-                lines.append(f"{gate_prefix} Gate: {gate.name} ({gate.logic.value})")
+                lines.append(f"{gate_prefix} Gate: {gate.name}")
 
                 if gate.locks:
                     for k, lock in enumerate(gate.locks):

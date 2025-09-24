@@ -294,10 +294,6 @@ class GateModel(BaseStageFlowModel):
         min_length=1,
         description="List of locks that comprise this gate"
     )
-    logic: Literal["AND", "OR", "XOR", "NAND", "NOR"] = Field(
-        default="AND",
-        description="Boolean logic for combining lock results"
-    )
     target_stage: str | None = Field(
         default=None,
         description="Target stage name for successful gate evaluation"
@@ -769,10 +765,18 @@ def _validate_business_rules(model: StageFlowSchemaModel, context: ValidationCon
 
 def _validate_process_business_rules(process: ProcessModel, context: ValidationContext) -> None:
     """Validate business rules for process definitions."""
+    # Get stages as list regardless of format
+    if isinstance(process.stages, dict):
+        stages_list = list(process.stages.values())
+        stage_names = list(process.stages.keys())
+    else:
+        stages_list = process.stages
+        stage_names = [stage.name for stage in stages_list]
+
     # Check for unreachable stages
-    if len(process.stages) > 1:
-        for i, current_stage in enumerate(process.stages[1:], 1):
-            previous_stage = process.stages[i - 1]
+    if len(stages_list) > 1:
+        for i, current_stage in enumerate(stages_list[1:], 1):
+            previous_stage = stages_list[i - 1]
 
             # Check if there's any way to transition from previous to current
             has_transition = False
@@ -788,7 +792,7 @@ def _validate_process_business_rules(process: ProcessModel, context: ValidationC
                 )
 
     # Validate schema consistency across stages
-    for stage in process.stages:
+    for stage in stages_list:
         context.push_path(f"stages.{stage.name}")
         try:
             _validate_stage_business_rules(stage, context)

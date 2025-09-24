@@ -72,9 +72,8 @@ class MermaidGenerator:
                 stage_node = stage_nodes[stage_name]
                 for j, gate in enumerate(stage.gates):
                     gate_node = f"G{stage_node}{j}"
-                    logic_info = f"Logic: {gate.logic.value}"
                     lock_count = f"Locks: {len(gate.locks)}"
-                    lines.append(f"    {gate_node}[{gate.name}<br/>{logic_info}<br/>{lock_count}]")
+                    lines.append(f"    {gate_node}[{gate.name}<br/>{lock_count}]")
                     lines.append(f"    {stage_node} -.-> {gate_node}")
 
         # Add styling
@@ -114,8 +113,7 @@ class MermaidGenerator:
         else:
             for i, gate in enumerate(stage.gates):
                 gate_node = f"G{i}"
-                logic_desc = gate.logic.value.upper()
-                lines.append(f"    {gate_node}[Gate: {gate.name}<br/>Logic: {logic_desc}]")
+                lines.append(f"    {gate_node}[Gate: {gate.name}]")
                 lines.append(f"    Stage --> {gate_node}")
 
                 if include_locks and gate.locks:

@@ -123,14 +123,12 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "registration": {
                     "gates": {
                         "basic_info": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "email", "type": "exists"},
                                 {"property": "password", "type": "exists"},
                             ],
                         },
                         "email_format": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "email", "type": "regex", "value": r"^[^@]+@[^@]+\.[^@]+$"},
                             ],
@@ -144,7 +142,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "profile_setup": {
                     "gates": {
                         "profile_complete": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "profile.first_name", "type": "exists"},
                                 {"property": "profile.last_name", "type": "exists"},
@@ -156,7 +153,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "verification": {
                     "gates": {
                         "verified": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "email_verified", "type": "equals", "value": True},
                                 {"property": "phone_verified", "type": "equals", "value": True},
@@ -167,7 +163,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "activation": {
                     "gates": {
                         "activated": {
-                            "logic": "and",
                             "locks": [{"property": "status", "type": "equals", "value": "active"}],
                         }
                     },
@@ -183,7 +178,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "draft": {
                     "gates": {
                         "content_ready": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "title", "type": "exists"},
                                 {"property": "content", "type": "exists"},
@@ -195,7 +189,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "review": {
                     "gates": {
                         "reviewed": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "reviewer", "type": "exists"},
                                 {"property": "review_status", "type": "in_list", "value": ["approved", "rejected"]},
@@ -206,7 +199,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "approval": {
                     "gates": {
                         "approved": {
-                            "logic": "and",
                             "locks": [
                                 {"property": "review_status", "type": "equals", "value": "approved"},
                                 {"property": "approver", "type": "exists"},
@@ -217,7 +209,6 @@ def _get_template_data(project_name: str, template: str) -> dict[str, Any]:
                 "published": {
                     "gates": {
                         "live": {
-                            "logic": "and",
                             "locks": [{"property": "published_at", "type": "exists"}],
                         }
                     },

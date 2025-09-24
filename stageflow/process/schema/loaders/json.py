@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from stageflow.process.main import Process
-    from stageflow.core.stage import Stage
+    from stageflow.core.stage import Stage, ActionDefinition, StageActionDefinitions
 
 try:
     import jsonschema
@@ -14,7 +14,8 @@ try:
 except ImportError:
     HAS_JSONSCHEMA = False
 
-from stageflow.gates import Gate, GateOperation, Lock, LockType
+from stageflow.gates import Gate, Lock, LockType
+from stageflow.gates.lock import LockFactory
 from stageflow.process.schema.core import ItemSchema
 from stageflow.process.schema.models import (
     ValidationContext,
@@ -405,14 +406,12 @@ class JsonLoader:
                 file_path=file_path
             )
 
-        # Validate logic if present
+        # Reject deprecated logic field
         if "logic" in gate_def:
-            logic = gate_def["logic"]
-            if logic not in ["and", "or", "not"]:
-                raise JSONSchemaError(
-                    f"Invalid gate logic '{logic}' in gate '{gate_name}' of stage '{stage_name}'. Must be 'and', 'or', or 'not'",
-                    file_path=file_path
-                )
+            raise JSONSchemaError(
+                f"Gate '{gate_name}' in stage '{stage_name}' contains deprecated 'logic' field. Gates are now AND-only by design. Remove the 'logic' field.",
+                file_path=file_path
+            )
 
         # Validate locks if present
         if "locks" in gate_def:
@@ -793,15 +792,6 @@ class JsonLoader:
         locks = []
         gate_name = gate_config["name"]
 
-        # Parse logic
-        logic_str = gate_config.get("operation", "and").lower()
-        try:
-            logic = GateOperation(logic_str)
-        except ValueError:
-            raise JSONSchemaError(
-                f"Invalid gate logic '{logic_str}' for gate '{gate_name}'"
-            )
-
         # Parse locks from components
         components_data = gate_config.get("components", [])
         for i, lock_def in enumerate(components_data):
@@ -809,13 +799,12 @@ class JsonLoader:
             locks.append(lock)
 
         # Wrap locks in LockWrapper to make them evaluable
-        from stageflow.core.gate import LockWrapper
+        from stageflow.gates.gate import LockWrapper
         components = [LockWrapper(lock) for lock in locks]
 
         return Gate(
             name=gate_name,
-            operation=logic,
-            components=components,
+            components=tuple(components),
             metadata=gate_config.get("metadata", {}),
         )
 
@@ -892,16 +881,6 @@ class JsonLoader:
         locks = []
 
         try:
-            # Parse logic
-            logic_str = gate_def.get("logic", "and").lower()
-            try:
-                logic = GateOperation(logic_str)
-            except ValueError as e:
-                raise JSONSchemaError(
-                    f"Invalid gate logic '{logic_str}' for gate '{gate_name}'",
-                    file_path=file_path
-                ) from e
-
             # Parse locks
             locks_data = gate_def.get("locks", [])
             # Validation is already done in validate_schema
@@ -911,13 +890,12 @@ class JsonLoader:
                 locks.append(lock)
 
             # Wrap locks in LockWrapper to make them evaluable
-            from stageflow.core.gate import LockWrapper
+            from stageflow.gates.gate import LockWrapper
             components = [LockWrapper(lock) for lock in locks]
 
             return Gate(
                 name=gate_name,
-                operation=logic,
-                components=components,
+                components=tuple(components),
                 metadata=gate_def.get("metadata", {}),
             )
         except Exception as e:
@@ -945,31 +923,9 @@ class JsonLoader:
         file_path = str(self._current_file) if self._current_file else None
 
         try:
-            # Validation is already done in validate_schema
-            property_path = lock_def["property"]
-            type_str = lock_def["type"].lower()
-
-            try:
-                lock_type = LockType(type_str)
-            except ValueError as e:
-                raise JSONSchemaError(
-                    f"Invalid lock type '{type_str}' at {location}",
-                    file_path=file_path
-                ) from e
-
-            expected_value = lock_def.get("value")
-            validator_name = lock_def.get("validator")
-
-            return Lock(
-                property_path,
-                lock_type,
-                expected_value,
-                validator_name,
-                lock_def.get("metadata", {}),
-            )
+            # Use LockFactory to handle both old and new syntax formats
+            return LockFactory.create_lock(lock_def)
         except Exception as e:
-            if isinstance(e, (JSONLoadError, JSONSchemaError)):
-                raise
             raise JSONSchemaError(
                 f"Failed to parse lock at {location}: {str(e)}",
                 file_path=file_path
@@ -1127,7 +1083,7 @@ class JsonLoader:
 
                 # Extract locks from LockWrapper components
                 for component in gate.components:
-                    from stageflow.core.gate import LockWrapper
+                    from stageflow.gates.gate import LockWrapper
                     if isinstance(component, LockWrapper):
                         lock = component.lock
                         lock_data = {

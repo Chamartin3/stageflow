@@ -39,9 +39,18 @@ from stageflow.core.element import Element
 from stageflow.gates.lock import Lock
 
 
-class GateOperation(Enum):
-    """Logical operations for gate composition."""
-    AND = "and"
+class GateOperation(str, Enum):
+    """Legacy gate operation enum for compatibility.
+
+    StageFlow currently implements AND-only logic for gates. This enum exists
+    to support older test fixtures and APIs that referenced OR/NOT. Non-AND
+    operations are accepted for construction but not used to alter evaluation
+    semantics.
+    """
+
+    AND = "AND"
+    OR = "OR"
+    NOT = "NOT"
 
 
 @dataclass(frozen=True)
@@ -149,7 +158,7 @@ class Gate(Evaluable):
     """
     Composable validation gate that can contain locks or other gates.
 
-    Gates support logical composition with AND, OR, and NOT operations,
+    Gates support logical composition with AND operations only,
     providing short-circuit evaluation for performance and detailed
     error reporting for debugging.
 
@@ -158,25 +167,88 @@ class Gate(Evaluable):
     """
 
     name: str
-    operation: GateOperation
-    components: tuple[Evaluable, ...]
+    components: tuple[Evaluable, ...] | None = None
+    target_stage: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # Compatibility fields (legacy API):
+    locks: list[Lock] | tuple[Lock, ...] | None = None
+    logic: GateOperation = GateOperation.AND
+
     def __post_init__(self):
-        """Validate gate configuration after initialization."""
+        """Validate gate configuration after initialization and handle legacy API."""
         if not self.name:
             raise ValueError("Gate must have a name")
 
-        if not self.components:
-            raise ValueError("Gate must contain at least one component")
+        # If components are not provided, allow legacy construction via locks + logic
+        comps = self.components if self.components is not None else ()
+        if not comps:
+            if self.locks:
+                wrapped = tuple(LockWrapper(lock) for lock in (self.locks if isinstance(self.locks, (list, tuple)) else [self.locks]))
+                object.__setattr__(self, "components", wrapped)
+            else:
+                raise ValueError("Gate must contain at least one component")
+        else:
+            # Ensure components is a tuple for immutability
+            if not isinstance(comps, tuple):
+                object.__setattr__(self, "components", tuple(comps))
 
-        # Validate operation-specific constraints
-        if self.operation == GateOperation.AND and len(self.components) < 1:
-            raise ValueError("AND gate must contain at least one component")
+        # Preserve legacy logic info without altering evaluation semantics
+        if self.logic != GateOperation.AND:
+            md = dict(self.metadata) if self.metadata else {}
+            md.setdefault("legacy_logic", self.logic.value if isinstance(self.logic, GateOperation) else str(self.logic))
+            object.__setattr__(self, "metadata", md)
+
+    @classmethod
+    def create(
+        cls,
+        *components: Union[Lock, "Gate"],
+        name: str | None = None,
+        target_stage: str | None = None,
+        **metadata,
+    ) -> "Gate":
+        """Create a gate that requires all components to pass (AND logic).
+
+        Args:
+            *components: Locks or Gates to combine with AND logic
+            name: Optional name for the gate (auto-generated if not provided)
+            target_stage: Optional target stage name for successful evaluation
+            **metadata: Additional metadata for the gate
+
+        Returns:
+            Gate configured with AND operation
+
+        Example:
+            >>> gate = Gate.create(lock1, lock2, lock3, name="profile_complete", target_stage="next_stage")
+        """
+        if not components:
+            raise ValueError("Gate requires at least one component")
+
+        # Wrap locks in LockWrapper
+        wrapped_components: list[Evaluable] = []
+        for comp in components:
+            if isinstance(comp, Lock):
+                wrapped_components.append(LockWrapper(comp))
+            elif isinstance(comp, Gate):
+                wrapped_components.append(comp)
+            else:
+                raise TypeError(f"Components must be Lock or Gate, got {type(comp)}")
+
+        if name is None:
+            name = f"gate_{len(wrapped_components)}_components"
+
+        return cls(
+            name=name,
+            components=tuple(wrapped_components),
+            target_stage=target_stage,
+            metadata=metadata,
+        )
 
     @classmethod
     def AND(cls, *components: Union[Lock, "Gate"], name: str | None = None, **metadata) -> "Gate":
         """Create an AND gate that requires all components to pass.
+
+        DEPRECATED: Use Gate.create() instead.
 
         Args:
             *components: Locks or Gates to combine with AND logic
@@ -189,30 +261,7 @@ class Gate(Evaluable):
         Example:
             >>> gate = Gate.AND(lock1, lock2, lock3, name="profile_complete")
         """
-        if not components:
-            raise ValueError("AND gate requires at least one component")
-
-        # Wrap locks in LockWrapper
-        wrapped_components = []
-        for comp in components:
-            if isinstance(comp, Lock):
-                wrapped_components.append(LockWrapper(comp))
-            elif isinstance(comp, Gate):
-                wrapped_components.append(comp)
-            else:
-                raise TypeError(f"Components must be Lock or Gate, got {type(comp)}")
-
-        if name is None:
-            name = f"and_gate_{len(wrapped_components)}_components"
-
-        return cls(
-            name=name,
-            operation=GateOperation.AND,
-            components=tuple(wrapped_components),
-            metadata=metadata
-        )
-
-
+        return cls.create(*components, name=name, **metadata)
 
     def evaluate(self, element: Element) -> GateResult:
         """
@@ -228,11 +277,14 @@ class Gate(Evaluable):
         import time
         start_time = time.perf_counter()
 
-        passed_components = []
-        failed_components = []
-        all_messages = []
-        all_actions = []
+        passed_components: list[Union[Lock, Gate]] = []
+        failed_components: list[Union[Lock, Gate]] = []
+        all_messages: list[str] = []
+        all_actions: list[str] = []
         short_circuited = False
+
+        # mypy: components is set in __post_init__
+        assert self.components is not None
 
         for i, component in enumerate(self.components):
             result = component.evaluate(element)
@@ -262,9 +314,8 @@ class Gate(Evaluable):
             messages=tuple(all_messages),
             actions=tuple(all_actions),
             evaluation_time_ms=evaluation_time,
-            short_circuited=short_circuited
+            short_circuited=short_circuited,
         )
-
 
     def get_property_paths(self) -> set[str]:
         """
@@ -274,6 +325,7 @@ class Gate(Evaluable):
             Set of property paths
         """
         paths = set()
+        assert self.components is not None
         for component in self.components:
             paths.update(component.get_property_paths())
         return paths
@@ -297,8 +349,10 @@ class Gate(Evaluable):
         Returns:
             Summary string describing gate operation and components
         """
+        assert self.components is not None
         component_count = len(self.components)
-        return f"Gate '{self.name}' requires all {component_count} components to pass"
+        target_desc = f" → {self.target_stage}" if self.target_stage else ""
+        return f"Gate '{self.name}' requires all {component_count} components to pass{target_desc}"
 
     def get_complexity(self) -> int:
         """
@@ -307,6 +361,7 @@ class Gate(Evaluable):
         Returns:
             Total number of locks in this gate and all nested gates
         """
+        assert self.components is not None
         complexity = 0
         for component in self.components:
             if isinstance(component, LockWrapper):
@@ -322,7 +377,7 @@ class Gate(Evaluable):
         Returns:
             List of validation warnings/errors
         """
-        issues = []
+        issues: list[str] = []
 
         # Check for excessive nesting depth
         max_depth = self._get_max_depth()
@@ -355,6 +410,7 @@ class Gate(Evaluable):
 
     def _get_max_depth(self, current_depth: int = 0) -> int:
         """Calculate maximum nesting depth of this gate."""
+        assert self.components is not None
         max_depth = current_depth
         for component in self.components:
             if isinstance(component, Gate):

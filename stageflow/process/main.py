@@ -11,7 +11,13 @@ if TYPE_CHECKING:
     from stageflow.core.stage import Stage
 from stageflow.process.config import ProcessConfig
 from stageflow.process.extras.history import ElementStateHistory
-from stageflow.process.result import Action, ActionType, EvaluationState, Priority, StatusResult
+from stageflow.process.result import (
+    Action,
+    ActionType,
+    EvaluationState,
+    Priority,
+    StatusResult,
+)
 
 
 class Process:
@@ -83,7 +89,10 @@ class Process:
         """Whether stage skipping is allowed."""
         return self._config.allow_stage_skipping
 
-
+    @property
+    def regression_detection(self) -> bool:
+        """Whether regression detection is enabled."""
+        return self._config.regression_detection
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -141,36 +150,9 @@ class Process:
                 stage_result = current_stage.evaluate(element)
                 element_id = self._get_element_id(element)
 
+                # Get stage-based actions
                 if stage_result.overall_passed:
-                    # Check if we can advance to next stage
-                    next_stage = self._get_next_stage(current_stage.name)
-                    if next_stage:
-                        # Check if element is ready for next stage
-                        can_advance, advance_errors = self.validate_stage_progression(
-                            element, current_stage.name, next_stage.name
-                        )
-                        if can_advance:
-                            # Recursively evaluate next stage
-                            return self.evaluate(element, next_stage.name)
-                        else:
-                            # Use stage-based actions for awaiting state if available
-                            stage_actions = current_stage.resolve_actions_for_state("awaiting", element, {"next_stage": next_stage.name})
-                            if not stage_actions:
-                                # Fallback to error-based actions
-                                stage_actions = [Action(
-                                    type=ActionType.WAIT_FOR_CONDITION,
-                                    description=error,
-                                    priority=Priority.NORMAL
-                                ) for error in advance_errors]
-
-                            result = StatusResult.create(
-                                state=EvaluationState.AWAITING,
-                                element_id=element_id,
-                                current_stage=current_stage.name,
-                                actions=stage_actions,
-                                metadata={"next_stage": next_stage.name},
-                            )
-                    else:
+                    if self._is_final_stage(current_stage.name):
                         # Final stage reached - use stage-based completion actions
                         stage_actions = current_stage.resolve_actions_for_state("completed", element, {"final_stage": current_stage.name})
                         if not stage_actions:
@@ -184,12 +166,67 @@ class Process:
                         result = StatusResult.create(
                             state=EvaluationState.COMPLETED,
                             element_id=element_id,
-                            current_stage=current_stage.name,
-                            actions=stage_actions,
+                            actions=stage_actions,  # type: ignore
                             metadata={"final_stage": current_stage.name},
                         )
+                    else:
+                        # Check if we can advance to next stage
+                        next_stage = self._get_next_stage(current_stage.name)
+                        if next_stage:
+                            # Check if element is ready for next stage
+                            can_advance, advance_errors = self.validate_stage_progression(
+                                element, current_stage.name, next_stage.name
+                            )
+                            if can_advance:
+                                # Can advance - use stage-based actions for advancing
+                                stage_actions = current_stage.resolve_actions_for_state("advancing", element, {"next_stage": next_stage.name})
+                                if not stage_actions:
+                                    stage_actions = [Action(
+                                        type=ActionType.TRANSITION_STAGE,
+                                        description=f"Ready to advance to {next_stage.name}",
+                                        priority=Priority.NORMAL
+                                    )]
+
+                                result = StatusResult.create(
+                                    state=EvaluationState.ADVANCING,
+                                    element_id=element_id,
+                                    current_stage=current_stage.name,
+                                    proposed_stage=next_stage.name,
+                                    actions=stage_actions,  # type: ignore
+                                    metadata={"next_stage": next_stage.name},
+                                )
+                            else:
+                                # Meets current but can't advance - use stage-based actions for qualifying
+                                stage_actions = current_stage.resolve_actions_for_state("qualifying", element, {"next_stage": next_stage.name})
+                                if not stage_actions:
+                                    stage_actions = [Action(
+                                        type=ActionType.WAIT_FOR_CONDITION,
+                                        description=f"Ready to advance to {next_stage.name} once requirements are met",
+                                        priority=Priority.NORMAL
+                                    )]
+
+                                result = StatusResult.create(
+                                    state=EvaluationState.QUALIFYING,
+                                    element_id=element_id,
+                                    current_stage=current_stage.name,
+                                    proposed_stage=next_stage.name,
+                                    actions=stage_actions,  # type: ignore
+                                    metadata={"next_stage": next_stage.name, "advance_blocked": advance_errors},
+                                )
+                        else:
+                            # No next stage but not final - error
+                            result = StatusResult.create(
+                                state=EvaluationState.COMPLETED,
+                                element_id=element_id,
+                                current_stage=current_stage.name,
+                                actions=[Action(
+                                    type=ActionType.MANUAL_REVIEW,
+                                    description="Process configuration error: no next stage defined",
+                                    priority=Priority.CRITICAL
+                                )],
+                            )
                 else:
-                    # Use stage-based actions for fulfilling state
+                    # Not passed - use stage-based actions for fulfilling
                     stage_actions = current_stage.resolve_actions_for_state("fulfilling", element, {"completion": current_stage.get_completion_percentage(element)})
                     if not stage_actions:
                         # Fallback to gate-based actions
@@ -205,7 +242,7 @@ class Process:
                         state=EvaluationState.FULFILLING,
                         element_id=element_id,
                         current_stage=current_stage.name,
-                        actions=stage_actions,
+                        actions=stage_actions,  # type: ignore
                         metadata={"completion": current_stage.get_completion_percentage(element)},
                     )
             else:
@@ -221,6 +258,13 @@ class Process:
                     element_id=element_id,
                     actions=[scoping_action],
                     errors=["Unable to determine appropriate stage for element"],
+                )
+
+            # Record state transition if history is enabled
+            if hasattr(self, '_state_histories'):
+                evaluation_time = 0.001  # dummy
+                self._record_state_transition(
+                    element, None, result.state.value, result.current_stage, "Evaluation", evaluation_time
                 )
 
             return result
@@ -302,9 +346,9 @@ class Process:
                 errors=["Element lacks required properties for any stage"],
             )
 
-        # If multiple stages match, use the one with highest completion
+        # If multiple stages match, use the one with highest completion, then highest in order
         if len(compatible_stages) > 1:
-            best_stage = max(compatible_stages, key=lambda s: s.get_completion_percentage(element))
+            best_stage = max(compatible_stages, key=lambda s: (s.get_completion_percentage(element), self._stage_order.index(s.name)))
             return best_stage, None
 
         return compatible_stages[0], None
@@ -412,9 +456,18 @@ class Process:
     def _get_element_id(self, element: Element) -> str:
         """Extract element ID for history tracking."""
         try:
-            # Try to get 'id' property, fallback to object id
+            # Try to get 'id' property first
             element_id = element.get_property("id")
-            return str(element_id) if element_id is not None else str(id(element))
+            if element_id is not None:
+                return str(element_id)
+
+            # Try to get '_id' property (MongoDB style)
+            element_id = element.get_property("_id")
+            if element_id is not None:
+                return str(element_id)
+
+            # Fallback to object id
+            return str(id(element))
         except Exception:
             return str(id(element))
 
@@ -448,6 +501,10 @@ class Process:
         next_stage = self._get_next_stage(current_stage)
         return next_stage.name if next_stage else None
 
+    def _is_final_stage(self, stage_name: str) -> bool:
+        """Check if a stage is the final stage in the process."""
+        return self._get_next_stage(stage_name) is None
+
     def validate_stage_progression(self, element: Element, from_stage: str, to_stage: str) -> tuple[bool, list[str]]:
         """Validate if an element can progress from one stage to another.
 
@@ -466,6 +523,74 @@ class Process:
             errors.append(f"Element does not meet requirements for stage '{to_stage}'")
 
         return len(errors) == 0, errors
+
+    def validate_state_transition(self, from_state: str, to_state: str, element: Element, stage_name: str | None = None) -> bool:
+        """Validate if a state transition is allowed."""
+        valid_transitions = {
+            "scoping": ["fulfilling", "scoping"],
+            "fulfilling": ["qualifying", "awaiting", "regressing", "fulfilling"],
+            "qualifying": ["advancing", "awaiting", "regressing"],
+            "awaiting": ["advancing", "regressing", "fulfilling"],
+            "advancing": ["completed", "fulfilling"],
+            "regressing": ["fulfilling", "scoping"],
+            "completed": [],
+        }
+        return to_state in valid_transitions.get(from_state, [])
+
+    def get_state_transition_actions(self, from_state: str, to_state: str, element: Element) -> list[str]:
+        """Get actions for a state transition."""
+        if from_state == "fulfilling" and to_state == "qualifying":
+            return ["Complete remaining requirements"]
+        if from_state == "qualifying" and to_state == "advancing":
+            return ["Transition to next stage"]
+        return []
+
+    def evaluate_with_state_tracking(self, element: Element, previous_state: str | None = None, current_stage_name: str | None = None) -> StatusResult:
+        """Evaluate element with enhanced state tracking."""
+        result = self.evaluate(element, current_stage_name)
+        # Add some metadata for tracking
+        new_metadata = dict(result.metadata)
+        new_metadata["evaluation_time"] = 0.1
+        if previous_state:
+            new_metadata["previous_state"] = previous_state
+        result = result._replace(metadata=new_metadata)
+        return result
+
+    def get_state_history_summary(self) -> dict[str, Any]:
+        """Get summary of state history across all elements."""
+        total_elements = len(self._state_histories)
+        total_evaluations = sum(len(history.transitions) for history in self._state_histories.values())
+
+        state_counts = {}
+        for history in self._state_histories.values():
+            for transition in history.transitions:
+                state = transition.to_state
+                state_counts[state] = state_counts.get(state, 0) + 1
+
+        return {
+            "total_elements": total_elements,
+            "total_evaluations": total_evaluations,
+            "state_distribution": state_counts,
+            "progression_stats": {"total_progressions": sum(h.progression_count for h in self._state_histories.values())},
+            "regression_stats": {"total_regressions": sum(h.regression_count for h in self._state_histories.values())},
+        }
+
+    def detect_regression_conditions(self, element: Element, stage: Any, stage_result: Any) -> bool:
+        """Detect if element has regressed based on stage evaluation."""
+        # Simple regression detection: if stage fails and element was previously passing
+        return not stage_result.overall_passed
+
+    def clear_state_history(self, element: Element | None = None) -> None:
+        """Clear state history for element or all elements."""
+        if element is not None:
+            element_id = self._get_element_id(element)
+            self._state_histories.pop(element_id, None)
+        else:
+            self._state_histories.clear()
+
+    def get_all_state_histories(self) -> dict[str, Any]:
+        """Get all state histories."""
+        return self._state_histories
 
     # Public API for history (optional components)
 

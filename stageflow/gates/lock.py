@@ -25,7 +25,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 # Custom validator registry
 _custom_validators: dict[str, Callable[[Any, Any], bool]] = {}
@@ -181,7 +181,13 @@ class Lock:
     data integrity and proper access control.
     """
 
-    def __init__(self, lock_type_or_path: LockType | str, property_path_or_type: str | LockType = None, expected_value: Any = None, validator_name: str | None = None, metadata: dict[str, Any] | None = None) -> None:
+    lock_type: LockType
+    property_path: str
+    expected_value: Any
+    validator_name: str | None
+    metadata: dict[str, Any]
+
+    def __init__(self, lock_type_or_path: LockType | str, property_path_or_type: str | LockType, expected_value: Any = None, validator_name: str | None = None, metadata: dict[str, Any] | None = None) -> None:
         """
         Initialize Lock with LockType and property path.
 
@@ -200,7 +206,7 @@ class Lock:
         if isinstance(lock_type_or_path, LockType):
             # New signature: Lock(lock_type, property_path, ...)
             self.lock_type = lock_type_or_path
-            self.property_path = property_path_or_type
+            self.property_path = cast(str, property_path_or_type)
         elif isinstance(lock_type_or_path, str) and isinstance(property_path_or_type, LockType):
             # Legacy signature: Lock(property_path, lock_type, ...)
             self.property_path = lock_type_or_path
@@ -723,6 +729,158 @@ class Lock:
         return f"Fix validation for {self.property_path}"
 
 
+
+
+class LockFactory:
+    """
+    Factory for creating Lock instances from various syntax formats.
+
+    Supports simplified shorthand syntax for common lock patterns while
+    maintaining backward compatibility with verbose lock definitions.
+    """
+
+    @staticmethod
+    def create_lock(lock_def: dict[str, Any] | str) -> Lock:
+        """
+        Create a Lock instance from various syntax formats.
+
+        Args:
+            lock_def: Lock definition in any supported format
+
+        Returns:
+            Lock instance
+
+        Raises:
+            ValueError: If lock definition is invalid or unsupported
+        """
+        if isinstance(lock_def, str):
+            # Handle string-based shorthand (future extension)
+            return LockFactory._parse_string_shorthand(lock_def)
+        elif isinstance(lock_def, dict):
+            if LockFactory._is_shorthand_syntax(lock_def):
+                return LockFactory._parse_shorthand(lock_def)
+            elif LockFactory._is_complex_syntax(lock_def):
+                return LockFactory._parse_complex(lock_def)
+            elif LockFactory._is_legacy_syntax(lock_def):
+                return LockFactory._parse_legacy(lock_def)
+            else:
+                # Check if it's a single key dict with invalid key
+                if len(lock_def) == 1:
+                    key, value = next(iter(lock_def.items()))
+                    shorthand_keys = {"exists", "is_true", "is_false"}
+                    complex_keys = {"regex", "range"}
+                    if key in shorthand_keys:
+                        # This should have been caught by _is_shorthand_syntax
+                        pass
+                    elif key in complex_keys:
+                        # This should have been caught by _is_complex_syntax
+                        pass
+                    else:
+                        if isinstance(value, str):
+                            raise ValueError(f"Unknown shorthand key: {key}")
+                        elif isinstance(value, dict):
+                            raise ValueError(f"Unknown complex key: {key}")
+                raise ValueError(f"Unsupported lock definition format: {lock_def}")
+        else:
+            raise ValueError(f"Lock definition must be dict or str, got {type(lock_def)}")
+
+    @staticmethod
+    def _is_shorthand_syntax(lock_def: dict[str, Any]) -> bool:
+        """Check if lock definition uses shorthand syntax."""
+        # Shorthand syntax: single key-value pair like {"exists": "property_path"}
+        if len(lock_def) != 1:
+            return False
+
+        key, value = next(iter(lock_def.items()))
+        shorthand_keys = {"exists", "is_true", "is_false"}
+
+        return key in shorthand_keys and isinstance(value, str)
+
+    @staticmethod
+    def _is_complex_syntax(lock_def: dict[str, Any]) -> bool:
+        """Check if lock definition uses complex nested syntax."""
+        # Complex syntax: single key with dict value like {"regex": {"property_path": "...", "value": "..."}}
+        if len(lock_def) != 1:
+            return False
+
+        key, value = next(iter(lock_def.items()))
+        complex_keys = {"regex", "range"}
+
+        return key in complex_keys and isinstance(value, dict)
+
+    @staticmethod
+    def _is_legacy_syntax(lock_def: dict[str, Any]) -> bool:
+        """Check if lock definition uses legacy verbose syntax."""
+        # Legacy syntax: has "property_path" or "property" and "lock_type" or "type"
+        has_property = "property_path" in lock_def or "property" in lock_def
+        has_type = "lock_type" in lock_def or "type" in lock_def
+
+        return has_property and has_type
+
+    @staticmethod
+    def _parse_shorthand(lock_def: dict[str, Any]) -> Lock:
+        """Parse shorthand syntax into Lock."""
+        key, property_path = next(iter(lock_def.items()))
+
+        if key == "exists":
+            return Lock(LockType.EXISTS, property_path)
+        elif key == "is_true":
+            return Lock(LockType.EQUALS, property_path, True)
+        elif key == "is_false":
+            return Lock(LockType.EQUALS, property_path, False)
+        else:
+            raise ValueError(f"Unknown shorthand key: {key}")
+
+    @staticmethod
+    def _parse_complex(lock_def: dict[str, Any]) -> Lock:
+        """Parse complex nested syntax into Lock."""
+        key, config = next(iter(lock_def.items()))
+
+        if key == "regex":
+            property_path = config.get("property_path")
+            value = config.get("value")
+            if not property_path or value is None:
+                raise ValueError("Regex syntax requires 'property_path' and 'value' fields")
+            return Lock(LockType.REGEX, property_path, value)
+        elif key == "range":
+            property_path = config.get("property_path")
+            min_val = config.get("min")
+            max_val = config.get("max")
+            if not property_path or (min_val is None and max_val is None):
+                raise ValueError("Range syntax requires 'property_path' and at least one of 'min' or 'max'")
+            return Lock(LockType.RANGE, property_path, [min_val, max_val])
+        else:
+            raise ValueError(f"Unknown complex key: {key}")
+
+    @staticmethod
+    def _parse_legacy(lock_def: dict[str, Any]) -> Lock:
+        """Parse legacy verbose syntax into Lock."""
+        # Support both old and new field names
+        property_path = lock_def.get("property") or lock_def.get("property_path")
+        type_str = (lock_def.get("type") or lock_def.get("lock_type", "")).lower()
+
+        try:
+            lock_type = LockType(type_str)
+        except ValueError:
+            raise ValueError(f"Invalid lock type '{type_str}'")
+
+        expected_value = lock_def.get("value") or lock_def.get("expected_value")
+        validator_name = lock_def.get("validator")
+        metadata = lock_def.get("metadata", {})
+
+        return Lock(
+            property_path,
+            lock_type,
+            expected_value,
+            validator_name,
+            metadata
+        )
+
+    @staticmethod
+    def _parse_string_shorthand(lock_def: str) -> Lock:
+        """Parse string-based shorthand syntax (future extension)."""
+        # For now, raise error as this is not implemented
+        raise ValueError(f"String shorthand syntax not yet supported: {lock_def}")
 
 
 # Import here to avoid circular imports

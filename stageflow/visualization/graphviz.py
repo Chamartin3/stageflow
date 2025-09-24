@@ -90,7 +90,7 @@ class GraphvizGenerator:
 
                 for j, gate in enumerate(stage.gates):
                     gate_node = f"gate_{stage_node}_{j}"
-                    gate_label = f"{gate.name}\\n{gate.logic.value}\\n{len(gate.locks)} locks"
+                    gate_label = f"{gate.name}\\n{len(gate.locks)} locks"
                     lines.append(f'        {gate_node} [label="{gate_label}", style=filled, fillcolor=lightyellow];')
 
                 lines.append("    }")
@@ -131,7 +131,7 @@ class GraphvizGenerator:
             # Gate nodes
             for i, gate in enumerate(stage.gates):
                 gate_node = f"gate_{i}"
-                gate_label = f"{gate.name}\\nLogic: {gate.logic.value}"
+                gate_label = f"{gate.name}"
                 lines.append(f'    {gate_node} [label="{gate_label}", style=filled, fillcolor=lightyellow];')
                 lines.append(f"    stage -> {gate_node};")
 

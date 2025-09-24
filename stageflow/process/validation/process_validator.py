@@ -225,23 +225,11 @@ class ProcessValidator:
         return messages
 
     def _check_gate_logic(self, process: Any) -> list[ValidationMessage]:
-        """Check gate logic for common issues."""
+        """Check gate structure for common issues."""
         messages = []
 
         for stage in process.stages:
             for gate in stage.gates:
-                # Check for gates with only one lock using AND logic
-                if len(gate.locks) == 1 and gate.logic.value == "and":
-                    messages.append(
-                        ValidationMessage(
-                            severity=ValidationSeverity.INFO,
-                            code="UNNECESSARY_AND_LOGIC",
-                            message=f"Gate '{gate.name}' has only one lock but uses AND logic",
-                            location=f"stage.{stage.name}.gate.{gate.name}",
-                            suggestion="Consider simplifying gate logic for single locks",
-                        )
-                    )
-
                 # Check for gates with no locks
                 if len(gate.locks) == 0:
                     messages.append(
