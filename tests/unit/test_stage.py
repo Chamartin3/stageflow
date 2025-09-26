@@ -75,24 +75,24 @@ class TestStageResult:
         gate_results = {
             "gate1": GateResult(
                 passed=True,
-                failed_components=[],
-                passed_components=[],
-                messages=[],
-                actions=[]
+                failed_components=(),
+                passed_components=(),
+                messages=(),
+                actions=()
             ),
             "gate2": GateResult(
                 passed=False,
-                failed_components=[],
-                passed_components=[],
-                messages=[],
-                actions=[]
+                failed_components=(),
+                passed_components=(),
+                messages=(),
+                actions=()
             ),
             "gate3": GateResult(
                 passed=True,
-                failed_components=[],
-                passed_components=[],
-                messages=[],
-                actions=[]
+                failed_components=(),
+                passed_components=(),
+                messages=(),
+                actions=()
             )
         }
 
@@ -133,8 +133,8 @@ class TestStage:
         schema = ItemSchema(name="test_schema", fields=fields)
 
         # Create gates (AND gates require at least 2 components)
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="age", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "name")
+        lock2 = Lock(LockType.EXISTS, "age")
         gate1 = Gate.AND(lock1, lock2, name="validation_gate")
 
         # Create stage
@@ -160,10 +160,10 @@ class TestStage:
 
     def test_stage_initialization_validation_duplicate_gates(self):
         """Test Stage initialization fails with duplicate gate names."""
-        lock1 = Lock(property_path="prop1", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="prop2", lock_type=LockType.EXISTS)
-        dummy_lock1 = Lock(property_path="dummy1", lock_type=LockType.EXISTS)
-        dummy_lock2 = Lock(property_path="dummy2", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "prop1")
+        lock2 = Lock(LockType.EXISTS, "prop2")
+        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
+        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
 
         gate1 = Gate.AND(lock1, dummy_lock1, name="duplicate_gate")
         gate2 = Gate.AND(lock2, dummy_lock2, name="duplicate_gate")
@@ -211,8 +211,8 @@ class TestStage:
 
     def test_evaluate_with_gates_only(self):
         """Test stage evaluation with gates only (no schema)."""
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="age", lock_type=LockType.GREATER_THAN, expected_value=18)
+        lock1 = Lock(LockType.EXISTS, "name")
+        lock2 = Lock(LockType.GREATER_THAN, "age", 18)
 
         gate1 = Gate.AND(lock1, lock2, name="validation_gate")
         stage = Stage(name="gate_stage", gates=[gate1])
@@ -230,9 +230,9 @@ class TestStage:
 
     def test_evaluate_with_gate_failure(self):
         """Test stage evaluation with gate failure."""
-        lock1 = Lock(property_path="age", lock_type=LockType.GREATER_THAN, expected_value=18)
+        lock1 = Lock(LockType.GREATER_THAN, "age", 18)
         # Add a second lock to meet AND gate requirement
-        lock2 = Lock(property_path="name", lock_type=LockType.EXISTS)
+        lock2 = Lock(LockType.EXISTS, "name")
         gate1 = Gate.AND(lock1, lock2, name="age_gate")
         stage = Stage(name="gate_stage", gates=[gate1])
 
@@ -247,12 +247,12 @@ class TestStage:
 
     def test_evaluate_with_partial_fulfillment(self):
         """Test stage evaluation with partial fulfillment allowed."""
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="nonexistent", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "name")
+        lock2 = Lock(LockType.EXISTS, "nonexistent")
 
         # Create dummy locks to satisfy AND gate requirements
-        dummy_lock1 = Lock(property_path="dummy1", lock_type=LockType.EXISTS)
-        dummy_lock2 = Lock(property_path="dummy2", lock_type=LockType.EXISTS)
+        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
+        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
 
         gate1 = Gate.AND(lock1, dummy_lock1, name="gate1")
         gate2 = Gate.AND(lock2, dummy_lock2, name="gate2")
@@ -268,12 +268,12 @@ class TestStage:
 
     def test_evaluate_without_partial_fulfillment(self):
         """Test stage evaluation without partial fulfillment."""
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="nonexistent", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "name")
+        lock2 = Lock(LockType.EXISTS, "nonexistent")
 
         # Create dummy locks to satisfy AND gate requirements
-        dummy_lock1 = Lock(property_path="dummy1", lock_type=LockType.EXISTS)
-        dummy_lock2 = Lock(property_path="dummy2", lock_type=LockType.EXISTS)
+        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
+        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
 
         gate1 = Gate.AND(lock1, dummy_lock1, name="gate1")
         gate2 = Gate.AND(lock2, dummy_lock2, name="gate2")
@@ -297,8 +297,8 @@ class TestStage:
         schema = ItemSchema(name="test_schema", fields=fields)
 
         # Create gates with property requirements
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="email", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "name")
+        lock2 = Lock(LockType.EXISTS, "email")
         gate1 = Gate.AND(lock1, lock2, name="gate1")
 
         stage = Stage(name="test_stage", gates=[gate1], schema=schema)
@@ -311,8 +311,8 @@ class TestStage:
 
     def test_has_gate(self):
         """Test has_gate method."""
-        lock1 = Lock(property_path="prop1", lock_type=LockType.EXISTS)
-        dummy_lock = Lock(property_path="dummy", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "prop1")
+        dummy_lock = Lock(LockType.EXISTS, "dummy")
         gate1 = Gate.AND(lock1, dummy_lock, name="test_gate")
         stage = Stage(name="test_stage", gates=[gate1])
 
@@ -321,8 +321,8 @@ class TestStage:
 
     def test_get_gate(self):
         """Test get_gate method."""
-        lock1 = Lock(property_path="prop1", lock_type=LockType.EXISTS)
-        dummy_lock = Lock(property_path="dummy", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "prop1")
+        dummy_lock = Lock(LockType.EXISTS, "dummy")
         gate1 = Gate.AND(lock1, dummy_lock, name="test_gate")
         stage = Stage(name="test_stage", gates=[gate1])
 
@@ -369,12 +369,12 @@ class TestStage:
 
     def test_get_completion_percentage_with_gates(self):
         """Test completion percentage calculation with gates."""
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        lock2 = Lock(property_path="age", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "name")
+        lock2 = Lock(LockType.EXISTS, "age")
 
         # Create dummy locks to satisfy AND gate requirements
-        dummy_lock1 = Lock(property_path="dummy1", lock_type=LockType.EXISTS)
-        dummy_lock2 = Lock(property_path="dummy2", lock_type=LockType.EXISTS)
+        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
+        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
 
         gate1 = Gate.AND(lock1, dummy_lock1, name="gate1")
         gate2 = Gate.AND(lock2, dummy_lock2, name="gate2")
@@ -399,8 +399,8 @@ class TestStage:
         fields = {"name": FieldDefinition(type_=str, required=True)}
         schema = ItemSchema(name="test_schema", fields=fields)
 
-        lock1 = Lock(property_path="name", lock_type=LockType.EXISTS)
-        dummy_lock = Lock(property_path="dummy", lock_type=LockType.EXISTS)
+        lock1 = Lock(LockType.EXISTS, "name")
+        dummy_lock = Lock(LockType.EXISTS, "dummy")
         gate1 = Gate.AND(lock1, dummy_lock, name="gate1")
 
         stage = Stage(

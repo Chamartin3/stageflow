@@ -1,24 +1,12 @@
 """Unit tests for Gate composition and evaluation logic."""
 
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
 
 from stageflow.core.element import DictElement
-from stageflow.gates import Evaluable, Gate, GateOperation, GateResult, LockWrapper, Lock, LockType
-
-
-class TestGateOperation:
-    """Test GateOperation enumeration."""
-
-    def test_gate_operation_values(self):
-        """Test that all gate operations are defined with correct values."""
-        assert GateOperation.AND.value == "and"
-
-    def test_gate_operation_count(self):
-        """Test expected number of gate operations."""
-        operations = list(GateOperation)
-        assert len(operations) == 1
+from stageflow.gates import Evaluable, Gate, GateResult, LockWrapper, Lock, LockType
 
 
 class TestGateResult:
@@ -42,19 +30,21 @@ class TestGateResult:
 
         result = GateResult(
             passed=False,
-            failed_components=[lock1],
-            passed_components=[lock2],
-            messages=["Error message"],
-            actions=["Fix issue"],
+            failed_components=(lock1,),
+            passed_components=(lock2,),
+            messages=("Error message",),
+            actions=("Fix issue",),
             evaluation_time_ms=10.5,
             short_circuited=True
         )
 
         assert result.passed is False
-        assert result.failed_components == [lock1]
-        assert result.passed_components == [lock2]
-        assert result.messages == ["Error message"]
-        assert result.actions == ["Fix issue"]
+        assert result.failed_components == (lock1,)
+        assert result.passed_components == (lock2,)
+        assert result.messages == ("Error message",)
+        assert result.actions == ("Fix issue",)
+        assert result.messages == ("Error message",)
+        assert result.actions == ("Fix issue",)
         assert result.evaluation_time_ms == 10.5
         assert result.short_circuited is True
 
@@ -67,7 +57,7 @@ class TestGateResult:
         assert result.has_failures is False
 
         # With failures
-        result = GateResult(passed=False, failed_components=[lock])
+        result = GateResult(passed=False, failed_components=(lock,))
         assert result.has_failures is True
 
     def test_has_passes_property(self):
@@ -79,7 +69,7 @@ class TestGateResult:
         assert result.has_passes is False
 
         # With passes
-        result = GateResult(passed=True, passed_components=[lock])
+        result = GateResult(passed=True, passed_components=(lock,))
         assert result.has_passes is True
 
     def test_total_components_property(self):
@@ -90,8 +80,8 @@ class TestGateResult:
 
         result = GateResult(
             passed=False,
-            failed_components=[lock1, lock2],
-            passed_components=[lock3]
+            failed_components=(lock1, lock2),
+            passed_components=(lock3,)
         )
 
         assert result.total_components == 3
@@ -194,15 +184,14 @@ class TestGateCreation:
         wrapper1 = LockWrapper(lock1)
         wrapper2 = LockWrapper(lock2)
 
-        gate = Gate(
-            name="test_gate",
-            operation=GateOperation.AND,
-            components=(wrapper1, wrapper2)
+        gate = Gate.create(
+            lock1, lock2,
+            name="test_gate"
         )
 
         assert gate.name == "test_gate"
-        assert gate.operation == GateOperation.AND
         assert gate.components == (wrapper1, wrapper2)
+        assert gate.target_stage is None
         assert gate.metadata == {}
 
     def test_gate_initialization_with_metadata(self):
@@ -215,7 +204,6 @@ class TestGateCreation:
 
         gate = Gate(
             name="test_gate",
-            operation=GateOperation.AND,
             components=(wrapper1, wrapper2),
             metadata=metadata
         )
@@ -228,12 +216,12 @@ class TestGateCreation:
         wrapper = LockWrapper(lock)
 
         with pytest.raises(ValueError, match="Gate must have a name"):
-            Gate(name="", operation=GateOperation.AND, components=(wrapper,))
+            Gate(name="", components=(wrapper,))
 
     def test_gate_validation_no_components(self):
         """Test gate validation fails with no components."""
         with pytest.raises(ValueError, match="Gate must contain at least one component"):
-            Gate(name="test", operation=GateOperation.AND, components=())
+            Gate(name="test", components=())
 
 
     def test_gate_validation_and_single_component(self):
@@ -242,9 +230,8 @@ class TestGateCreation:
         wrapper = LockWrapper(lock)
 
         # Single-component AND gates are now allowed for YAML compatibility
-        gate = Gate(name="test", operation=GateOperation.AND, components=(wrapper,))
+        gate = Gate(name="test", components=(wrapper,))
         assert gate.name == "test"
-        assert gate.operation == GateOperation.AND
         assert len(gate.components) == 1
 
 
@@ -260,7 +247,6 @@ class TestGateClassMethods:
         gate = Gate.AND(lock1, lock2, name="and_gate")
 
         assert gate.name == "and_gate"
-        assert gate.operation == GateOperation.AND
         assert len(gate.components) == 2
         assert all(isinstance(comp, LockWrapper) for comp in gate.components)
 
@@ -271,8 +257,7 @@ class TestGateClassMethods:
 
         gate = Gate.AND(lock1, lock2)
 
-        assert gate.name.startswith("and_gate_")
-        assert gate.operation == GateOperation.AND
+        assert gate.name.startswith("gate_")
 
     def test_and_gate_with_metadata(self):
         """Test AND gate creation with metadata."""
@@ -285,13 +270,13 @@ class TestGateClassMethods:
 
     def test_and_gate_empty_components(self):
         """Test AND gate fails with no components."""
-        with pytest.raises(ValueError, match="AND gate requires at least one component"):
+        with pytest.raises(ValueError, match="Gate requires at least one component"):
             Gate.AND()
 
     def test_and_gate_invalid_component_type(self):
         """Test AND gate fails with invalid component type."""
         with pytest.raises(TypeError, match="Components must be Lock or Gate"):
-            Gate.AND("invalid")
+            Gate.AND(cast(Lock, "invalid"))
 
 
 
@@ -508,7 +493,6 @@ class TestGateErrorHandling:
         with pytest.raises(Exception):
             gate = Gate(
                 name="test_gate",
-                operation=GateOperation.AND,
                 components=(mock_component,)
             )
             gate.evaluate(element)
@@ -521,20 +505,19 @@ class TestGateErrorHandling:
         mock_component1 = Mock(spec=Evaluable)
         mock_component1.evaluate.return_value = GateResult(
             passed=False,
-            messages=[],
-            actions=[]
+            messages=(),
+            actions=()
         )
 
         mock_component2 = Mock(spec=Evaluable)
         mock_component2.evaluate.return_value = GateResult(
             passed=True,
-            messages=[],
-            actions=[]
+            messages=(),
+            actions=()
         )
 
         gate = Gate(
             name="test_gate",
-            operation=GateOperation.AND,
             components=(mock_component1, mock_component2)
         )
 

@@ -33,30 +33,24 @@ def simple_linear_schema() -> dict[str, Any]:
                             "username": "string"
                         }
                     },
-                    "gates": [
-                        {
-                            "name": "basic_validation",
-                            "logic": "AND",
-                            "locks": [
-                                {
-                                    "property_path": "email",
-                                    "lock_type": "regex",
-                                    "expected_value": "^[^@]+@[^@]+\\.[^@]+$"
-                                },
-                                {
-                                    "property_path": "password",
-                                    "lock_type": "length",
-                                    "expected_value": {"min": 8, "max": 128}
-                                }
-                            ]
-                        }
-                    ],
-                    "transitions": [
-                        {
-                            "target_stage": "active",
-                            "condition": "basic_validation"
-                        }
-                    ]
+                     "gates": [
+                         {
+                             "name": "basic_validation",
+                             "target_stage": "active",
+                             "locks": [
+                                 {
+                                     "property_path": "email",
+                                     "lock_type": "regex",
+                                     "expected_value": "^[^@]+@[^@]+\\.[^@]+$"
+                                 },
+                                 {
+                                     "property_path": "password",
+                                     "lock_type": "length",
+                                     "expected_value": {"min": 8, "max": 128}
+                                 }
+                             ]
+                         }
+                     ]
                 },
                 {
                     "name": "active",
@@ -90,28 +84,22 @@ def three_stage_linear_schema() -> dict[str, Any]:
                             "password": "string"
                         }
                     },
-                    "gates": [
-                        {
-                            "name": "registration_complete",
-                            "logic": "AND",
-                            "locks": [
-                                {
-                                    "property_path": "email",
-                                    "lock_type": "exists"
-                                },
-                                {
-                                    "property_path": "password",
-                                    "lock_type": "exists"
-                                }
-                            ]
-                        }
-                    ],
-                    "transitions": [
-                        {
-                            "target_stage": "profile_setup",
-                            "condition": "registration_complete"
-                        }
-                    ]
+                     "gates": [
+                         {
+                             "name": "registration_complete",
+                             "target_stage": "profile_setup",
+                             "locks": [
+                                 {
+                                     "property_path": "email",
+                                     "lock_type": "exists"
+                                 },
+                                 {
+                                     "property_path": "password",
+                                     "lock_type": "exists"
+                                 }
+                             ]
+                         }
+                     ]
                 },
                 {
                     "name": "profile_setup",
@@ -123,28 +111,22 @@ def three_stage_linear_schema() -> dict[str, Any]:
                             "profile.last_name": "string"
                         }
                     },
-                    "gates": [
-                        {
-                            "name": "profile_complete",
-                            "logic": "AND",
-                            "locks": [
-                                {
-                                    "property_path": "profile.first_name",
-                                    "lock_type": "not_empty"
-                                },
-                                {
-                                    "property_path": "profile.last_name",
-                                    "lock_type": "not_empty"
-                                }
-                            ]
-                        }
-                    ],
-                    "transitions": [
-                        {
-                            "target_stage": "verified",
-                            "condition": "profile_complete"
-                        }
-                    ]
+                     "gates": [
+                         {
+                             "name": "profile_complete",
+                             "target_stage": "verified",
+                             "locks": [
+                                 {
+                                     "property_path": "profile.first_name",
+                                     "lock_type": "not_empty"
+                                 },
+                                 {
+                                     "property_path": "profile.last_name",
+                                     "lock_type": "not_empty"
+                                 }
+                             ]
+                         }
+                     ]
                 },
                 {
                     "name": "verified",

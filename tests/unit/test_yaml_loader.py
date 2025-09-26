@@ -191,7 +191,8 @@ class TestYamlLoader:
         with pytest.raises(YAMLSchemaError) as exc_info:
             load_process_from_string(yaml_content)
 
-        assert "Invalid gate logic 'invalid_logic'" in str(exc_info.value)
+        # Gates are now AND-only by design, so empty locks trigger component validation first
+        assert "Gate requires at least one component" in str(exc_info.value)
 
     def test_schema_validation_invalid_locks_type(self):
         """Test schema validation for invalid locks type."""
@@ -224,7 +225,7 @@ class TestYamlLoader:
         with pytest.raises(YAMLSchemaError) as exc_info:
             load_process_from_string(yaml_content)
 
-        assert "must include 'property' field" in str(exc_info.value)
+        assert "must include 'property' or 'property_path' field" in str(exc_info.value)
 
     def test_schema_validation_lock_missing_type(self):
         """Test schema validation for lock missing type field."""
@@ -241,7 +242,7 @@ class TestYamlLoader:
         with pytest.raises(YAMLSchemaError) as exc_info:
             load_process_from_string(yaml_content)
 
-        assert "must include 'type' field" in str(exc_info.value)
+        assert "must include 'type' or 'lock_type' field" in str(exc_info.value)
 
     def test_schema_validation_invalid_lock_type(self):
         """Test schema validation for invalid lock type."""

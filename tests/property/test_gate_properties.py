@@ -17,7 +17,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from stageflow.core.element import DictElement
-from stageflow.gates import Gate, GateOperation, GateResult, Lock, LockType
+from stageflow.gates import Gate, GateResult, Lock, LockType
 from tests.property.generators import (
     complex_gate,
     dict_element,
@@ -212,7 +212,8 @@ class TestGateCompositionProperties:
 
         # Valid constructions should work
         and_gate = Gate.AND(lock, lock, name="test_and")
-        assert and_gate.operation == GateOperation.AND
+        assert and_gate.name == "test_and"
+        assert len(and_gate.components) == 2
 
         # Invalid constructions should raise errors
         with pytest.raises(ValueError):

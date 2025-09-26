@@ -120,7 +120,6 @@ def multi_stage_process(simple_schema, advanced_schema):
         name="user_onboarding",
         stages=[basic_stage, email_stage, premium_stage],
         stage_order=["registration", "verification", "premium"],
-        regression_detection=True,
     )
 
 

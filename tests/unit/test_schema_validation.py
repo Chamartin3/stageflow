@@ -228,13 +228,11 @@ class TestGateModel:
         gate = GateModel(
             name="test_gate",
             locks=[lock1, lock2],
-            logic="AND",
             target_stage="next_stage"
         )
 
         assert gate.name == "test_gate"
         assert len(gate.locks) == 2
-        assert gate.logic == "AND"
 
     def test_duplicate_lock_names(self):
         """Test that duplicate lock names in a gate are rejected."""
@@ -364,7 +362,7 @@ class TestProcessModel:
                 stages=[]
             )
 
-        assert "at least 1 item" in str(exc_info.value).lower()
+        assert "Process must contain at least one stage" in str(exc_info.value)
 
     def test_stage_order_validation(self):
         """Test stage_order validation."""

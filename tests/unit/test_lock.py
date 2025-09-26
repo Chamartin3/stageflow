@@ -13,6 +13,7 @@ from stageflow.gates import (
     register_lock_validator as register_validator,
     clear_lock_validators,
 )
+from stageflow.gates.lock import LockFactory
 
 
 class TestLockType:
@@ -608,6 +609,154 @@ class TestLockErrorMessages:
         lock = Lock(LockType.RANGE, "age", [18, 65])
         msg = lock.get_action_message(element)
         assert "between 18 and 65" in msg
+
+
+class TestLockFactory:
+    """Test LockFactory for simplified lock syntax support."""
+
+    def test_shorthand_exists_syntax(self):
+        """Test shorthand exists syntax parsing."""
+        lock_def = {"exists": "email"}
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.EXISTS
+        assert lock.property_path == "email"
+        assert lock.expected_value is None
+
+    def test_shorthand_is_true_syntax(self):
+        """Test shorthand is_true syntax parsing."""
+        lock_def = {"is_true": "verified"}
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.EQUALS
+        assert lock.property_path == "verified"
+        assert lock.expected_value is True
+
+    def test_shorthand_is_false_syntax(self):
+        """Test shorthand is_false syntax parsing."""
+        lock_def = {"is_false": "banned"}
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.EQUALS
+        assert lock.property_path == "banned"
+        assert lock.expected_value is False
+
+    def test_complex_regex_syntax(self):
+        """Test complex regex syntax parsing."""
+        lock_def = {
+            "regex": {
+                "property_path": "email",
+                "value": r"^[^@]+@[^@]+\.[^@]+$"
+            }
+        }
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.REGEX
+        assert lock.property_path == "email"
+        assert lock.expected_value == r"^[^@]+@[^@]+\.[^@]+$"
+
+    def test_complex_range_syntax(self):
+        """Test complex range syntax parsing."""
+        lock_def = {
+            "range": {
+                "property_path": "age",
+                "min": 18,
+                "max": 120
+            }
+        }
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.RANGE
+        assert lock.property_path == "age"
+        assert lock.expected_value == [18, 120]
+
+    def test_legacy_syntax_backward_compatibility(self):
+        """Test that legacy verbose syntax still works."""
+        lock_def = {
+            "property_path": "name",
+            "lock_type": "exists"
+        }
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.EXISTS
+        assert lock.property_path == "name"
+
+    def test_legacy_syntax_with_type_field(self):
+        """Test legacy syntax with 'type' field."""
+        lock_def = {
+            "property": "email",
+            "type": "regex",
+            "value": r"^[^@]+@[^@]+\.[^@]+$"
+        }
+        lock = LockFactory.create_lock(lock_def)
+
+        assert lock.lock_type == LockType.REGEX
+        assert lock.property_path == "email"
+        assert lock.expected_value == r"^[^@]+@[^@]+\.[^@]+$"
+
+    def test_invalid_shorthand_syntax(self):
+        """Test error handling for invalid shorthand syntax."""
+        # Multiple keys
+        with pytest.raises(ValueError, match="Unsupported lock definition format"):
+            LockFactory.create_lock({"exists": "email", "is_true": "verified"})
+
+        # Invalid shorthand key
+        with pytest.raises(ValueError, match="Unknown shorthand key"):
+            LockFactory.create_lock({"invalid": "property"})
+
+    def test_invalid_complex_syntax(self):
+        """Test error handling for invalid complex syntax."""
+        # Missing required fields
+        with pytest.raises(ValueError, match="requires 'property_path' and 'value'"):
+            LockFactory.create_lock({"regex": {"value": "pattern"}})
+
+        # Invalid complex key
+        with pytest.raises(ValueError, match="Unknown complex key"):
+            LockFactory.create_lock({"invalid": {"property_path": "test"}})
+
+    def test_string_shorthand_not_implemented(self):
+        """Test that string shorthand raises error (not implemented)."""
+        with pytest.raises(ValueError, match="String shorthand syntax not yet supported"):
+            LockFactory.create_lock("exists:email")
+
+    def test_mixed_syntax_validation(self):
+        """Test that different syntax formats produce equivalent locks."""
+        # Shorthand
+        shorthand_lock = LockFactory.create_lock({"exists": "email"})
+
+        # Legacy
+        legacy_lock = LockFactory.create_lock({
+            "property_path": "email",
+            "lock_type": "exists"
+        })
+
+        # Complex (not applicable for exists)
+        # But they should be equivalent
+        assert shorthand_lock.lock_type == legacy_lock.lock_type
+        assert shorthand_lock.property_path == legacy_lock.property_path
+        assert shorthand_lock.expected_value == legacy_lock.expected_value
+
+    def test_complex_syntax_with_min_max_range(self):
+        """Test range syntax with only min or only max."""
+        # Only min
+        lock_def = {
+            "range": {
+                "property_path": "age",
+                "min": 18
+            }
+        }
+        lock = LockFactory.create_lock(lock_def)
+        assert lock.expected_value == [18, None]
+
+        # Only max
+        lock_def = {
+            "range": {
+                "property_path": "age",
+                "max": 120
+            }
+        }
+        lock = LockFactory.create_lock(lock_def)
+        assert lock.expected_value == [None, 120]
 
 
 if __name__ == "__main__":

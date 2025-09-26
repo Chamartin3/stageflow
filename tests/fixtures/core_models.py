@@ -11,7 +11,7 @@ import pytest
 
 from stageflow.core.element import DictElement, Element, create_element
 from stageflow.core.stage import Stage
-from stageflow.gates import Gate, GateOperation, Lock, LockType, register_lock_validator as register_validator
+from stageflow.gates import Gate, Lock, LockType, register_lock_validator as register_validator
 from stageflow.process import Process
 from stageflow.process.schema.core import ItemSchema
 

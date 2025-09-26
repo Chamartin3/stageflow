@@ -83,7 +83,7 @@ class TestValidationResult:
 
     def test_validation_result_failure(self):
         """Test failed validation result."""
-        from stageflow.core.schema import ValidationError
+        from stageflow.process.schema.core import ValidationError
         errors = [ValidationError("name", "Name is required")]
         result = ValidationResult(is_valid=False, errors=errors)
         assert result.is_valid is False
@@ -92,7 +92,7 @@ class TestValidationResult:
 
     def test_errors_by_field(self):
         """Test errors grouped by field."""
-        from stageflow.core.schema import ValidationError
+        from stageflow.process.schema.core import ValidationError
         errors = [
             ValidationError("name", "Name is required"),
             ValidationError("name", "Name too short"),

@@ -11,7 +11,7 @@ import pytest
 
 from stageflow.core.element import DictElement
 from stageflow.core.stage import Stage
-from stageflow.gates import Gate, GateOperation, Lock, LockType
+from stageflow.gates import Gate, Lock, LockType
 from stageflow.process import Process
 from stageflow.process.schema.core import ItemSchema
 
@@ -80,20 +80,18 @@ def email_lock() -> Lock:
 @pytest.fixture
 def basic_gate(basic_lock) -> Gate:
     """Basic gate for testing."""
-    return Gate(
+    return Gate.create(
+        basic_lock,
         name="basic_validation",
-        locks=[basic_lock],
-        logic=GateOperation.AND,
     )
 
 
 @pytest.fixture
 def email_gate(email_lock) -> Gate:
     """Email validation gate for testing."""
-    return Gate(
+    return Gate.create(
+        email_lock,
         name="email_validation",
-        locks=[email_lock],
-        logic=GateOperation.AND,
     )
 
 
@@ -126,10 +124,9 @@ def multi_stage_process(basic_stage) -> Process:
         property_path="profile.first_name",
         lock_type=LockType.EXISTS,
     )
-    profile_gate = Gate(
+    profile_gate = Gate.create(
+        profile_lock,
         name="profile_complete",
-        locks=[profile_lock],
-        logic=GateOperation.AND,
     )
     profile_stage = Stage(
         name="profile_setup",
@@ -141,10 +138,9 @@ def multi_stage_process(basic_stage) -> Process:
         lock_type=LockType.EQUALS,
         expected_value=True,
     )
-    verification_gate = Gate(
+    verification_gate = Gate.create(
+        verification_lock,
         name="email_verified",
-        locks=[verification_lock],
-        logic=GateOperation.AND,
     )
     verification_stage = Stage(
         name="verification",
