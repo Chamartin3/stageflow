@@ -1,0 +1,229 @@
+# StageFlow Process Definition: Document Approval Workflow
+# An intermediate process demonstrating multi-level approvals
+
+process:
+  name: document_approval_workflow
+  initial_stage: document_submitted
+  final_stage: document_approved
+
+  stages:
+    document_submitted:
+      # Initial submission of document for approval
+      schema:
+        name: document_submitted_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - document_type
+          - content_summary
+        optional_fields:
+          - urgency_level
+          - business_justification
+
+      gates:
+        initial_review:
+          target_stage: under_review
+          locks:
+            - name: document_complete
+              type: exists
+              property: "content.document_url"
+              description: "Document file must be uploaded"
+
+            - name: reviewer_assigned
+              type: exists
+              property: "workflow.primary_reviewer_id"
+              description: "Primary reviewer must be assigned"
+
+    under_review:
+      # Document is being reviewed by assigned reviewer
+      schema:
+        name: under_review_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - document_type
+          - content_summary
+          - workflow
+
+      gates:
+        review_complete:
+          target_stage: pending_approval
+          locks:
+            - name: review_completed
+              type: exists
+              property: "review.completed_at"
+              description: "Review must be marked as completed"
+
+            - name: review_decision_approve
+              type: equals
+              property: "review.decision"
+              benchmark: "approve"
+              description: "Review decision must be approve"
+
+        review_rejection:
+          target_stage: document_rejected
+          locks:
+            - name: rejected_by_reviewer
+              type: equals
+              property: "review.decision"
+              benchmark: "reject"
+              description: "Document rejected during initial review"
+
+        changes_requested:
+          target_stage: awaiting_changes
+          locks:
+            - name: changes_requested_by_reviewer
+              type: equals
+              property: "review.decision"
+              benchmark: "request_changes"
+              description: "Changes requested by reviewer"
+
+    pending_approval:
+      # Document passed review and is pending final approval
+      schema:
+        name: pending_approval_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - document_type
+          - content_summary
+          - workflow
+          - review
+
+      gates:
+        direct_approval:
+          target_stage: document_approved
+          locks:
+            - name: reviewer_has_approval_authority
+              type: equals
+              property: "workflow.primary_reviewer.approval_authority"
+              benchmark: true
+              description: "Reviewer must have approval authority"
+
+        manager_review_required:
+          target_stage: manager_review
+          locks:
+            - name: requires_manager_approval
+              type: equals
+              property: "workflow.primary_reviewer.approval_authority"
+              benchmark: false
+              description: "Manager approval required"
+
+            - name: manager_assigned
+              type: exists
+              property: "workflow.manager_id"
+              description: "Manager must be assigned for approval"
+
+    manager_review:
+      # Document under manager-level review
+      schema:
+        name: manager_review_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - document_type
+          - content_summary
+          - workflow
+          - review
+
+      gates:
+        manager_approval:
+          target_stage: document_approved
+          locks:
+            - name: manager_review_completed
+              type: exists
+              property: "manager_review.completed_at"
+              description: "Manager review must be completed"
+
+            - name: manager_approved
+              type: equals
+              property: "manager_review.decision"
+              benchmark: "approve"
+              description: "Manager must approve the document"
+
+        manager_rejection:
+          target_stage: document_rejected
+          locks:
+            - name: rejected_by_manager
+              type: equals
+              property: "manager_review.decision"
+              benchmark: "reject"
+              description: "Document rejected by manager"
+
+    awaiting_changes:
+      # Document returned to author for revisions
+      schema:
+        name: awaiting_changes_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - document_type
+          - review
+          - change_requests
+
+      gates:
+        revisions_submitted:
+          target_stage: under_review
+          locks:
+            - name: revisions_completed
+              type: exists
+              property: "revisions.submitted_at"
+              description: "Revisions must be submitted"
+
+            - name: new_version_uploaded
+              type: exists
+              property: "content.latest_version_url"
+              description: "New document version must be uploaded"
+
+        submission_withdrawn:
+          target_stage: document_rejected
+          locks:
+            - name: withdrawn_by_author
+              type: equals
+              property: "status"
+              benchmark: "withdrawn"
+              description: "Author withdrew the document submission"
+
+    document_approved:
+      # Final success state - document fully approved
+      schema:
+        name: document_approved_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - document_type
+          - content_summary
+          - workflow
+          - review
+          - final_approval
+
+      # No gates - successful final state
+
+    document_rejected:
+      # Final state for rejected documents
+      schema:
+        name: document_rejected_schema
+        required_fields:
+          - document_id
+          - title
+          - author_id
+          - rejection_reason
+
+      # No gates - final state
+
+  # Configuration options
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Multi-level document approval workflow"
+    version: "1.0.0"
+    author: "StageFlow Examples"
+    use_case: "document_management"
+    complexity: "intermediate"

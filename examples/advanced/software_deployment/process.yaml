@@ -1,0 +1,467 @@
+# StageFlow Process Definition: Software Deployment Pipeline
+# A domain-specific process for software release management
+# This example shows build validation, testing, approvals, and deployment
+
+process:
+  name: software_deployment_pipeline
+  initial_stage: code_committed
+  final_stage: production_deployed
+
+  stages:
+    code_committed:
+      # Developer commits code to repository
+      schema:
+        name: code_committed_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - author_id
+          - commit_message
+          - changed_files
+        optional_fields:
+          - pull_request_id
+          - reviewer_ids
+          - associated_tickets
+        validation_rules:
+          branch_name:
+            validator: valid_branch_format
+          commit_message:
+            validator: commit_message_format
+          author_id:
+            validator: authorized_developer
+
+      gates:
+        build_trigger:
+          target_stage: build_validation
+          locks:
+            - name: commit_on_target_branch
+              type: IN_LIST
+              property: "branch_name"
+              benchmark: ["main", "develop", "release/*"]
+              description: "Commit must be on deployable branch"
+
+            - name: code_review_approved
+              type: EXISTS
+              property: "pull_request.approved_at"
+              description: "Code review must be approved"
+
+            - name: no_merge_conflicts
+              type: EQUALS
+              property: "git.merge_conflicts"
+              benchmark: false
+              description: "No merge conflicts detected"
+
+    build_validation:
+      # Automated build and basic validation
+      schema:
+        name: build_validation_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - build_job
+
+      gates:
+        build_success:
+          target_stage: automated_testing
+          locks:
+            - name: build_completed
+              type: EXISTS
+              property: "build_job.completed_at"
+              description: "Build job must complete"
+
+            - name: build_successful
+              type: EQUALS
+              property: "build_job.status"
+              benchmark: "success"
+              description: "Build must be successful"
+
+            - name: artifacts_generated
+              type: EXISTS
+              property: "build_job.artifacts_url"
+              description: "Build artifacts must be generated"
+
+            - name: security_scan_passed
+              type: EQUALS
+              property: "build_job.security_scan.status"
+              benchmark: "passed"
+              description: "Security scan must pass"
+
+        build_failure:
+          target_stage: build_failed
+          locks:
+            - name: build_failed
+              type: EQUALS
+              property: "build_job.status"
+              benchmark: "failed"
+              description: "Build failed"
+
+    automated_testing:
+      # Comprehensive automated test execution
+      schema:
+        name: automated_testing_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - build_job
+          - test_suite
+
+      gates:
+        testing_complete:
+          target_stage: staging_deployment
+          locks:
+            - name: unit_tests_passed
+              type: EQUALS
+              property: "test_suite.unit_tests.status"
+              benchmark: "passed"
+              description: "All unit tests must pass"
+
+            - name: integration_tests_passed
+              type: EQUALS
+              property: "test_suite.integration_tests.status"
+              benchmark: "passed"
+              description: "All integration tests must pass"
+
+            - name: coverage_threshold_met
+              type: GREATER_THAN_OR_EQUAL
+              property: "test_suite.coverage_percentage"
+              benchmark: 80
+              description: "Test coverage must be at least 80%"
+
+            - name: performance_tests_passed
+              type: EQUALS
+              property: "test_suite.performance_tests.status"
+              benchmark: "passed"
+              description: "Performance tests must pass"
+
+        testing_failure:
+          target_stage: testing_failed
+          locks:
+            - name: tests_failed
+              type: IN_LIST
+              property: "test_suite.overall_status"
+              benchmark: ["failed", "timeout", "error"]
+              description: "Test suite failed or encountered errors"
+
+    staging_deployment:
+      # Deploy to staging environment for manual testing
+      schema:
+        name: staging_deployment_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - build_job
+          - test_suite
+          - staging_deployment
+
+      gates:
+        staging_validation:
+          target_stage: manual_testing
+          locks:
+            - name: staging_deployed
+              type: EXISTS
+              property: "staging_deployment.deployed_at"
+              description: "Application must be deployed to staging"
+
+            - name: staging_health_check_passed
+              type: EQUALS
+              property: "staging_deployment.health_status"
+              benchmark: "healthy"
+              description: "Staging environment health check must pass"
+
+            - name: smoke_tests_passed
+              type: EQUALS
+              property: "staging_deployment.smoke_tests.status"
+              benchmark: "passed"
+              description: "Smoke tests must pass in staging"
+
+        staging_deployment_failed:
+          target_stage: deployment_failed
+          locks:
+            - name: staging_deployment_failed
+              type: EQUALS
+              property: "staging_deployment.status"
+              benchmark: "failed"
+              description: "Staging deployment failed"
+
+    manual_testing:
+      # QA team performs manual testing
+      schema:
+        name: manual_testing_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - build_job
+          - test_suite
+          - staging_deployment
+          - qa_testing
+
+      gates:
+        qa_approval:
+          target_stage: production_approval
+          locks:
+            - name: qa_testing_completed
+              type: EXISTS
+              property: "qa_testing.completed_at"
+              description: "QA testing must be completed"
+
+            - name: qa_approved
+              type: EQUALS
+              property: "qa_testing.approval_status"
+              benchmark: "approved"
+              description: "QA team must approve the release"
+
+            - name: critical_bugs_resolved
+              type: EQUALS
+              property: "qa_testing.critical_bugs_count"
+              benchmark: 0
+              description: "No critical bugs can remain"
+
+            - name: regression_tests_passed
+              type: EQUALS
+              property: "qa_testing.regression_status"
+              benchmark: "passed"
+              description: "Regression testing must pass"
+
+        qa_rejection:
+          target_stage: testing_failed
+          locks:
+            - name: qa_rejected
+              type: EQUALS
+              property: "qa_testing.approval_status"
+              benchmark: "rejected"
+              description: "QA team rejected the release"
+
+    production_approval:
+      # Awaiting approval for production deployment
+      schema:
+        name: production_approval_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - build_job
+          - test_suite
+          - staging_deployment
+          - qa_testing
+          - production_approval_request
+
+      gates:
+        # Different approval paths based on change type
+        standard_approval:
+          target_stage: production_deployment
+          locks:
+            - name: change_type_standard
+              type: IN_LIST
+              property: "production_approval_request.change_type"
+              benchmark: ["feature", "enhancement", "bug_fix"]
+              description: "Standard changes require standard approval"
+
+            - name: tech_lead_approved
+              type: EXISTS
+              property: "production_approval_request.tech_lead_approval"
+              description: "Tech lead must approve"
+
+            - name: deployment_window_valid
+              type: CUSTOM
+              property: "production_approval_request.scheduled_time"
+              validator: "valid_deployment_window"
+              description: "Deployment must be in valid time window"
+
+        emergency_approval:
+          target_stage: production_deployment
+          locks:
+            - name: change_type_emergency
+              type: EQUALS
+              property: "production_approval_request.change_type"
+              benchmark: "hotfix"
+              description: "Emergency changes require hotfix approval"
+
+            - name: emergency_approved
+              type: EXISTS
+              property: "production_approval_request.emergency_approval"
+              description: "Emergency approval must be granted"
+
+            - name: incident_ticket_linked
+              type: EXISTS
+              property: "production_approval_request.incident_ticket"
+              description: "Must be linked to incident ticket"
+
+        high_risk_approval:
+          target_stage: production_deployment
+          locks:
+            - name: high_risk_change
+              type: EQUALS
+              property: "production_approval_request.risk_level"
+              benchmark: "high"
+              description: "High-risk changes require additional approval"
+
+            - name: tech_lead_approved
+              type: EXISTS
+              property: "production_approval_request.tech_lead_approval"
+              description: "Tech lead must approve"
+
+            - name: manager_approved
+              type: EXISTS
+              property: "production_approval_request.manager_approval"
+              description: "Manager must approve high-risk changes"
+
+            - name: rollback_plan_documented
+              type: EXISTS
+              property: "production_approval_request.rollback_plan"
+              description: "Rollback plan must be documented"
+
+    production_deployment:
+      # Deploy to production environment
+      schema:
+        name: production_deployment_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - build_job
+          - test_suite
+          - staging_deployment
+          - qa_testing
+          - production_approval_request
+          - production_deployment
+
+      gates:
+        deployment_success:
+          target_stage: production_deployed
+          locks:
+            - name: production_deployed
+              type: EXISTS
+              property: "production_deployment.deployed_at"
+              description: "Application must be deployed to production"
+
+            - name: production_health_check_passed
+              type: EQUALS
+              property: "production_deployment.health_status"
+              benchmark: "healthy"
+              description: "Production health check must pass"
+
+            - name: production_smoke_tests_passed
+              type: EQUALS
+              property: "production_deployment.smoke_tests.status"
+              benchmark: "passed"
+              description: "Production smoke tests must pass"
+
+            - name: monitoring_alerts_clear
+              type: EQUALS
+              property: "production_deployment.monitoring.alert_count"
+              benchmark: 0
+              description: "No monitoring alerts should be active"
+
+        deployment_failure:
+          target_stage: deployment_failed
+          locks:
+            - name: production_deployment_failed
+              type: EQUALS
+              property: "production_deployment.status"
+              benchmark: "failed"
+              description: "Production deployment failed"
+
+        rollback_required:
+          target_stage: rollback_initiated
+          locks:
+            - name: rollback_triggered
+              type: EQUALS
+              property: "production_deployment.rollback_requested"
+              benchmark: true
+              description: "Rollback was requested"
+
+    production_deployed:
+      # Final success state - code is live in production
+      schema:
+        name: production_deployed_schema
+        required_fields:
+          - commit_id
+          - repository
+          - branch_name
+          - production_deployment
+          - post_deployment_validation
+        validation_rules:
+          status:
+            validator: equals
+            value: "deployed"
+
+      # No gates - successful final state
+
+    # Failure states
+    build_failed:
+      schema:
+        name: build_failed_schema
+        required_fields:
+          - commit_id
+          - repository
+          - build_job
+          - failure_reason
+        validation_rules:
+          status:
+            validator: equals
+            value: "build_failed"
+
+    testing_failed:
+      schema:
+        name: testing_failed_schema
+        required_fields:
+          - commit_id
+          - repository
+          - test_results
+          - failure_reason
+        validation_rules:
+          status:
+            validator: equals
+            value: "testing_failed"
+
+    deployment_failed:
+      schema:
+        name: deployment_failed_schema
+        required_fields:
+          - commit_id
+          - repository
+          - deployment_attempt
+          - failure_reason
+        validation_rules:
+          status:
+            validator: equals
+            value: "deployment_failed"
+
+    rollback_initiated:
+      schema:
+        name: rollback_initiated_schema
+        required_fields:
+          - commit_id
+          - repository
+          - rollback_details
+          - rollback_reason
+        validation_rules:
+          status:
+            validator: equals
+            value: "rolled_back"
+
+  # Configuration options
+  allow_stage_skipping: true  # Emergency hotfixes may skip some stages
+  regression_detection: true
+
+  metadata:
+    description: "Complete software deployment pipeline with testing and approvals"
+    version: "1.0.0"
+    author: "StageFlow Examples"
+    use_case: "software_deployment"
+    complexity: "advanced"
+    estimated_duration: "30 minutes to 4 hours depending on change type"
+    business_rules:
+      - "All code must pass review before building"
+      - "Builds must pass security scanning"
+      - "Comprehensive testing required before staging"
+      - "QA approval required for production deployment"
+      - "Different approval levels based on change type and risk"
+      - "Emergency hotfixes have expedited approval process"
+      - "Rollback plans required for high-risk changes"
+      - "Monitoring and health checks validate deployments"

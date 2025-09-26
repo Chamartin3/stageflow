@@ -1,0 +1,531 @@
+# StageFlow Process Definition: Loan Application Processing
+# A domain-specific process for financial services loan processing
+# This example shows application intake, verification, underwriting, and approval
+
+process:
+  name: loan_application_processing
+  initial_stage: application_submitted
+  final_stage: loan_funded
+
+  stages:
+    application_submitted:
+      # Customer submits loan application
+      schema:
+        name: application_submitted_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - loan_purpose
+          - personal_information
+          - employment_information
+          - financial_information
+        optional_fields:
+          - co_applicant_information
+          - collateral_information
+          - additional_documents
+        validation_rules:
+          loan_type:
+            validator: in_list
+            values: ["personal", "mortgage", "auto", "business", "student"]
+          loan_amount:
+            validator: positive_number
+          personal_information:
+            validator: complete_personal_info
+          employment_information:
+            validator: complete_employment_info
+
+      gates:
+        initial_screening:
+          target_stage: document_verification
+          locks:
+            - name: application_complete
+              type: ALL_EXISTS
+              property: "required_fields"
+              benchmark:
+                - "personal_information.ssn"
+                - "personal_information.date_of_birth"
+                - "employment_information.employer_name"
+                - "financial_information.annual_income"
+              description: "All required application fields must be completed"
+
+            - name: minimum_income_met
+              type: GREATER_THAN_OR_EQUAL
+              property: "financial_information.annual_income"
+              benchmark: 25000
+              description: "Minimum annual income requirement must be met"
+
+            - name: age_requirement_met
+              type: CUSTOM
+              property: "personal_information.date_of_birth"
+              validator: "minimum_age_18"
+              description: "Applicant must be at least 18 years old"
+
+        # Fast rejection for clearly ineligible applications
+        initial_rejection:
+          target_stage: application_denied
+          locks:
+            - name: income_too_low
+              type: LESS_THAN
+              property: "financial_information.annual_income"
+              benchmark: 25000
+              description: "Income below minimum threshold"
+
+        # High-value loans require additional screening
+        enhanced_screening:
+          target_stage: enhanced_verification
+          locks:
+            - name: high_value_loan
+              type: GREATER_THAN
+              property: "loan_amount"
+              benchmark: 100000
+              description: "Loans over $100k require enhanced screening"
+
+    document_verification:
+      # Verify submitted documents and information
+      schema:
+        name: document_verification_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - personal_information
+          - employment_information
+          - financial_information
+          - document_verification
+
+      gates:
+        verification_complete:
+          target_stage: credit_assessment
+          locks:
+            - name: identity_verified
+              type: EXISTS
+              property: "document_verification.identity_check.verified_at"
+              description: "Identity must be verified"
+
+            - name: income_verified
+              type: EXISTS
+              property: "document_verification.income_verification.verified_at"
+              description: "Income must be verified"
+
+            - name: employment_verified
+              type: EXISTS
+              property: "document_verification.employment_verification.verified_at"
+              description: "Employment must be verified"
+
+            - name: no_fraud_indicators
+              type: EQUALS
+              property: "document_verification.fraud_check.indicators_found"
+              benchmark: false
+              description: "No fraud indicators detected"
+
+        verification_failure:
+          target_stage: application_denied
+          locks:
+            - name: verification_failed
+              type: EQUALS
+              property: "document_verification.overall_status"
+              benchmark: "failed"
+              description: "Document verification failed"
+
+        additional_documents_required:
+          target_stage: awaiting_documents
+          locks:
+            - name: missing_documents
+              type: NOT_EQUALS
+              property: "document_verification.missing_documents"
+              benchmark: []
+              description: "Additional documents are required"
+
+    enhanced_verification:
+      # Enhanced verification for high-value loans
+      schema:
+        name: enhanced_verification_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - personal_information
+          - employment_information
+          - financial_information
+          - document_verification
+          - enhanced_checks
+
+      gates:
+        enhanced_verification_complete:
+          target_stage: senior_underwriting
+          locks:
+            - name: all_standard_verification_complete
+              type: ALL_EXISTS
+              property: "document_verification"
+              benchmark:
+                - "identity_check.verified_at"
+                - "income_verification.verified_at"
+                - "employment_verification.verified_at"
+              description: "Standard verification must be complete"
+
+            - name: asset_verification_complete
+              type: EXISTS
+              property: "enhanced_checks.asset_verification.completed_at"
+              description: "Asset verification required for large loans"
+
+            - name: bank_statement_analysis_complete
+              type: EXISTS
+              property: "enhanced_checks.bank_analysis.completed_at"
+              description: "Bank statement analysis must be complete"
+
+            - name: debt_to_income_acceptable
+              type: LESS_THAN_OR_EQUAL
+              property: "enhanced_checks.debt_to_income_ratio"
+              benchmark: 0.43
+              description: "Debt-to-income ratio must be acceptable"
+
+        enhanced_verification_failure:
+          target_stage: application_denied
+          locks:
+            - name: enhanced_checks_failed
+              type: EQUALS
+              property: "enhanced_checks.overall_status"
+              benchmark: "failed"
+              description: "Enhanced verification checks failed"
+
+    awaiting_documents:
+      # Waiting for additional documents from applicant
+      schema:
+        name: awaiting_documents_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - document_verification
+          - document_request
+
+      gates:
+        documents_received:
+          target_stage: document_verification
+          locks:
+            - name: all_requested_documents_received
+              type: ALL_EXISTS
+              property: "document_request.received_documents"
+              benchmark: "document_request.requested_documents"
+              description: "All requested documents must be received"
+
+            - name: documents_within_timeframe
+              type: CUSTOM
+              property: "document_request.received_at"
+              validator: "within_document_timeframe"
+              description: "Documents must be received within allowed timeframe"
+
+        document_request_expired:
+          target_stage: application_denied
+          locks:
+            - name: request_expired
+              type: CUSTOM
+              property: "document_request.requested_at"
+              validator: "document_request_expired"
+              description: "Document request expired without response"
+
+    credit_assessment:
+      # Perform credit check and risk assessment
+      schema:
+        name: credit_assessment_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - document_verification
+          - credit_assessment
+
+      gates:
+        credit_approved:
+          target_stage: underwriting
+          locks:
+            - name: credit_check_complete
+              type: EXISTS
+              property: "credit_assessment.credit_report.generated_at"
+              description: "Credit check must be completed"
+
+            - name: credit_score_acceptable
+              type: GREATER_THAN_OR_EQUAL
+              property: "credit_assessment.credit_score"
+              benchmark: 650
+              description: "Credit score must meet minimum requirement"
+
+            - name: no_recent_bankruptcies
+              type: EQUALS
+              property: "credit_assessment.bankruptcy_in_last_7_years"
+              benchmark: false
+              description: "No bankruptcies in the last 7 years"
+
+            - name: payment_history_acceptable
+              type: LESS_THAN_OR_EQUAL
+              property: "credit_assessment.late_payments_percentage"
+              benchmark: 0.15
+              description: "Payment history must be acceptable"
+
+        credit_conditionally_approved:
+          target_stage: conditional_underwriting
+          locks:
+            - name: credit_score_marginal
+              type: BETWEEN
+              property: "credit_assessment.credit_score"
+              benchmark: [600, 649]
+              description: "Credit score in marginal range"
+
+            - name: compensating_factors_present
+              type: NOT_EQUALS
+              property: "credit_assessment.compensating_factors"
+              benchmark: []
+              description: "Compensating factors must be present"
+
+        credit_denied:
+          target_stage: application_denied
+          locks:
+            - name: credit_score_too_low
+              type: LESS_THAN
+              property: "credit_assessment.credit_score"
+              benchmark: 600
+              description: "Credit score below minimum threshold"
+
+    underwriting:
+      # Standard underwriting process
+      schema:
+        name: underwriting_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - document_verification
+          - credit_assessment
+          - underwriting_analysis
+
+      gates:
+        underwriting_approved:
+          target_stage: loan_approved
+          locks:
+            - name: underwriting_complete
+              type: EXISTS
+              property: "underwriting_analysis.completed_at"
+              description: "Underwriting analysis must be complete"
+
+            - name: underwriter_approved
+              type: EQUALS
+              property: "underwriting_analysis.decision"
+              benchmark: "approved"
+              description: "Underwriter must approve the loan"
+
+            - name: loan_terms_acceptable
+              type: EXISTS
+              property: "underwriting_analysis.loan_terms"
+              description: "Loan terms must be defined"
+
+            - name: risk_rating_acceptable
+              type: IN_LIST
+              property: "underwriting_analysis.risk_rating"
+              benchmark: ["low", "medium"]
+              description: "Risk rating must be acceptable"
+
+        underwriting_denied:
+          target_stage: application_denied
+          locks:
+            - name: underwriter_denied
+              type: EQUALS
+              property: "underwriting_analysis.decision"
+              benchmark: "denied"
+              description: "Underwriter denied the loan"
+
+        underwriting_escalation:
+          target_stage: senior_underwriting
+          locks:
+            - name: escalated_by_underwriter
+              type: EQUALS
+              property: "underwriting_analysis.decision"
+              benchmark: "escalate"
+              description: "Underwriter escalated to senior review"
+
+    conditional_underwriting:
+      # Underwriting with additional conditions
+      schema:
+        name: conditional_underwriting_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - document_verification
+          - credit_assessment
+          - underwriting_analysis
+          - conditions
+
+      gates:
+        conditions_met:
+          target_stage: loan_approved
+          locks:
+            - name: all_conditions_satisfied
+              type: ALL_EXISTS
+              property: "conditions.satisfied_conditions"
+              benchmark: "conditions.required_conditions"
+              description: "All underwriting conditions must be satisfied"
+
+            - name: conditional_approval_valid
+              type: CUSTOM
+              property: "conditions.expires_at"
+              validator: "not_expired"
+              description: "Conditional approval must not be expired"
+
+        conditions_not_met:
+          target_stage: application_denied
+          locks:
+            - name: conditions_expired
+              type: CUSTOM
+              property: "conditions.expires_at"
+              validator: "expired"
+              description: "Conditions not met within timeframe"
+
+    senior_underwriting:
+      # Senior underwriter review for complex cases
+      schema:
+        name: senior_underwriting_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - underwriting_analysis
+          - senior_review
+
+      gates:
+        senior_approved:
+          target_stage: loan_approved
+          locks:
+            - name: senior_review_complete
+              type: EXISTS
+              property: "senior_review.completed_at"
+              description: "Senior review must be completed"
+
+            - name: senior_underwriter_approved
+              type: EQUALS
+              property: "senior_review.decision"
+              benchmark: "approved"
+              description: "Senior underwriter must approve"
+
+        senior_denied:
+          target_stage: application_denied
+          locks:
+            - name: senior_underwriter_denied
+              type: EQUALS
+              property: "senior_review.decision"
+              benchmark: "denied"
+              description: "Senior underwriter denied the loan"
+
+    loan_approved:
+      # Loan has been approved
+      schema:
+        name: loan_approved_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - underwriting_analysis
+          - loan_terms
+          - approval_details
+
+      gates:
+        loan_acceptance:
+          target_stage: loan_funded
+          locks:
+            - name: borrower_accepted_terms
+              type: EXISTS
+              property: "approval_details.borrower_acceptance.signed_at"
+              description: "Borrower must accept loan terms"
+
+            - name: final_conditions_met
+              type: ALL_EXISTS
+              property: "approval_details.final_conditions_satisfied"
+              benchmark: "approval_details.final_conditions_required"
+              description: "Final conditions must be satisfied"
+
+            - name: funding_instructions_complete
+              type: EXISTS
+              property: "approval_details.funding_instructions"
+              description: "Funding instructions must be provided"
+
+        loan_declined_by_borrower:
+          target_stage: application_withdrawn
+          locks:
+            - name: borrower_declined
+              type: EQUALS
+              property: "approval_details.borrower_response"
+              benchmark: "declined"
+              description: "Borrower declined the approved loan"
+
+    loan_funded:
+      # Final success state - loan has been funded
+      schema:
+        name: loan_funded_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - loan_type
+          - loan_amount
+          - loan_terms
+          - funding_details
+        validation_rules:
+          status:
+            validator: equals
+            value: "funded"
+
+      # No gates - successful final state
+
+    # Final states for various outcomes
+    application_denied:
+      schema:
+        name: application_denied_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - denial_reason
+          - denied_at
+        validation_rules:
+          status:
+            validator: equals
+            value: "denied"
+
+    application_withdrawn:
+      schema:
+        name: application_withdrawn_schema
+        required_fields:
+          - application_id
+          - applicant_id
+          - withdrawal_reason
+          - withdrawn_at
+        validation_rules:
+          status:
+            validator: equals
+            value: "withdrawn"
+
+  # Configuration options
+  allow_stage_skipping: false  # Strict compliance required
+  regression_detection: true
+
+  metadata:
+    description: "Complete loan application processing with compliance and risk management"
+    version: "1.0.0"
+    author: "StageFlow Examples"
+    use_case: "financial_services"
+    complexity: "advanced"
+    estimated_duration: "3-30 business days depending on loan type and complexity"
+    business_rules:
+      - "All loans require identity and income verification"
+      - "Credit score minimums vary by loan type"
+      - "High-value loans require enhanced verification"
+      - "Debt-to-income ratios must meet regulatory requirements"
+      - "Senior review required for escalated cases"
+      - "Conditional approvals have expiration dates"
+      - "All regulatory compliance requirements must be met"
+      - "Borrower must accept terms before funding"
