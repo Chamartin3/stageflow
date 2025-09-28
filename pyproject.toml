@@ -36,10 +36,6 @@ dev = [
     "pyright>=1.1.0",
     "hypothesis>=6.0.0"
 ]
-visualization = [
-    "graphviz>=0.20.0",
-    "rich>=13.0.0"
-]
 
 [project.scripts]
 stageflow = "stageflow.cli.main:main"
@@ -144,7 +140,7 @@ exclude = ["tests", "**/__pycache__"]
 [tool.coverage.run]
 source = ["stageflow"]
 omit = [
-    "stageflow/examples/*",
+    "examples/*",
     "tests/*",
     "*/__init__.py",
     "*/migrations/*",
