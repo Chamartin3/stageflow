@@ -1,12 +1,19 @@
 """Element evaluation command for StageFlow CLI."""
 
-import json
 from pathlib import Path
 
 import click
 
-from stageflow.cli.utils import format_result, handle_error
-from stageflow.core.element import DictElement
+from stageflow.cli.utils import (
+    format_result,
+    handle_error,
+    load_element_data,
+    safe_write_file,
+    show_progress,
+    show_success,
+    validate_output_format,
+)
+from stageflow.element import DictElement
 from stageflow.process.schema.loaders import load_process
 
 
@@ -50,38 +57,38 @@ def evaluate_command(
     Example:
         stageflow evaluate process.yaml element.json --current-stage=profile_setup
     """
-    verbose = ctx.obj.get("verbose", False)
+    verbose = ctx.obj.get("verbose", False) if ctx.obj else False
 
     try:
-        # Load process
-        if verbose:
-            click.echo(f"Loading process from {process_file}")
+        # Validate output format
+        supported_formats = ["text", "json", "yaml"]
+        validate_output_format(output_format, supported_formats)
+
+        # Load process with progress
+        show_progress(f"Loading process from {process_file}", verbose)
         process = load_process(str(process_file))
 
-        # Load element data
-        if verbose:
-            click.echo(f"Loading element from {element_file}")
-        with open(element_file, encoding="utf-8") as f:
-            element_data = json.load(f)
-
+        # Load element data with enhanced error handling
+        show_progress(f"Loading element from {element_file}", verbose)
+        element_data = load_element_data(element_file, verbose)
         element = DictElement(element_data)
 
         # Evaluate element
-        if verbose:
-            click.echo("Evaluating element against process...")
+        show_progress("Evaluating element against process...", verbose)
         result = process.evaluate(element, current_stage)
 
         # Format and output result
+        show_progress("Formatting evaluation result...", verbose)
         output_text = format_result(result, output_format, verbose)
 
         if output:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(output_text)
-            if verbose:
-                click.echo(f"Result written to {output}")
+            safe_write_file(output, output_text, verbose)
+            show_success(f"Evaluation result written to {output}")
         else:
             click.echo(output_text)
 
+    except click.ClickException:
+        # Re-raise click exceptions (already properly formatted)
+        raise
     except Exception as e:
         handle_error(e, verbose)

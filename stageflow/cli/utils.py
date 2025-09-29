@@ -1,6 +1,8 @@
 """CLI utilities for StageFlow."""
 
 import json
+from pathlib import Path
+from typing import Any
 
 import click
 
@@ -94,18 +96,22 @@ def _format_text_result(result: StatusResult, verbose: bool) -> str:
 
 def _format_json_result(result: StatusResult, verbose: bool) -> str:
     """Format result as JSON."""
-    data = {
-        "state": result.state.value,
-        "current_stage": result.current_stage,
-        "proposed_stage": result.proposed_stage,
-        "actions": result.actions,
-        "errors": result.errors,
+    # Use StatusResult.to_dict() for proper serialization of complex objects
+    data = result.to_dict()
+
+    # Filter to include only relevant fields for JSON output
+    filtered_data = {
+        "state": data["state"],
+        "current_stage": data["current_stage"],
+        "proposed_stage": data["proposed_stage"],
+        "actions": data["actions"],
+        "errors": data["errors"],
     }
 
     if verbose:
-        data["metadata"] = result.metadata
+        filtered_data["metadata"] = data["metadata"]
 
-    return json.dumps(data, indent=2)
+    return json.dumps(filtered_data, indent=2)
 
 
 def _format_yaml_result(result: StatusResult, verbose: bool) -> str:
@@ -118,19 +124,23 @@ def _format_yaml_result(result: StatusResult, verbose: bool) -> str:
         yaml = YAML(typ="safe")
         yaml.default_flow_style = False
 
-        data = {
-            "state": result.state.value,
-            "current_stage": result.current_stage,
-            "proposed_stage": result.proposed_stage,
-            "actions": result.actions,
-            "errors": result.errors,
+        # Use StatusResult.to_dict() for proper serialization of complex objects
+        data = result.to_dict()
+
+        # Filter to include only relevant fields for YAML output
+        filtered_data = {
+            "state": data["state"],
+            "current_stage": data["current_stage"],
+            "proposed_stage": data["proposed_stage"],
+            "actions": data["actions"],
+            "errors": data["errors"],
         }
 
         if verbose:
-            data["metadata"] = result.metadata
+            filtered_data["metadata"] = data["metadata"]
 
         stream = io.StringIO()
-        yaml.dump(data, stream)
+        yaml.dump(filtered_data, stream)
         return stream.getvalue()
 
     except ImportError:
@@ -169,8 +179,6 @@ def validate_file_path(path: str, must_exist: bool = True) -> bool:
     Returns:
         True if path is valid
     """
-    from pathlib import Path
-
     try:
         p = Path(path)
         if must_exist:
@@ -179,3 +187,197 @@ def validate_file_path(path: str, must_exist: bool = True) -> bool:
             return p.parent.exists() or p.parent == Path(".")
     except (OSError, ValueError):
         return False
+
+
+def load_element_data(file_path: Path, verbose: bool = False) -> dict[str, Any]:
+    """
+    Load element data from JSON file with enhanced error handling.
+
+    Args:
+        file_path: Path to JSON file
+        verbose: Whether to show detailed error information
+
+    Returns:
+        Parsed element data
+
+    Raises:
+        click.ClickException: If file loading fails
+    """
+    if not file_path.exists():
+        raise click.ClickException(f"Element file not found: {file_path}")
+
+    if not file_path.is_file():
+        raise click.ClickException(f"Element path is not a file: {file_path}")
+
+    try:
+        if verbose:
+            click.echo(f"Loading element data from {file_path}")
+
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+
+        if not isinstance(data, dict):
+            raise click.ClickException(f"Element data must be a JSON object, got {type(data).__name__}")
+
+        return data
+
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON in element file {file_path}: {e.msg}"
+        if hasattr(e, 'lineno'):
+            error_msg += f" at line {e.lineno}, column {e.colno}"
+        raise click.ClickException(error_msg)
+
+    except UnicodeDecodeError as e:
+        raise click.ClickException(f"Encoding error reading {file_path}: {e}")
+
+    except PermissionError:
+        raise click.ClickException(f"Permission denied reading {file_path}")
+
+    except Exception as e:
+        if verbose:
+            import traceback
+            click.echo(f"Unexpected error loading {file_path}:", err=True)
+            click.echo(traceback.format_exc(), err=True)
+        raise click.ClickException(f"Failed to load element file {file_path}: {e}")
+
+
+def detect_file_format(file_path: Path) -> str:
+    """
+    Detect file format based on extension and content.
+
+    Args:
+        file_path: Path to file
+
+    Returns:
+        Format string ('yaml', 'json', or 'unknown')
+    """
+    suffix = file_path.suffix.lower()
+
+    if suffix in ['.yml', '.yaml']:
+        return 'yaml'
+    elif suffix in ['.json']:
+        return 'json'
+
+    # Try to detect by content if extension is ambiguous
+    try:
+        with open(file_path, encoding='utf-8') as f:
+            first_line = f.readline().strip()
+            if first_line.startswith('{') or first_line.startswith('['):
+                return 'json'
+            elif first_line and not first_line.startswith('{'):
+                return 'yaml'
+    except Exception:
+        pass
+
+    return 'unknown'
+
+
+def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> None:
+    """
+    Safely write content to file with error handling.
+
+    Args:
+        file_path: Path to output file
+        content: Content to write
+        verbose: Whether to show detailed information
+
+    Raises:
+        click.ClickException: If writing fails
+    """
+    try:
+        # Create parent directories if they don't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if verbose:
+            click.echo(f"Writing output to {file_path}")
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        if verbose:
+            click.echo(f"Successfully wrote {len(content)} characters to {file_path}")
+
+    except PermissionError:
+        raise click.ClickException(f"Permission denied writing to {file_path}")
+
+    except OSError as e:
+        raise click.ClickException(f"Failed to write to {file_path}: {e}")
+
+    except Exception as e:
+        if verbose:
+            import traceback
+            click.echo(f"Unexpected error writing to {file_path}:", err=True)
+            click.echo(traceback.format_exc(), err=True)
+        raise click.ClickException(f"Failed to write file {file_path}: {e}")
+
+
+def show_progress(message: str, verbose: bool = False) -> None:
+    """
+    Show progress message if verbose mode is enabled.
+
+    Args:
+        message: Progress message to show
+        verbose: Whether verbose mode is enabled
+    """
+    if verbose:
+        click.echo(f"🔄 {message}")
+
+
+def show_success(message: str) -> None:
+    """
+    Show success message with green checkmark.
+
+    Args:
+        message: Success message to show
+    """
+    click.echo(f"✅ {message}", color="green")
+
+
+def show_warning(message: str) -> None:
+    """
+    Show warning message with yellow warning icon.
+
+    Args:
+        message: Warning message to show
+    """
+    click.echo(f"⚠️  {message}", color="yellow")
+
+
+def show_error(message: str) -> None:
+    """
+    Show error message with red X icon.
+
+    Args:
+        message: Error message to show
+    """
+    click.echo(f"❌ {message}", color="red", err=True)
+
+
+def validate_output_format(format_name: str, supported_formats: list[str]) -> str:
+    """
+    Validate output format and provide suggestions if invalid.
+
+    Args:
+        format_name: Format name to validate
+        supported_formats: List of supported format names
+
+    Returns:
+        Validated format name
+
+    Raises:
+        click.ClickException: If format is not supported
+    """
+    if format_name in supported_formats:
+        return format_name
+
+    # Provide suggestions for common typos
+    suggestions = []
+    for fmt in supported_formats:
+        if format_name.lower() in fmt.lower() or fmt.lower() in format_name.lower():
+            suggestions.append(fmt)
+
+    error_msg = f"Unsupported format '{format_name}'. Supported formats: {', '.join(supported_formats)}"
+    if suggestions:
+        error_msg += f". Did you mean: {', '.join(suggestions)}?"
+
+    raise click.ClickException(error_msg)

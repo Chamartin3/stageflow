@@ -5,7 +5,12 @@ from typing import Any
 
 import click
 
-from stageflow.cli.utils import handle_error
+from stageflow.cli.utils import (
+    handle_error,
+    show_progress,
+    show_success,
+    validate_output_format,
+)
 from stageflow.process.schema.loaders.yaml import YamlLoader
 
 
@@ -47,28 +52,38 @@ def init_command(
     Example:
         stageflow init my-workflow --template=onboarding --format=yaml
     """
-    verbose = ctx.obj.get("verbose", False)
+    verbose = ctx.obj.get("verbose", False) if ctx.obj else False
 
     try:
+        # Validate format
+        supported_formats = ["yaml", "json"]
+        validate_output_format(format, supported_formats)
+
+        # Validate template
+        supported_templates = ["basic", "onboarding", "approval", "ecommerce"]
+        if template not in supported_templates:
+            raise click.ClickException(f"Unsupported template '{template}'. Supported templates: {', '.join(supported_templates)}")
+
         # Determine output directory
         if output_dir is None:
             output_dir = Path.cwd() / project_name
         else:
             output_dir = output_dir / project_name
 
+        show_progress(f"Creating project '{project_name}' in {output_dir}", verbose)
+
         # Create project directory
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        if verbose:
-            click.echo(f"Creating project '{project_name}' in {output_dir}")
-
         # Generate process definition based on template
+        show_progress("Generating process definition from template...", verbose)
         process_data = _get_template_data(project_name, template)
 
         # Save process definition
         file_extension = "yaml" if format == "yaml" else "json"
         process_file = output_dir / f"process.{file_extension}"
 
+        show_progress(f"Writing process definition to {process_file.name}...", verbose)
         if format == "yaml":
             loader = YamlLoader()
             with open(process_file, "w", encoding="utf-8") as f:
@@ -80,6 +95,7 @@ def init_command(
                 json.dump(process_data, f, indent=2)
 
         # Create example element file
+        show_progress("Creating example element file...", verbose)
         example_element = _get_example_element(template)
         element_file = output_dir / "example_element.json"
         with open(element_file, "w", encoding="utf-8") as f:
@@ -88,17 +104,19 @@ def init_command(
             json.dump(example_element, f, indent=2)
 
         # Create project structure
+        show_progress("Creating project directory structure...", verbose)
         (output_dir / "elements").mkdir(exist_ok=True)
         (output_dir / "outputs").mkdir(exist_ok=True)
 
         # Create README
+        show_progress("Generating project documentation...", verbose)
         readme_content = _generate_readme(project_name, template, format)
         readme_file = output_dir / "README.md"
         with open(readme_file, "w", encoding="utf-8") as f:
             f.write(readme_content)
 
         # Success message
-        click.echo(f"✅ Project '{project_name}' created successfully!")
+        show_success(f"Project '{project_name}' created successfully!")
         click.echo(f"   Location: {output_dir}")
         click.echo(f"   Process: {process_file.name}")
         click.echo(f"   Example: {element_file.name}")
@@ -108,6 +126,9 @@ def init_command(
         click.echo(f"   stageflow validate process.{file_extension}")
         click.echo(f"   stageflow evaluate process.{file_extension} example_element.json")
 
+    except click.ClickException:
+        # Re-raise click exceptions (already properly formatted)
+        raise
     except Exception as e:
         handle_error(e, verbose)
         ctx.exit(1)
@@ -368,9 +389,9 @@ stageflow validate process.{format}
 stageflow evaluate process.{format} example_element.json
 ```
 
-### Generate Visualization
+### Generate Text Visualization
 ```bash
-stageflow visualize process.{format} --format=mermaid --output=diagram.md
+stageflow visualize process.{format} --output=diagram.txt
 ```
 
 ## Next Steps

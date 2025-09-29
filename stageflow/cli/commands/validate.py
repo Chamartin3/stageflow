@@ -4,7 +4,13 @@ from pathlib import Path
 
 import click
 
-from stageflow.cli.utils import handle_error
+from stageflow.cli.utils import (
+    handle_error,
+    safe_write_file,
+    show_progress,
+    show_success,
+    validate_output_format,
+)
 from stageflow.process.schema.loaders import load_process
 from stageflow.process.validation import ProcessValidator
 
@@ -48,17 +54,19 @@ def validate_command(
     Example:
         stageflow validate process.yaml --severity=warning
     """
-    verbose = ctx.obj.get("verbose", False)
+    verbose = ctx.obj.get("verbose", False) if ctx.obj else False
 
     try:
-        # Load process
-        if verbose:
-            click.echo(f"Loading process from {process_file}")
+        # Validate output format
+        supported_formats = ["text", "json"]
+        validate_output_format(output_format, supported_formats)
+
+        # Load process with progress
+        show_progress(f"Loading process from {process_file}", verbose)
         process = load_process(str(process_file))
 
         # Validate process
-        if verbose:
-            click.echo("Validating process structure...")
+        show_progress("Validating process structure...", verbose)
         validator = ProcessValidator()
         result = validator.validate_process(process)
 
@@ -73,6 +81,7 @@ def validate_command(
         ]
 
         # Format output
+        show_progress("Formatting validation results...", verbose)
         if output_format == "json":
             import json
 
@@ -118,11 +127,8 @@ def validate_command(
 
         # Output result
         if output:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(output_text)
-            if verbose:
-                click.echo(f"Validation report written to {output}")
+            safe_write_file(output, output_text, verbose)
+            show_success(f"Validation report written to {output}")
         else:
             click.echo(output_text)
 
@@ -130,6 +136,9 @@ def validate_command(
         if result.has_errors:
             ctx.exit(1)
 
+    except click.ClickException:
+        # Re-raise click exceptions (already properly formatted)
+        raise
     except Exception as e:
         handle_error(e, verbose)
         ctx.exit(1)

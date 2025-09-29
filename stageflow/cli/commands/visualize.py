@@ -4,7 +4,12 @@ from pathlib import Path
 
 import click
 
-from stageflow.cli.utils import handle_error
+from stageflow.cli.utils import (
+    handle_error,
+    safe_write_file,
+    show_progress,
+    show_success,
+)
 from stageflow.process.schema.loaders import load_process
 
 
@@ -14,7 +19,7 @@ from stageflow.process.schema.loaders import load_process
     "--format",
     "-f",
     "output_format",
-    type=click.Choice(["mermaid", "dot", "text"]),
+    type=click.Choice(["mermaid", "graphviz", "dot", "text"]),
     default="mermaid",
     help="Visualization format",
 )
@@ -25,9 +30,21 @@ from stageflow.process.schema.loaders import load_process
     help="Output file (default: stdout)",
 )
 @click.option(
+    "--style",
+    "-s",
+    type=click.Choice(["overview", "detailed", "full"]),
+    default="overview",
+    help="Detail level for visualization",
+)
+@click.option(
     "--include-details",
     is_flag=True,
-    help="Include gate and lock details in visualization",
+    help="Include gate and lock details (legacy - use --style detailed instead)",
+)
+@click.option(
+    "--include-locks",
+    is_flag=True,
+    help="Include lock details in stage diagrams",
 )
 @click.pass_context
 def visualize_command(
@@ -35,63 +52,101 @@ def visualize_command(
     process_file: Path,
     output_format: str,
     output: Path,
+    style: str,
     include_details: bool,
+    include_locks: bool,
 ):
     """
     Generate visualization of a process flow.
 
     PROCESS_FILE: Path to process definition (YAML/JSON)
 
-    Example:
+    Examples:
         stageflow visualize process.yaml --format=mermaid --output=diagram.md
+        stageflow visualize process.yaml --format=graphviz --style=detailed
+        stageflow visualize process.yaml --format=dot --output=process.dot
     """
-    verbose = ctx.obj.get("verbose", False)
+    verbose = ctx.obj.get("verbose", False) if ctx.obj else False
 
     try:
-        # Load process
-        if verbose:
-            click.echo(f"Loading process from {process_file}")
+        # Load process with progress
+        show_progress(f"Loading process from {process_file}", verbose)
         process = load_process(str(process_file))
 
+        # Map legacy include_details to style
+        if include_details and style == "overview":
+            style = "detailed"
+
         # Generate visualization based on format
+        show_progress(f"Generating {output_format} visualization...", verbose)
         if output_format == "mermaid":
-            try:
-                from stageflow.visualization import MermaidGenerator
-
-                generator = MermaidGenerator()
-                output_text = generator.generate_process_diagram(process, include_details)
-            except ImportError:
-                click.echo("Mermaid visualization requires the 'visualization' extras")
-                click.echo("Install with: pip install stageflow[visualization]")
-                ctx.exit(1)
-
-        elif output_format == "dot":
-            try:
-                from stageflow.visualization import GraphvizGenerator
-
-                generator = GraphvizGenerator()
-                output_text = generator.generate_process_diagram(process, include_details)
-            except ImportError:
-                click.echo("Graphviz visualization requires the 'visualization' extras")
-                click.echo("Install with: pip install stageflow[visualization]")
-                ctx.exit(1)
-
+            output_text = _generate_mermaid_visualization(process, style, include_locks)
+        elif output_format in ["graphviz", "dot"]:
+            output_text = _generate_graphviz_visualization(process, style, include_locks)
         else:  # text format
-            output_text = _generate_text_visualization(process, include_details)
+            output_text = _generate_text_visualization(process, style == "detailed" or include_details)
+
+        # Determine output file extension if output specified without extension
+        if output and not output.suffix:
+            if output_format == "mermaid":
+                output = output.with_suffix(".md")
+            elif output_format in ["graphviz", "dot"]:
+                output = output.with_suffix(".dot")
+            else:
+                output = output.with_suffix(".txt")
 
         # Output result
         if output:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with open(output, "w", encoding="utf-8") as f:
-                f.write(output_text)
-            if verbose:
-                click.echo(f"Visualization written to {output}")
+            safe_write_file(output, output_text, verbose)
+            show_success(f"{output_format.capitalize()} visualization written to {output}")
         else:
             click.echo(output_text)
 
+    except click.ClickException:
+        # Re-raise click exceptions (already properly formatted)
+        raise
     except Exception as e:
         handle_error(e, verbose)
         ctx.exit(1)
+
+
+def _generate_mermaid_visualization(process, style: str, include_locks: bool) -> str:
+    """Generate Mermaid diagram visualization."""
+    try:
+        from stageflow.process.visualization import MermaidDiagramGenerator
+
+        generator = MermaidDiagramGenerator()
+        return generator.generate_process_diagram(process, style=style)
+    except ImportError:
+        return _generate_import_error_message("Mermaid", "visualization")
+
+
+def _generate_graphviz_visualization(process, style: str, include_locks: bool) -> str:
+    """Generate Graphviz DOT visualization."""
+    try:
+        from stageflow.process.visualization import GraphvizDotGenerator
+
+        generator = GraphvizDotGenerator()
+        return generator.generate_process_diagram(process, style=style)
+    except ImportError:
+        return _generate_import_error_message("Graphviz", "visualization")
+
+
+def _generate_import_error_message(format_name: str, extras_name: str) -> str:
+    """Generate helpful error message for missing visualization dependencies."""
+    return f"""
+Error: {format_name} visualization not available.
+
+To use {format_name} visualization, ensure the visualization module is properly installed.
+If you're seeing this error, it might be due to:
+1. Missing visualization dependencies
+2. Import issues with the visualization module
+
+Try reinstalling or checking your installation:
+    pip install stageflow[{extras_name}]
+
+Falling back to text visualization would require using --format=text
+"""
 
 
 def _generate_text_visualization(process, include_details: bool) -> str:
@@ -115,11 +170,22 @@ def _generate_text_visualization(process, include_details: bool) -> str:
                 gate_prefix = "   └─" if j == len(stage.gates) - 1 else "   ├─"
                 lines.append(f"{gate_prefix} Gate: {gate.name}")
 
-                if gate.locks:
+                # Handle new gate structure with components
+                if hasattr(gate, 'components') and gate.components:
+                    for k, component in enumerate(gate.components):
+                        if hasattr(component, 'lock'):
+                            lock = component.lock
+                            lock_prefix = "      └─" if k == len(gate.components) - 1 else "      ├─"
+                            lock_desc = f"{lock.property_path} {lock.lock_type.value}"
+                            if hasattr(lock, 'expected_value') and lock.expected_value is not None:
+                                lock_desc += f" {lock.expected_value}"
+                            lines.append(f"{lock_prefix} {lock_desc}")
+                # Handle legacy gate structure with locks attribute
+                elif hasattr(gate, 'locks') and gate.locks:
                     for k, lock in enumerate(gate.locks):
                         lock_prefix = "      └─" if k == len(gate.locks) - 1 else "      ├─"
                         lock_desc = f"{lock.property_path} {lock.lock_type.value}"
-                        if lock.expected_value is not None:
+                        if hasattr(lock, 'expected_value') and lock.expected_value is not None:
                             lock_desc += f" {lock.expected_value}"
                         lines.append(f"{lock_prefix} {lock_desc}")
 
