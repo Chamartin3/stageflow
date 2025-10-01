@@ -70,6 +70,34 @@ class FieldDefinition:
         self.required = required
         self.validators = validators or []
 
+        # Add compatibility attributes for validation logic
+        self.min_value = None
+        self.max_value = None
+        self.min_length = None
+        self.max_length = None
+        self.pattern = None
+        self.enum = None
+
+    @property
+    def type(self) -> str:
+        """
+        Compatibility property for accessing type_ as type string.
+
+        Returns:
+            The field type as a string compatible with validation logic
+        """
+        # Convert Python type objects to string type names for validation compatibility
+        type_map = {
+            str: "string",
+            int: "integer",
+            float: "number",
+            bool: "boolean",
+            list: "array",
+            dict: "object",
+            type(None): "null"
+        }
+        return type_map.get(self.type_, str(self.type_))
+
     def validate_value(self, value: Any) -> tuple[bool, Any, list[str]]:
         """
         Validate a value against this field definition.
@@ -429,6 +457,16 @@ class ItemSchema:
 
         return composed
 
+    @property
+    def field_definitions(self) -> dict[str, FieldDefinition]:
+        """
+        Compatibility property for accessing fields as field_definitions.
+
+        Returns:
+            Dictionary of field paths to FieldDefinition objects
+        """
+        return self.fields
+
     def add_field(self, name: str, field_def: FieldDefinition) -> None:
         """
         Add a field to the schema.
@@ -579,4 +617,4 @@ class ItemSchema:
 
 
 # Import here to avoid circular imports
-from stageflow.core.element import Element
+from stageflow.element import Element

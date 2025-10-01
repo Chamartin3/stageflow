@@ -1,4 +1,4 @@
-"""Process domain for StageFlow - orchestration, validation, and visualization."""
+"""Process domain for StageFlow - orchestration and validation."""
 
 from .config import ProcessConfig
 

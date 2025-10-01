@@ -1,28 +1,27 @@
 """Core Process class for StageFlow multi-stage validation orchestration."""
 
-import hashlib
 import time
 
 # Lazy import to avoid circular dependency
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
-from stageflow.element import Element
+from .common.interfaces import ProcessInterface
+from .common.types import ActionType, Priority
+from .element import Element
 
 if TYPE_CHECKING:
-    from stageflow.stage import Stage
-from stageflow.process.config import ProcessConfig
-from stageflow.process.extras.history import ElementStateHistory
-from stageflow.process.result import (
+    from .stage import Stage
+from .process.config import ProcessConfig
+from .process.extras.history import ElementStateHistory
+from .process.result import (
     Action,
-    ActionType,
     EvaluationState,
-    Priority,
     StatusResult,
 )
 
 # Import new evaluation pipeline components
 try:
-    from stageflow.process.evaluation import (
+    from .process.evaluation import (
         DefaultStageEvaluationStrategy,
         ProcessEvaluationPipeline,
         ProcessStateMachine,
@@ -31,108 +30,11 @@ try:
 except ImportError:
     _PIPELINE_AVAILABLE = False
 
-# validation simplified - no complex services needed
+# Import schema validation components
+from .process.schema.validation import ItemSchemaValidator
 
 
-
-class ElementHistory:
-
-    def _record_state_transition(
-        self,
-        element: Element,
-        from_state: str | None,
-        to_state: str,
-        stage_name: str | None,
-        reason: str,
-        evaluation_time: float,
-        additional_metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Record state transition in element history."""
-        element_id = self._get_element_id(element)
-
-        # Get or create history
-        if element_id not in self._state_histories:
-            self._state_histories[element_id] = ElementStateHistory(
-                element_id=element_id,
-                initial_timestamp=time.time(),
-            )
-
-        history = self._state_histories[element_id]
-        history.add_transition(
-            from_state=from_state,
-            to_state=to_state,
-            stage_name=stage_name,
-            reason=reason,
-            evaluation_time=evaluation_time,
-            additional_metadata=additional_metadata,
-        )
-
-class EvaluationStrategy:
-    def enable_modular_pipeline(self) -> bool:
-        """
-        Enable the new modular evaluation pipeline.
-
-        Returns:
-            True if pipeline was enabled, False if not available
-        """
-        if not _PIPELINE_AVAILABLE:
-            return False
-
-        if not self._use_modular_pipeline:
-            self._use_modular_pipeline = True
-            stage_strategy = DefaultStageEvaluationStrategy(self._stage_order)
-            self._evaluation_pipeline = ProcessEvaluationPipeline(
-                stage_strategy=stage_strategy
-            )
-
-        return True
-
-    def disable_modular_pipeline(self) -> None:
-        """Disable the modular evaluation pipeline and use legacy implementation."""
-        self._use_modular_pipeline = False
-        self._evaluation_pipeline = None
-
-    def is_using_modular_pipeline(self) -> bool:
-        """Check if the modular evaluation pipeline is enabled."""
-        return self._use_modular_pipeline and self._evaluation_pipeline is not None
-
-    def get_pipeline_info(self) -> dict[str, Any]:
-        """
-        Get information about the evaluation pipeline configuration.
-
-        Returns:
-            Dictionary with pipeline configuration details
-        """
-        info = {
-            "pipeline_available": _PIPELINE_AVAILABLE,
-            "using_modular_pipeline": self.is_using_modular_pipeline(),
-            "legacy_fallback": not self._use_modular_pipeline
-        }
-
-        if self._evaluation_pipeline:
-            info.update(self._evaluation_pipeline.get_evaluation_metrics())
-
-        return info
-
-    # Public API for history (optional components)
-
-
-class ProcessConfigDict(TypedDict):
-    """
-    Configuration for process initialization and behavior.
-
-    Contains all configurable aspects of process behavior including
-    validation settings, performance options, and metadata.
-    """
-
-    name: str
-    description: str
-    stages: list[dict]
-    initial_stage:  str
-    final_stage: str
-
-
-class Process:
+class Process(ProcessInterface):
     """
     Multi-stage workflow orchestration for element validation.
 
@@ -142,7 +44,12 @@ class Process:
 
     def __init__(
         self,
-        config: ProcessConfig
+        name: str,
+        stages: list[Any] | None = None,
+        config: ProcessConfig | None = None,
+        allow_stage_skipping: bool = False,
+        stage_order: list[str] | None = None,
+        use_modular_pipeline: bool = False,
     ):
         """
         Initialize Process from configuration.
@@ -155,12 +62,21 @@ class Process:
             stage_order: Explicit stage order (optional, will be auto-generated)
             use_modular_pipeline: Whether to use the new modular evaluation pipeline
         """
+        if config is None:
+            config = ProcessConfig(
+                name=name,
+                allow_stage_skipping=allow_stage_skipping
+            )
+
         self._config = config
         self._stages = stages or []
         self._stage_order: list[str] = stage_order or []
 
         # Initialize components based on config
-        # validation simplified - stages handle their own validation
+        self._state_histories: dict[str, ElementStateHistory] = {}
+
+        # Initialize schema validator
+        self._schema_validator = ItemSchemaValidator()
 
         # Performance caches
         self._stage_cache: dict[str, Stage] = {}
@@ -267,7 +183,8 @@ class Process:
                 stage_result = current_stage.evaluate(element)
                 element_id = self._get_element_id(element)
 
-                # validation is now handled directly in stage.evaluate()
+                # Schema validation is now handled directly in Stage.evaluate() using required_properties
+                schema_validation_result = None
 
                 # Get stage-based actions
                 if stage_result.overall_passed:
@@ -286,7 +203,7 @@ class Process:
                             state=EvaluationState.COMPLETED,
                             element_id=element_id,
                             actions=stage_actions,  # type: ignore
-                            schema_validation_result=stage_result,
+                            schema_validation_result=schema_validation_result,
                             metadata={"final_stage": current_stage.name},
                         )
                     else:
@@ -313,7 +230,7 @@ class Process:
                                     current_stage=current_stage.name,
                                     proposed_stage=next_stage.name,
                                     actions=stage_actions,  # type: ignore
-                                    schema_validation_result=stage_result,
+                                    schema_validation_result=schema_validation_result,
                                     metadata={"next_stage": next_stage.name},
                                 )
                             else:
@@ -332,7 +249,7 @@ class Process:
                                     current_stage=current_stage.name,
                                     proposed_stage=next_stage.name,
                                     actions=stage_actions,  # type: ignore
-                                    schema_validation_result=stage_result,
+                                    schema_validation_result=schema_validation_result,
                                     metadata={"next_stage": next_stage.name, "advance_blocked": advance_errors},
                                 )
                         else:
@@ -346,7 +263,7 @@ class Process:
                                     description="Process configuration error: no next stage defined",
                                     priority=Priority.CRITICAL
                                 )],
-                                schema_validation_result=stage_result,
+                                schema_validation_result=schema_validation_result,
                             )
                 else:
                     # Not passed - use stage-based actions for fulfilling
@@ -366,7 +283,7 @@ class Process:
                         element_id=element_id,
                         current_stage=current_stage.name,
                         actions=stage_actions,  # type: ignore
-                        schema_validation_result=stage_result,
+                        schema_validation_result=schema_validation_result,
                         metadata={"completion": current_stage.get_completion_percentage(element)},
                     )
             else:
@@ -434,6 +351,11 @@ class Process:
         if stage.name not in self._stage_order:
             self._stage_order.append(stage.name)
         self._rebuild_stage_mappings()
+
+    def get_element_state_history(self, element: Element) -> ElementStateHistory | None:
+        """Get state history for element."""
+        element_id = self._get_element_id(element)
+        return self._state_histories.get(element_id)
 
     def _scope_element(self, element: Element) -> tuple[Any | None, StatusResult | None]:
         """
@@ -509,6 +431,35 @@ class Process:
         return allowed
 
 
+    def _record_state_transition(
+        self,
+        element: Element,
+        from_state: str | None,
+        to_state: str,
+        stage_name: str | None,
+        reason: str,
+        evaluation_time: float,
+        additional_metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Record state transition in element history."""
+        element_id = self._get_element_id(element)
+
+        # Get or create history
+        if element_id not in self._state_histories:
+            self._state_histories[element_id] = ElementStateHistory(
+                element_id=element_id,
+                initial_timestamp=time.time(),
+            )
+
+        history = self._state_histories[element_id]
+        history.add_transition(
+            from_state=from_state,
+            to_state=to_state,
+            stage_name=stage_name,
+            reason=reason,
+            evaluation_time=evaluation_time,
+            additional_metadata=additional_metadata,
+        )
 
     def _rebuild_stage_mappings(self) -> None:
         """Rebuild internal stage mappings and clear caches."""
@@ -550,28 +501,19 @@ class Process:
         """Extract element ID for history tracking."""
         try:
             # Try to get 'id' property first
-            try:
-                element_id = element.get_property("id")
-                if element_id is not None:
-                    return str(element_id)
-            except (KeyError, AttributeError):
-                pass
+            element_id = element.get_property("id")
+            if element_id is not None:
+                return str(element_id)
 
             # Try to get '_id' property (MongoDB style)
-            try:
-                element_id = element.get_property("_id")
-                if element_id is not None:
-                    return str(element_id)
-            except (KeyError, AttributeError):
-                pass
+            element_id = element.get_property("_id")
+            if element_id is not None:
+                return str(element_id)
 
-            # Fallback to hash-based ID for elements without explicit ID
-            element_str = str(element.to_dict() if hasattr(element, 'to_dict') else element)
-            hash_hex = hashlib.md5(element_str.encode()).hexdigest()[:8]
-            return f"element_{hash_hex}"
+            # Fallback to object id
+            return str(id(element))
         except Exception:
-            # Last resort: use object id
-            return f"element_{str(id(element))}"
+            return str(id(element))
 
     @classmethod
     def from_config(cls, config: ProcessConfig, stages: list[Any] | None = None, use_modular_pipeline: bool = False) -> "Process":
@@ -694,4 +636,55 @@ class Process:
     def get_all_state_histories(self) -> dict[str, Any]:
         """Get all state histories."""
         return self._state_histories
+
+    # Pipeline management methods
+
+    def enable_modular_pipeline(self) -> bool:
+        """
+        Enable the new modular evaluation pipeline.
+
+        Returns:
+            True if pipeline was enabled, False if not available
+        """
+        if not _PIPELINE_AVAILABLE:
+            return False
+
+        if not self._use_modular_pipeline:
+            self._use_modular_pipeline = True
+            stage_strategy = DefaultStageEvaluationStrategy(self._stage_order)
+            self._evaluation_pipeline = ProcessEvaluationPipeline(
+                stage_strategy=stage_strategy
+            )
+
+        return True
+
+    def disable_modular_pipeline(self) -> None:
+        """Disable the modular evaluation pipeline and use legacy implementation."""
+        self._use_modular_pipeline = False
+        self._evaluation_pipeline = None
+
+    def is_using_modular_pipeline(self) -> bool:
+        """Check if the modular evaluation pipeline is enabled."""
+        return self._use_modular_pipeline and self._evaluation_pipeline is not None
+
+    def get_pipeline_info(self) -> dict[str, Any]:
+        """
+        Get information about the evaluation pipeline configuration.
+
+        Returns:
+            Dictionary with pipeline configuration details
+        """
+        info = {
+            "pipeline_available": _PIPELINE_AVAILABLE,
+            "using_modular_pipeline": self.is_using_modular_pipeline(),
+            "legacy_fallback": not self._use_modular_pipeline
+        }
+
+        if self._evaluation_pipeline:
+            info.update(self._evaluation_pipeline.get_evaluation_metrics())
+
+        return info
+
+    # Public API for history (optional components)
+
 

@@ -4,22 +4,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from stageflow.stage import Stage
     from stageflow.process.main import Process
-    from stageflow.core.stage import Stage, ActionDefinition, StageActionDefinitions
+    from stageflow.gates import Gate, Lock, LockType
+    from stageflow.models import ProcessConfig, StageConfig
 
 from ruamel.yaml import YAML
 from ruamel.yaml.constructor import ConstructorError
 from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 
-from stageflow.gates import Gate, Lock, LockType
 from stageflow.gates.lock import LockFactory
 from stageflow.process.schema.core import ItemSchema
 from stageflow.process.schema.models import (
     ValidationContext,
     validate_stageflow_schema,
 )
-from stageflow.models import ProcessConfig, StageConfig, LoaderConfig
 
 
 class YAMLLoadError(Exception):
@@ -185,7 +185,7 @@ class YamlLoader:
         config = self.load_process_config(file_path)
         return self._config_to_process(config)
 
-    def load_process_config(self, file_path: str | Path) -> ProcessConfig:
+    def load_process_config(self, file_path: str | Path) -> "ProcessConfig":
         """
         Load process configuration from YAML file.
 
@@ -258,7 +258,7 @@ class YamlLoader:
         config = self.load_process_config_from_string(yaml_content, file_path)
         return self._config_to_process(config)
 
-    def load_process_config_from_string(self, yaml_content: str, file_path: str | None = None) -> ProcessConfig:
+    def load_process_config_from_string(self, yaml_content: str, file_path: str | None = None) -> "ProcessConfig":
         """
         Load process configuration from YAML string.
 
@@ -530,6 +530,7 @@ class YamlLoader:
 
         # Validate lock type (support both formats)
         lock_type = lock_def.get("type") or lock_def.get("lock_type")
+        from stageflow.gates import LockType
         valid_types = [t.value for t in LockType]
         if lock_type not in valid_types:
             raise YAMLSchemaError(
@@ -538,7 +539,7 @@ class YamlLoader:
             )
 
 
-    def _data_to_config(self, data: dict[str, Any]) -> ProcessConfig:
+    def _data_to_config(self, data: dict[str, Any]) -> "ProcessConfig":
         """
         Convert loaded YAML data to ProcessConfig TypedDict.
 
@@ -556,6 +557,9 @@ class YamlLoader:
         try:
             # Handle process wrapper
             process_data = data.get("process", data)
+
+            # Import at runtime to avoid circular imports
+            from stageflow.models import ProcessConfig
 
             # Transform data to match ProcessConfig structure
             config: ProcessConfig = {
@@ -587,7 +591,7 @@ class YamlLoader:
                 file_path=file_path
             ) from e
 
-    def _config_to_process(self, config: ProcessConfig) -> "Process":
+    def _config_to_process(self, config: "ProcessConfig") -> "Process":
         """
         Convert ProcessConfig to Process instance.
 
@@ -621,8 +625,8 @@ class YamlLoader:
                     stages.append(stage)
 
             # Import Process here to avoid circular imports
-            from stageflow.process.main import Process
             from stageflow.process.config import ProcessConfig as ProcessConfigClass
+            from stageflow.process.main import Process
 
             # Create ProcessConfig for the Process constructor
             process_config = ProcessConfigClass(
@@ -646,7 +650,7 @@ class YamlLoader:
                 f"Failed to convert config to process: {str(e)}"
             ) from e
 
-    def _parse_stages_to_config(self, stages_data: dict[str, Any]) -> list[StageConfig]:
+    def _parse_stages_to_config(self, stages_data: dict[str, Any]) -> list["StageConfig"]:
         """
         Parse stages data to list of StageConfig TypedDicts.
 
@@ -659,6 +663,8 @@ class YamlLoader:
         Raises:
             YAMLSchemaError: If stage parsing fails
         """
+        # Import at runtime to avoid circular imports
+        from stageflow.models import StageConfig
         stage_configs = []
 
         for stage_name, stage_def in stages_data.items():
@@ -669,8 +675,8 @@ class YamlLoader:
             # Add optional fields
             if "gates" in stage_def:
                 stage_config["gates"] = self._parse_gates_to_config(stage_def["gates"])
-            if "schema" in stage_def:
-                stage_config["schema"] = stage_def["schema"]
+            if "required_properties" in stage_def:
+                stage_config["required_properties"] = stage_def["required_properties"]
             if "allow_partial" in stage_def:
                 stage_config["allow_partial"] = stage_def["allow_partial"]
             if "metadata" in stage_def:
@@ -709,7 +715,7 @@ class YamlLoader:
 
         return gate_configs
 
-    def _stage_config_to_stage(self, stage_config: StageConfig) -> "Stage":
+    def _stage_config_to_stage(self, stage_config: "StageConfig") -> "Stage":
         """
         Convert StageConfig to Stage instance.
 
@@ -728,10 +734,12 @@ class YamlLoader:
             gate = self._gate_config_to_gate(gate_config)
             gates.append(gate)
 
-        # Parse schema from config
-        schema_data = stage_config.get("schema")
-        if schema_data:
-            schema = self._parse_schema(f"{stage_config['name']}_schema", schema_data)
+        # Parse required properties from config
+        required_props = stage_config.get("required_properties", [])
+        if isinstance(required_props, list):
+            required_properties = set(required_props)
+        else:
+            required_properties = set()
 
         # Parse action definitions
         action_definitions = None
@@ -740,17 +748,24 @@ class YamlLoader:
             action_definitions = self._parse_action_definitions(action_defs_data)
 
         # Import Stage here to avoid circular imports
-        from stageflow.core.stage import Stage
-        return Stage(
-            name=stage_config["name"],
-            gates=gates,
-            schema=schema,
-            metadata=stage_config.get("metadata", {}),
-            allow_partial=stage_config.get("allow_partial", False),
-            action_definitions=action_definitions,
-        )
+        from stageflow.stage import Stage
 
-    def _gate_config_to_gate(self, gate_config: dict[str, Any]) -> Gate:
+        # Create Stage with proper defaults
+        stage_kwargs = {
+            "name": stage_config["name"],
+            "gates": gates,
+            "required_properties": required_properties,
+            "metadata": stage_config.get("metadata", {}),
+            "allow_partial": stage_config.get("allow_partial", False),
+        }
+
+        # Only add action_definitions if it's not None
+        if action_definitions is not None:
+            stage_kwargs["action_definitions"] = action_definitions
+
+        return Stage(**stage_kwargs)
+
+    def _gate_config_to_gate(self, gate_config: dict[str, Any]) -> "Gate":
         """
         Convert gate configuration to Gate instance.
 
@@ -771,6 +786,7 @@ class YamlLoader:
 
         # Wrap locks in LockWrapper to make them evaluable
         from stageflow.gates.gate import LockWrapper
+        from stageflow.gates import Gate
         components = [LockWrapper(lock) for lock in locks]
 
         return Gate.create(
@@ -806,10 +822,12 @@ class YamlLoader:
                     gate = self._parse_gate(gate_name, gate_def)
                     gates.append(gate)
 
-            # Parse schema
-            schema_data = stage_def.get("schema")
-            if schema_data:
-                schema = self._parse_schema(f"{stage_name}_schema", schema_data)
+                # Parse required properties
+            required_props = stage_def.get("required_properties", [])
+            if isinstance(required_props, list):
+                required_properties = set(required_props)
+            else:
+                required_properties = set()
 
             # Parse action definitions
             action_definitions = None
@@ -818,11 +836,11 @@ class YamlLoader:
                 action_definitions = self._parse_action_definitions(action_defs_data)
 
             # Import Stage here to avoid circular imports
-            from stageflow.core.stage import Stage
+            from stageflow.stage import Stage
             return Stage(
                 name=stage_name,
                 gates=gates,
-                schema=schema,
+                required_properties=required_properties,
                 metadata=stage_def.get("metadata", {}),
                 allow_partial=stage_def.get("allow_partial", False),
                 action_definitions=action_definitions,
@@ -835,7 +853,7 @@ class YamlLoader:
                 file_path=file_path
             ) from e
 
-    def _parse_gate(self, gate_name: str, gate_def: dict[str, Any]) -> Gate:
+    def _parse_gate(self, gate_name: str, gate_def: dict[str, Any]) -> "Gate":
         """
         Parse gate definition from dictionary with enhanced error handling.
 
@@ -862,6 +880,7 @@ class YamlLoader:
                 locks.append(lock)
 
             # Create gate using new unified format
+            from stageflow.gates import Gate
             return Gate.create(
                 *locks,
                 name=gate_name,
@@ -876,7 +895,7 @@ class YamlLoader:
                 file_path=file_path
             ) from e
 
-    def _parse_lock(self, lock_def: dict[str, Any], location: str) -> Lock:
+    def _parse_lock(self, lock_def: dict[str, Any], location: str) -> "Lock":
         """
         Parse lock definition from dictionary with enhanced error handling.
 
@@ -918,7 +937,7 @@ class YamlLoader:
 
         try:
             # Import classes to avoid circular imports
-            from stageflow.core.stage import ActionDefinition, StageActionDefinitions
+            from stageflow.stage import ActionDefinition, StageActionDefinitions
             from stageflow.process.result import ActionType, Priority
 
             def parse_action_list(actions_data: list[dict[str, Any]]) -> list[ActionDefinition]:
@@ -975,6 +994,9 @@ class YamlLoader:
         try:
             # Transform validation_rules before parsing
             transformed_def = schema_def.copy()
+
+            # Remove 'name' field if present, as it's passed separately to ItemSchema.from_dict
+            transformed_def.pop('name', None)
             if "validation_rules" in transformed_def and isinstance(transformed_def["validation_rules"], dict):
                 transformed_rules = {}
                 for field, rule in transformed_def["validation_rules"].items():
@@ -1050,15 +1072,8 @@ class YamlLoader:
                 "gates": {},
             }
 
-            if stage.schema:
-                stage_data["schema"] = {
-                    "required_fields": list(stage.schema.required_fields),
-                    "optional_fields": list(stage.schema.optional_fields),
-                    "field_types": stage.schema.field_types,
-                    "default_values": stage.schema.default_values,
-                    "validation_rules": stage.schema.validation_rules,
-                    "metadata": stage.schema.metadata,
-                }
+            if stage.required_properties:
+                stage_data["required_properties"] = list(stage.required_properties)
 
             for gate in stage.gates:
                 gate_data = {
@@ -1112,7 +1127,7 @@ def load_process(file_path: str | Path) -> "Process":
     return loader.load_process(file_path)
 
 
-def load_process_config(file_path: str | Path) -> ProcessConfig:
+def load_process_config(file_path: str | Path) -> "ProcessConfig":
     """
     Convenience function to load a process configuration from YAML file.
 
@@ -1150,7 +1165,7 @@ def load_process_from_string(yaml_content: str, file_path: str | None = None) ->
     return loader.load_process_from_string(yaml_content, file_path)
 
 
-def load_process_config_from_string(yaml_content: str, file_path: str | None = None) -> ProcessConfig:
+def load_process_config_from_string(yaml_content: str, file_path: str | None = None) -> "ProcessConfig":
     """
     Convenience function to load a process configuration from YAML string.
 

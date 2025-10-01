@@ -5,23 +5,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from stageflow.stage import Stage, StageActionDefinitions
     from stageflow.process.main import Process
-    from stageflow.core.stage import Stage, ActionDefinition, StageActionDefinitions
+    from stageflow.gates import Gate, Lock, LockType
+    from stageflow.models import ProcessConfig, StageConfig
 
 try:
     import jsonschema
     HAS_JSONSCHEMA = True
 except ImportError:
     HAS_JSONSCHEMA = False
-
-from stageflow.gates import Gate, Lock, LockType
 from stageflow.gates.lock import LockFactory
 from stageflow.process.schema.core import ItemSchema
 from stageflow.process.schema.models import (
     ValidationContext,
     validate_stageflow_schema,
 )
-from stageflow.models import ProcessConfig, StageConfig, LoaderConfig
 
 
 class JSONLoadError(Exception):
@@ -120,7 +119,7 @@ class JsonLoader:
         config = self.load_process_config(file_path)
         return self._config_to_process(config)
 
-    def load_process_config(self, file_path: str | Path) -> ProcessConfig:
+    def load_process_config(self, file_path: str | Path) -> "ProcessConfig":
         """
         Load process configuration from JSON file.
 
@@ -207,7 +206,7 @@ class JsonLoader:
         config = self.load_process_config_from_string(json_content, file_path)
         return self._config_to_process(config)
 
-    def load_process_config_from_string(self, json_content: str, file_path: str | None = None) -> ProcessConfig:
+    def load_process_config_from_string(self, json_content: str, file_path: str | None = None) -> "ProcessConfig":
         """
         Load process configuration from JSON string.
 
@@ -450,6 +449,8 @@ class JsonLoader:
 
         # Validate lock type
         lock_type = lock_def["type"]
+        # Import at runtime to avoid circular imports
+        from stageflow.gates import LockType
         valid_types = [t.value for t in LockType]
         if lock_type not in valid_types:
             raise JSONSchemaError(
@@ -571,7 +572,7 @@ class JsonLoader:
 
         return current
 
-    def _data_to_config(self, data: dict[str, Any]) -> ProcessConfig:
+    def _data_to_config(self, data: dict[str, Any]) -> "ProcessConfig":
         """
         Convert loaded JSON data to ProcessConfig TypedDict.
 
@@ -587,6 +588,9 @@ class JsonLoader:
         file_path = str(self._current_file) if self._current_file else None
 
         try:
+            # Import at runtime to avoid circular imports
+            from stageflow.models import ProcessConfig
+
             # Transform data to match ProcessConfig structure
             config: ProcessConfig = {
                 "name": data["name"],
@@ -617,7 +621,7 @@ class JsonLoader:
                 file_path=file_path
             ) from e
 
-    def _config_to_process(self, config: ProcessConfig) -> "Process":
+    def _config_to_process(self, config: "ProcessConfig") -> "Process":
         """
         Convert ProcessConfig to Process instance.
 
@@ -651,8 +655,8 @@ class JsonLoader:
                     stages.append(stage)
 
             # Import Process here to avoid circular imports
-            from stageflow.process.main import Process
             from stageflow.process.config import ProcessConfig as ProcessConfigClass
+            from stageflow.process.main import Process
 
             # Create ProcessConfig for the Process constructor
             process_config = ProcessConfigClass(
@@ -676,7 +680,7 @@ class JsonLoader:
                 f"Failed to convert config to process: {str(e)}"
             ) from e
 
-    def _parse_stages_to_config(self, stages_data: dict[str, Any]) -> list[StageConfig]:
+    def _parse_stages_to_config(self, stages_data: dict[str, Any]) -> list["StageConfig"]:
         """
         Parse stages data to list of StageConfig TypedDicts.
 
@@ -689,6 +693,8 @@ class JsonLoader:
         Raises:
             JSONSchemaError: If stage parsing fails
         """
+        # Import at runtime to avoid circular imports
+        from stageflow.models import StageConfig
         stage_configs = []
 
         for stage_name, stage_def in stages_data.items():
@@ -699,8 +705,8 @@ class JsonLoader:
             # Add optional fields
             if "gates" in stage_def:
                 stage_config["gates"] = self._parse_gates_to_config(stage_def["gates"])
-            if "schema" in stage_def:
-                stage_config["schema"] = stage_def["schema"]
+            if "required_properties" in stage_def:
+                stage_config["required_properties"] = stage_def["required_properties"]
             if "allow_partial" in stage_def:
                 stage_config["allow_partial"] = stage_def["allow_partial"]
             if "metadata" in stage_def:
@@ -727,7 +733,7 @@ class JsonLoader:
         for gate_name, gate_def in gates_data.items():
             gate_config = {
                 "name": gate_name,
-                "operation": gate_def.get("logic", "and").upper(),
+                "operation": "AND",  # Gates are now AND-only by design
                 "components": gate_def.get("locks", [])
             }
 
@@ -738,7 +744,7 @@ class JsonLoader:
 
         return gate_configs
 
-    def _stage_config_to_stage(self, stage_config: StageConfig) -> "Stage":
+    def _stage_config_to_stage(self, stage_config: "StageConfig") -> "Stage":
         """
         Convert StageConfig to Stage instance.
 
@@ -757,10 +763,12 @@ class JsonLoader:
             gate = self._gate_config_to_gate(gate_config)
             gates.append(gate)
 
-        # Parse schema from config
-        schema_data = stage_config.get("schema")
-        if schema_data:
-            schema = self._parse_schema(f"{stage_config['name']}_schema", schema_data)
+        # Parse required properties from config
+        required_props = stage_config.get("required_properties", [])
+        if isinstance(required_props, list):
+            required_properties = set(required_props)
+        else:
+            required_properties = set()
 
         # Parse action definitions
         action_definitions = None
@@ -769,17 +777,17 @@ class JsonLoader:
             action_definitions = self._parse_action_definitions(action_defs_data)
 
         # Import Stage here to avoid circular imports
-        from stageflow.core.stage import Stage
+        from stageflow.stage import Stage
         return Stage(
             name=stage_config["name"],
             gates=gates,
-            schema=schema,
+            required_properties=required_properties,
             metadata=stage_config.get("metadata", {}),
             allow_partial=stage_config.get("allow_partial", False),
             action_definitions=action_definitions,
         )
 
-    def _gate_config_to_gate(self, gate_config: dict[str, Any]) -> Gate:
+    def _gate_config_to_gate(self, gate_config: dict[str, Any]) -> "Gate":
         """
         Convert gate configuration to Gate instance.
 
@@ -802,6 +810,8 @@ class JsonLoader:
         from stageflow.gates.gate import LockWrapper
         components = [LockWrapper(lock) for lock in locks]
 
+        # Import at runtime to avoid circular imports
+        from stageflow.gates import Gate
         return Gate(
             name=gate_name,
             components=tuple(components),
@@ -834,10 +844,12 @@ class JsonLoader:
                     gate = self._parse_gate(gate_name, gate_def)
                     gates.append(gate)
 
-            # Parse schema
-            schema_data = stage_def.get("schema")
-            if schema_data:
-                schema = self._parse_schema(f"{stage_name}_schema", schema_data)
+            # Parse required properties
+            required_props = stage_def.get("required_properties", [])
+            if isinstance(required_props, list):
+                required_properties = set(required_props)
+            else:
+                required_properties = set()
 
             # Parse action definitions
             action_definitions = None
@@ -846,11 +858,11 @@ class JsonLoader:
                 action_definitions = self._parse_action_definitions(action_defs_data)
 
             # Import Stage here to avoid circular imports
-            from stageflow.core.stage import Stage
+            from stageflow.stage import Stage
             return Stage(
                 name=stage_name,
                 gates=gates,
-                schema=schema,
+                required_properties=required_properties,
                 metadata=stage_def.get("metadata", {}),
                 allow_partial=stage_def.get("allow_partial", False),
                 action_definitions=action_definitions,
@@ -863,7 +875,7 @@ class JsonLoader:
                 file_path=file_path
             ) from e
 
-    def _parse_gate(self, gate_name: str, gate_def: dict[str, Any]) -> Gate:
+    def _parse_gate(self, gate_name: str, gate_def: dict[str, Any]) -> "Gate":
         """
         Parse gate definition from dictionary with enhanced error handling.
 
@@ -893,6 +905,8 @@ class JsonLoader:
             from stageflow.gates.gate import LockWrapper
             components = [LockWrapper(lock) for lock in locks]
 
+            # Import at runtime to avoid circular imports
+            from stageflow.gates import Gate
             return Gate(
                 name=gate_name,
                 components=tuple(components),
@@ -906,7 +920,7 @@ class JsonLoader:
                 file_path=file_path
             ) from e
 
-    def _parse_lock(self, lock_def: dict[str, Any], location: str) -> Lock:
+    def _parse_lock(self, lock_def: dict[str, Any], location: str) -> "Lock":
         """
         Parse lock definition from dictionary with enhanced error handling.
 
@@ -948,7 +962,7 @@ class JsonLoader:
 
         try:
             # Import classes to avoid circular imports
-            from stageflow.core.stage import ActionDefinition, StageActionDefinitions
+            from stageflow.stage import ActionDefinition, StageActionDefinitions
             from stageflow.process.result import ActionType, Priority
 
             def parse_action_list(actions_data: list[dict[str, Any]]) -> list[ActionDefinition]:
@@ -1064,19 +1078,11 @@ class JsonLoader:
                 "gates": {},
             }
 
-            if stage.schema:
-                stage_data["schema"] = {
-                    "required_fields": list(stage.schema.required_fields),
-                    "optional_fields": list(stage.schema.optional_fields),
-                    "field_types": stage.schema.field_types,
-                    "default_values": stage.schema.default_values,
-                    "validation_rules": stage.schema.validation_rules,
-                    "metadata": stage.schema.metadata,
-                }
+            if stage.required_properties:
+                stage_data["required_properties"] = list(stage.required_properties)
 
             for gate in stage.gates:
                 gate_data = {
-                    "logic": gate.operation.value,
                     "metadata": gate.metadata,
                     "locks": [],
                 }
@@ -1127,7 +1133,7 @@ def load_process(file_path: str | Path) -> "Process":
     return loader.load_process(file_path)
 
 
-def load_process_config(file_path: str | Path) -> ProcessConfig:
+def load_process_config(file_path: str | Path) -> "ProcessConfig":
     """
     Convenience function to load a process configuration from JSON file.
 
@@ -1165,7 +1171,7 @@ def load_process_from_string(json_content: str, file_path: str | None = None) ->
     return loader.load_process_from_string(json_content, file_path)
 
 
-def load_process_config_from_string(json_content: str, file_path: str | None = None) -> ProcessConfig:
+def load_process_config_from_string(json_content: str, file_path: str | None = None) -> "ProcessConfig":
     """
     Convenience function to load a process configuration from JSON string.
 

@@ -14,6 +14,7 @@ class ProcessConfig:
     """
 
     name: str
+    stages: list[str]
     initial_stage: str | None = None
     final_stage: str | None = None
     allow_stage_skipping: bool = False

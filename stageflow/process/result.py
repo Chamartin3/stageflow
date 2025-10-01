@@ -6,13 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-
-class Priority(Enum):
-    """Priority levels for actions and diagnostics."""
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    CRITICAL = "critical"
+from ..common.types import ActionType, Priority, ValidationState
 
 
 class Severity(Enum):
@@ -24,15 +18,7 @@ class Severity(Enum):
     CRITICAL = "critical"
 
 
-class ActionType(Enum):
-    """Types of actions that can be recommended."""
-    COMPLETE_FIELD = "complete_field"
-    VALIDATE_DATA = "validate_data"
-    WAIT_FOR_CONDITION = "wait_for_condition"
-    TRANSITION_STAGE = "transition_stage"
-    RETRY_OPERATION = "retry_operation"
-    EXTERNAL_ACTION = "external_action"
-    MANUAL_REVIEW = "manual_review"
+# ActionType is now imported from common.types
 
 
 @dataclass(frozen=True)
@@ -132,27 +118,8 @@ class WarningInfo:
         }
 
 
-class EvaluationState(Enum):
-    """
-    Seven-state evaluation flow for StageFlow processes.
-
-    States represent the current status of an element within a process:
-    - SCOPING: Determining which stage applies to the element
-    - FULFILLING: Element is working toward stage completion
-    - QUALIFYING: Element meets stage requirements, ready to advance
-    - AWAITING: Element is waiting for external conditions
-    - ADVANCING: Element is transitioning to the next stage
-    - REGRESSING: Element is moving backward in the process
-    - COMPLETED: Element has finished the entire process
-    """
-
-    SCOPING = "scoping"
-    FULFILLING = "fulfilling"
-    QUALIFYING = "qualifying"
-    AWAITING = "awaiting"
-    ADVANCING = "advancing"
-    REGRESSING = "regressing"
-    COMPLETED = "completed"
+# EvaluationState is now imported from common.types as ValidationState
+EvaluationState = ValidationState
 
 
 @dataclass(frozen=True)
@@ -174,12 +141,15 @@ class StatusResult:
     proposed_stage: str | None = None
 
     # Actions and recommendations
-    actions: list[Action | str] = field(default_factory=list)
+    actions: list[Any] = field(default_factory=list)
 
     # Diagnostic and error information
     diagnostics: list[DiagnosticInfo] = field(default_factory=list)
     errors: list[ErrorInfo | str] = field(default_factory=list)
     warnings: list[WarningInfo | str] = field(default_factory=list)
+
+    # Schema validation information
+    schema_validation_result: Any | None = None  # ValidationResult from schema validation
 
     # Metadata and context
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -240,6 +210,7 @@ class StatusResult:
             'diagnostics': self.diagnostics,
             'errors': self.errors,
             'warnings': self.warnings,
+            'schema_validation_result': self.schema_validation_result,
             'metadata': self.metadata,
             'timestamp': self.timestamp,
             'processing_time_ms': self.processing_time_ms,
@@ -255,10 +226,11 @@ class StatusResult:
         element_id: str = "",
         current_stage: str | None = None,
         proposed_stage: str | None = None,
-        actions: list[Action | str] | None = None,
+        actions: list[Any] | None = None,
         errors: list[ErrorInfo | str] | None = None,
         warnings: list[WarningInfo | str] | None = None,
         diagnostics: list[DiagnosticInfo] | None = None,
+        schema_validation_result: Any | None = None,
         metadata: dict[str, Any] | None = None,
         **kwargs
     ) -> "StatusResult":
@@ -308,6 +280,7 @@ class StatusResult:
             errors=errors or [],
             warnings=warnings or [],
             diagnostics=diagnostics or [],
+            schema_validation_result=schema_validation_result,
             metadata=metadata or {},
             **kwargs
         )
@@ -501,12 +474,46 @@ class StatusResult:
         """Check if this is a terminal state (completed or error)."""
         return self.state == EvaluationState.COMPLETED or self.has_errors()
 
+    def has_schema_validation_errors(self) -> bool:
+        """Check if schema validation failed."""
+        if self.schema_validation_result is None:
+            return False
+        return not getattr(self.schema_validation_result, 'is_valid', True)
+
+    def get_schema_validation_errors(self) -> list[str]:
+        """Get list of schema validation error messages."""
+        if self.schema_validation_result is None:
+            return []
+        if hasattr(self.schema_validation_result, 'errors'):
+            return [str(error) for error in self.schema_validation_result.errors]
+        return []
+
+    def get_missing_schema_fields(self) -> list[str]:
+        """Get list of missing required fields from schema validation."""
+        if self.schema_validation_result is None:
+            return []
+        return getattr(self.schema_validation_result, 'missing_fields', [])
+
+    def get_invalid_schema_fields(self) -> list[str]:
+        """Get list of invalid fields from schema validation."""
+        if self.schema_validation_result is None:
+            return []
+        return getattr(self.schema_validation_result, 'invalid_fields', [])
+
     def to_dict(self) -> dict[str, Any]:
         """Convert StatusResult to dictionary for serialization."""
         def serialize_item(item):
             if hasattr(item, 'to_dict'):
                 return item.to_dict()
             return str(item)
+
+        def serialize_validation_result(result):
+            """Serialize schema validation result."""
+            if result is None:
+                return None
+            if hasattr(result, 'to_dict'):
+                return result.to_dict()
+            return str(result)
 
         return {
             "element_id": self.element_id,
@@ -518,6 +525,7 @@ class StatusResult:
             "diagnostics": [diag.to_dict() for diag in self.diagnostics],
             "errors": [serialize_item(error) for error in self.errors],
             "warnings": [serialize_item(warning) for warning in self.warnings],
+            "schema_validation_result": serialize_validation_result(self.schema_validation_result),
             "metadata": self.metadata,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "processing_time_ms": self.processing_time_ms,

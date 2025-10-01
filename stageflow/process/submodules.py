@@ -13,9 +13,6 @@ def get_submodule(name: str):
     elif name == "validation":
         from . import validation
         return validation
-    elif name == "visualization":
-        from . import visualization
-        return visualization
     elif name == "extras":
         from . import extras
         return extras
