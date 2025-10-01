@@ -43,16 +43,18 @@ Example Usage:
 """
 
 from typing import Any, NotRequired, TypedDict, Union
-from typing_extensions import TypedDict as TypedDictExt
+
+# TypedDictExt not needed with modern Python
+TypedDictExt = TypedDict
 
 # Import specialized data contracts from modules
-from stageflow.gates import (
-    LockConfig,
+from .gates import (
+    AnyGateConfig,
+    AnyLockConfig,
     GateConfig,
     GateSetConfig,
+    LockConfig,
     ValidatorConfig,
-    AnyLockConfig,
-    AnyGateConfig,
 )
 
 # Import stage-related contracts when available
@@ -188,7 +190,7 @@ class ProcessConfig(TypedDict):
     name: str  # Process name identifier
 
     # Process structure and flow
-    stages: Union[list[StageConfig], dict[str, StageConfig]]  # Process stages
+    stages: list[StageConfig] | dict[str, StageConfig]  # Process stages
     stage_order: NotRequired[list[str]]  # Explicit stage order
     initial_stage: NotRequired[str]  # Name of initial stage
     final_stage: NotRequired[str]  # Name of final stage

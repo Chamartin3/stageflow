@@ -1,14 +1,16 @@
 """Element interface and implementations for StageFlow."""
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from copy import deepcopy
-from typing import Any, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union
+
+from .common.interfaces import ElementInterface
 
 if TYPE_CHECKING:
     from stageflow.models import ElementConfig, ElementDataConfig
 
 
-class Element(ABC):
+class Element(ElementInterface):
     """
     Abstract base class for data elements in StageFlow.
 
