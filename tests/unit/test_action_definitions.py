@@ -1,9 +1,8 @@
 """Tests for declarative action definition system."""
 
-import pytest
 
-from stageflow.core.element import create_element
-from stageflow.core.stage import (
+from stageflow.element import create_element
+from stageflow.stage import (
     ActionDefinition,
     Stage,
     StageActionDefinitions,

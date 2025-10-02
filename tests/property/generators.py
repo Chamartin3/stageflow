@@ -16,7 +16,7 @@ from typing import Any
 import hypothesis.strategies as st
 from hypothesis import assume
 
-from stageflow.core.element import DictElement
+from stageflow.element import DictElement
 from stageflow.gates import Gate, GateOperation, Lock, LockType
 
 
@@ -186,7 +186,8 @@ def lock_instance(draw) -> Lock:
     if lock_type == LockType.CUSTOM:
         validator_name = "test_validator"
         # Register a simple test validator if it doesn't exist
-        from stageflow.gates import get_lock_validator as get_validator, register_lock_validator as register_validator
+        from stageflow.gates import get_lock_validator as get_validator
+        from stageflow.gates import register_lock_validator as register_validator
         if not get_validator("test_validator"):
             register_validator("test_validator", lambda v, e: str(v) == str(e))
 

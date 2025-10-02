@@ -9,11 +9,11 @@ from typing import Any
 
 import pytest
 
-from stageflow.core.element import DictElement
-from stageflow.core.stage import Stage
+from stageflow import Process
+from stageflow.element import DictElement
 from stageflow.gates import Gate, Lock, LockType
-from stageflow.process import Process
 from stageflow.process.schema.core import ItemSchema
+from stageflow.stage import Stage
 
 # Import fixtures from specialized modules
 # These imports make fixtures available to all test modules
@@ -24,6 +24,78 @@ pytest_plugins = [
     "tests.fixtures.mock_objects",
     "tests.fixtures.parameters"
 ]
+
+
+@pytest.fixture
+def sample_process_file(tmp_path):
+    """Create a temporary process file for CLI testing."""
+
+    process_content = {
+        "name": "test_process",
+        "stage_order": ["stage1", "stage2", "stage3"],
+        "stages": {
+            "stage1": {
+                "gates": {
+                    "gate1": {
+                        "logic": "and",
+                        "locks": [
+                            {"property": "field1", "type": "exists"}
+                        ]
+                    }
+                }
+            },
+            "stage2": {
+                "gates": {
+                    "gate2": {
+                        "logic": "and",
+                        "locks": [
+                            {"property": "field1", "type": "exists"},
+                            {"property": "field2", "type": "exists"}
+                        ]
+                    }
+                }
+            },
+            "stage3": {
+                "gates": {
+                    "gate3": {
+                        "logic": "and",
+                        "locks": [
+                            {"property": "field3", "type": "equals", "value": "completed"}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    # Write as YAML file
+    from ruamel.yaml import YAML
+    yaml = YAML()
+    yaml.default_flow_style = False
+    process_file = tmp_path / "test_process.yaml"
+    with open(process_file, 'w') as f:
+        yaml.dump(process_content, f)
+
+    return process_file
+
+
+@pytest.fixture
+def sample_element_file(tmp_path):
+    """Create a temporary element file for CLI testing."""
+    import json
+
+    element_data = {
+        "field1": "value1",
+        "field2": "value2",
+        "user_id": "user123",
+        "email": "test@example.com"
+    }
+
+    element_file = tmp_path / "test_element.json"
+    with open(element_file, 'w') as f:
+        json.dump(element_data, f, indent=2)
+
+    return element_file
 
 
 @pytest.fixture

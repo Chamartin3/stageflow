@@ -15,7 +15,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from stageflow.core.element import DictElement, create_element
+from stageflow.element import DictElement, create_element
 from tests.property.generators import (
     dict_element,
     element_with_property,

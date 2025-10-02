@@ -1,17 +1,15 @@
 """Integration tests for all usage documentation examples.
 
-This module verifies that all examples in the usage/ documentation work correctly
+This module verifies that all examples in the examples/documentation/ work correctly
 with the current StageFlow implementation. It ensures documentation stays accurate
 and provides confidence that examples will work for users.
 """
 
-import pytest
-import json
-import tempfile
 import os
-from pathlib import Path
-from typing import Dict, Any, List
-from unittest.mock import patch, MagicMock
+import tempfile
+from typing import Any
+
+import pytest
 
 try:
     from ruamel.yaml import YAML
@@ -20,14 +18,15 @@ except ImportError:
     # Fallback for environments without ruamel.yaml
     import yaml
 
-from stageflow.core.element import DictElement, create_element
+from stageflow.element import DictElement
+
 # Note: load_process and other components will be available when implemented
 
 
 class TestValidProcessExamples:
-    """Test all valid process examples from usage/valid_processes.md"""
+    """Test all valid process examples from examples/documentation/valid_processes.md"""
 
-    def create_process_file(self, process_schema: Dict[str, Any]) -> str:
+    def create_process_file(self, process_schema: dict[str, Any]) -> str:
         """Create a temporary YAML file with the process schema."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             if hasattr(yaml, 'dump'):
@@ -426,7 +425,7 @@ class TestValidProcessExamples:
 
 
 class TestInvalidProcessScenarios:
-    """Test invalid process scenarios from usage/invalid_processes.md"""
+    """Test invalid process scenarios from examples/documentation/invalid_processes.md"""
 
     def test_missing_required_fields(self):
         """Test that missing required fields are properly handled."""
@@ -673,7 +672,7 @@ class TestInvalidProcessScenarios:
 
 
 class TestConsistencyValidation:
-    """Test examples from usage/consistency_validation.md"""
+    """Test examples from examples/documentation/consistency_validation.md"""
 
     def test_element_contract_validation(self):
         """Test element data contract validation patterns."""
@@ -765,7 +764,7 @@ class TestConsistencyValidation:
 
 
 class TestProcessUsageExamples:
-    """Test examples from usage/process_usage.md"""
+    """Test examples from examples/documentation/process_usage.md"""
 
     def test_workflow_simulation_data(self):
         """Test data structures used in workflow simulation examples."""

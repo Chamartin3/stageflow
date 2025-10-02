@@ -9,9 +9,10 @@ from typing import Any
 
 import pytest
 
-from stageflow.core.element import DictElement, Element, create_element
-from stageflow.core.stage import Stage
-from stageflow.gates import Gate, Lock, LockType, register_lock_validator as register_validator
+from stageflow.element import DictElement, Element, create_element
+from stageflow.stage import Stage
+from stageflow.gates import Gate, Lock, LockType
+from stageflow.gates import register_lock_validator as register_validator
 from stageflow.process import Process
 from stageflow.process.schema.core import ItemSchema
 

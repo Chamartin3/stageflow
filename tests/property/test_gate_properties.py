@@ -16,7 +16,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from stageflow.core.element import DictElement
+from stageflow.element import DictElement
 from stageflow.gates import Gate, GateResult, Lock, LockType
 from tests.property.generators import (
     complex_gate,

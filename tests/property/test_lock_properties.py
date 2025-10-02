@@ -15,8 +15,10 @@ Key properties tested:
 import pytest
 from hypothesis import assume, given
 
-from stageflow.core.element import DictElement
-from stageflow.gates import Lock, LockType, get_lock_validator as get_validator, register_lock_validator as register_validator
+from stageflow.element import DictElement
+from stageflow.gates import Lock, LockType
+from stageflow.gates import get_lock_validator as get_validator
+from stageflow.gates import register_lock_validator as register_validator
 from tests.property.generators import (
     dict_element,
     element_with_property,
