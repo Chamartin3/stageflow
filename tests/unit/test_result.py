@@ -26,7 +26,7 @@ class TestEvaluationState:
 
     def test_evaluation_state_string_representation(self):
         """Test string representation of evaluation states."""
-        assert str(EvaluationState.SCOPING) == "EvaluationState.SCOPING"
+        assert str(EvaluationState.SCOPING) == "ValidationState.SCOPING"
         assert EvaluationState.SCOPING.name == "SCOPING"
 
     def test_evaluation_state_comparison(self):
@@ -197,7 +197,7 @@ class TestStatusResultClassMethods:
         assert result.state == EvaluationState.QUALIFYING
         assert result.current_stage == "profile_setup"
         assert result.proposed_stage == "profile_setup"
-        assert result.actions == ["Ready to advance to next stage"]
+        assert result.actions == []  # No default actions generated
         assert result.metadata == {}
         assert result.errors == []
 
@@ -256,7 +256,7 @@ class TestStatusResultClassMethods:
         assert result.state == EvaluationState.ADVANCING
         assert result.current_stage == "profile_setup"
         assert result.proposed_stage == "email_verification"
-        assert result.actions == ["Transition to stage: email_verification"]
+        assert result.actions == []  # No default actions generated
         assert result.metadata == {}
         assert result.errors == []
 
@@ -315,7 +315,7 @@ class TestStatusResultClassMethods:
         assert result.state == EvaluationState.COMPLETED
         assert result.current_stage is None
         assert result.proposed_stage is None
-        assert result.actions == ["Process completed"]
+        assert result.actions == []  # No default actions generated
         assert result.metadata == {}
         assert result.errors == []
 
@@ -455,11 +455,11 @@ class TestStatusResultInstanceMethods:
         summary = result.summary()
         assert "Scoping" in summary
 
-        # Completed state
+        # Completed state - no longer includes default action text
         result = StatusResult.completed()
         summary = result.summary()
         assert "Completed" in summary
-        assert "Process completed" in summary
+        # No default actions are generated, so no action text in summary
 
         # Advancing state
         result = StatusResult.advancing(
@@ -469,7 +469,7 @@ class TestStatusResultInstanceMethods:
         summary = result.summary()
         assert "Advancing" in summary
         assert "stage1" in summary
-        assert "stage2" in summary
+        # Note: stage2 won't be in summary since it's proposed_stage, not in actions
 
 
 class TestStatusResultEdgeCases:

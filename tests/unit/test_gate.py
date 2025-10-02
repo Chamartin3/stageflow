@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from stageflow.core.element import DictElement
-from stageflow.gates import Evaluable, Gate, GateResult, LockWrapper, Lock, LockType
+from stageflow.element import DictElement
+from stageflow.gates import Evaluable, Gate, GateResult, Lock, LockType, LockWrapper
 
 
 class TestGateResult:

@@ -4,14 +4,20 @@ from typing import Any
 
 import pytest
 
-from stageflow.core.element import DictElement
+from stageflow.element import DictElement
 from stageflow.gates import (
     Lock,
     LockType,
-    get_lock_validator as get_validator,
-    list_lock_validators as list_validators,
-    register_lock_validator as register_validator,
     clear_lock_validators,
+)
+from stageflow.gates import (
+    get_lock_validator as get_validator,
+)
+from stageflow.gates import (
+    list_lock_validators as list_validators,
+)
+from stageflow.gates import (
+    register_lock_validator as register_validator,
 )
 from stageflow.gates.lock import LockFactory
 

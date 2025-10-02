@@ -5,8 +5,8 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
-from stageflow.process.main import Process
 
+from stageflow.process.main import Process
 from stageflow.process.schema.loaders.yaml import (
     YAMLIncludeError,
     YamlLoader,

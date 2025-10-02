@@ -3,7 +3,7 @@
 
 import pytest
 
-from stageflow.core.element import DictElement
+from stageflow.element import DictElement
 from stageflow.process.schema.core import (
     FieldDefinition,
     ItemSchema,

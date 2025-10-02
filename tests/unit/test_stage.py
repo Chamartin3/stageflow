@@ -2,11 +2,10 @@
 
 import pytest
 
-from stageflow.core import Stage
-from stageflow.core.element import create_element
-from stageflow.core.stage import StageResult
-from stageflow.gates import Gate, Lock, LockType, GateResult
-from stageflow.process.schema.core import FieldDefinition, ItemSchema
+from stageflow.stage import Stage
+from stageflow.element import create_element
+from stageflow.stage import StageResult
+from stageflow.gates import Gate, GateResult, Lock, LockType
 
 
 class TestStageResult:
@@ -119,19 +118,12 @@ class TestStage:
 
         assert stage.name == "test_stage"
         assert stage.gates == []
-        assert stage.schema is None
+        assert stage.required_properties == set()
         assert stage.metadata == {}
         assert stage.allow_partial is False
 
     def test_stage_initialization_with_components(self):
-        """Test Stage initialization with gates and schema."""
-        # Create schema
-        fields = {
-            "name": FieldDefinition(type_=str, required=True),
-            "age": FieldDefinition(type_=int, required=False, default=25)
-        }
-        schema = ItemSchema(name="test_schema", fields=fields)
-
+        """Test Stage initialization with gates and required properties."""
         # Create gates (AND gates require at least 2 components)
         lock1 = Lock(LockType.EXISTS, "name")
         lock2 = Lock(LockType.EXISTS, "age")
@@ -141,7 +133,7 @@ class TestStage:
         stage = Stage(
             name="test_stage",
             gates=[gate1],
-            schema=schema,
+            required_properties={"name", "email"},
             metadata={"version": "1.0"},
             allow_partial=True
         )
@@ -149,7 +141,7 @@ class TestStage:
         assert stage.name == "test_stage"
         assert len(stage.gates) == 1
         assert stage.gates[0].name == "validation_gate"
-        assert stage.schema == schema
+        assert stage.required_properties == {"name", "email"}
         assert stage.metadata == {"version": "1.0"}
         assert stage.allow_partial is True
 
@@ -171,46 +163,37 @@ class TestStage:
         with pytest.raises(ValueError, match="duplicate gate names"):
             Stage(name="test_stage", gates=[gate1, gate2])
 
-    def test_evaluate_with_schema_only(self):
-        """Test stage evaluation with schema only (no gates)."""
-        fields = {
-            "name": FieldDefinition(type_=str, required=True),
-            "age": FieldDefinition(type_=int, required=False, default=25)
-        }
-        schema = ItemSchema(name="test_schema", fields=fields)
-        stage = Stage(name="schema_stage", schema=schema)
+    def test_evaluate_with_required_properties_only(self):
+        """Test stage evaluation with required properties only (no gates)."""
+        stage = Stage(name="property_stage", required_properties={"name", "age"})
 
         # Valid element
         element = create_element({"name": "John", "age": 30})
         result = stage.evaluate(element)
 
-        assert result.stage_name == "schema_stage"
+        assert result.stage_name == "property_stage"
         assert result.schema_valid is True
         assert result.schema_errors == []
         assert result.gate_results == {}
         assert result.overall_passed is True
         assert result.actions == []
 
-    def test_evaluate_with_schema_failure(self):
-        """Test stage evaluation with schema validation failure."""
-        fields = {
-            "name": FieldDefinition(type_=str, required=True),
-            "age": FieldDefinition(type_=int, required=True)
-        }
-        schema = ItemSchema(name="test_schema", fields=fields)
-        stage = Stage(name="schema_stage", schema=schema)
+    def test_evaluate_with_required_property_failure(self):
+        """Test stage evaluation with required property missing."""
+        stage = Stage(name="property_stage", required_properties={"name", "age"})
 
         # Missing required field
         element = create_element({"name": "John"})
         result = stage.evaluate(element)
 
-        assert result.stage_name == "schema_stage"
+        assert result.stage_name == "property_stage"
         assert result.schema_valid is False
         assert len(result.schema_errors) > 0
+        assert "Required property 'age' is missing" in result.schema_errors
         assert result.overall_passed is False
 
     def test_evaluate_with_gates_only(self):
-        """Test stage evaluation with gates only (no schema)."""
+        """Test stage evaluation with gates only (no required properties)."""
         lock1 = Lock(LockType.EXISTS, "name")
         lock2 = Lock(LockType.GREATER_THAN, "age", 18)
 
@@ -222,7 +205,7 @@ class TestStage:
         result = stage.evaluate(element)
 
         assert result.stage_name == "gate_stage"
-        assert result.schema_valid is True  # No schema means valid
+        assert result.schema_valid is True  # No required properties means valid
         assert result.schema_errors == []
         assert len(result.gate_results) == 1
         assert result.gate_results["validation_gate"].passed is True
@@ -289,25 +272,19 @@ class TestStage:
 
     def test_get_required_properties(self):
         """Test getting required properties from stage."""
-        # Create schema with required fields
-        fields = {
-            "name": FieldDefinition(type_=str, required=True),
-            "age": FieldDefinition(type_=int, required=False)
-        }
-        schema = ItemSchema(name="test_schema", fields=fields)
-
         # Create gates with property requirements
         lock1 = Lock(LockType.EXISTS, "name")
         lock2 = Lock(LockType.EXISTS, "email")
         gate1 = Gate.AND(lock1, lock2, name="gate1")
 
-        stage = Stage(name="test_stage", gates=[gate1], schema=schema)
+        stage = Stage(name="test_stage", gates=[gate1], required_properties={"name", "phone"})
 
         required_props = stage.get_required_properties()
 
-        # Should include properties from both schema and gates
+        # Should include properties from both required_properties and gates
         assert "name" in required_props
         assert "email" in required_props
+        assert "phone" in required_props
 
     def test_has_gate(self):
         """Test has_gate method."""
@@ -333,12 +310,7 @@ class TestStage:
 
     def test_is_compatible_with_element(self):
         """Test is_compatible_with_element method."""
-        fields = {
-            "name": FieldDefinition(type_=str, required=True),
-            "age": FieldDefinition(type_=int, required=True)
-        }
-        schema = ItemSchema(name="test_schema", fields=fields)
-        stage = Stage(name="test_stage", schema=schema)
+        stage = Stage(name="test_stage", required_properties={"name", "age"})
 
         # Compatible element
         compatible_element = create_element({"name": "John", "age": 25})
@@ -352,17 +324,15 @@ class TestStage:
 
     def test_get_completion_percentage_no_gates(self):
         """Test completion percentage calculation with no gates."""
-        # Stage with schema only
-        fields = {"name": FieldDefinition(type_=str, required=True)}
-        schema = ItemSchema(name="test_schema", fields=fields)
-        stage = Stage(name="test_stage", schema=schema)
+        # Stage with required properties only
+        stage = Stage(name="test_stage", required_properties={"name"})
 
         # Valid element
         element = create_element({"name": "John"})
         percentage = stage.get_completion_percentage(element)
         assert percentage == 1.0
 
-        # Stage with no schema and no gates
+        # Stage with no required properties and no gates
         empty_stage = Stage(name="empty_stage")
         percentage = empty_stage.get_completion_percentage(element)
         assert percentage == 1.0
@@ -384,21 +354,18 @@ class TestStage:
         # Element passes first gate only (has name and dummy1)
         element = create_element({"name": "John", "dummy1": "exists"})
         percentage = stage.get_completion_percentage(element)
-        # Should be 0.75 (50% gates + 100% schema) / 2
+        # Should be 0.75 (50% gates + 100% required properties) / 2
         assert percentage == 0.75
 
     def test_get_summary(self):
         """Test get_summary method."""
-        # Stage with no gates, no schema
+        # Stage with no gates, no required properties
         stage = Stage(name="empty_stage")
         summary = stage.get_summary()
         assert "empty_stage" in summary
         assert "no gates" in summary
 
-        # Stage with gates and schema
-        fields = {"name": FieldDefinition(type_=str, required=True)}
-        schema = ItemSchema(name="test_schema", fields=fields)
-
+        # Stage with gates and required properties
         lock1 = Lock(LockType.EXISTS, "name")
         dummy_lock = Lock(LockType.EXISTS, "dummy")
         gate1 = Gate.AND(lock1, dummy_lock, name="gate1")
@@ -406,13 +373,13 @@ class TestStage:
         stage = Stage(
             name="full_stage",
             gates=[gate1],
-            schema=schema,
+            required_properties={"name", "email"},
             allow_partial=True
         )
 
         summary = stage.get_summary()
         assert "full_stage" in summary
         assert "1 gate(s)" in summary
-        assert "test_schema" in summary
+        assert "2 required properties" in summary
         assert "partial fulfillment allowed" in summary
 

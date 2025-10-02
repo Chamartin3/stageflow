@@ -2,7 +2,7 @@
 
 import pytest
 
-from stageflow.core.element import DictElement, create_element
+from stageflow.element import DictElement, create_element
 
 
 class TestDictElement:
