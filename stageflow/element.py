@@ -2,15 +2,10 @@
 
 from abc import abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Union
-
-from .common.interfaces import ElementInterface
-
-if TYPE_CHECKING:
-    from stageflow.models import ElementConfig, ElementDataConfig
+from typing import Any, Union
 
 
-class Element(ElementInterface):
+class Element:
     """
     Abstract base class for data elements in StageFlow.
 
@@ -87,31 +82,6 @@ class DictElement(Element):
             # Handle other types (for backward compatibility)
             self._data = deepcopy(data)
             self._config = None
-
-    @classmethod
-    def from_config(cls, config: "ElementConfig") -> "DictElement":
-        """
-        Create DictElement from ElementConfig TypedDict.
-
-        Args:
-            config: ElementConfig with data and configuration options
-
-        Returns:
-            DictElement instance
-        """
-        return cls(config)
-
-    def get_property(self, path: str) -> Any:
-        """Get property value using dot/bracket notation."""
-        return self._resolve_path(self._data, path)
-
-    def has_property(self, path: str) -> bool:
-        """Check if property exists."""
-        try:
-            self._resolve_path(self._data, path)
-            return True
-        except (KeyError, IndexError, TypeError):
-            return False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""

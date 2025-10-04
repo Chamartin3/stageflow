@@ -1,23 +1,5 @@
 """Lock types and validation logic for StageFlow.
 
-This module provides the core validation framework through LockType enumeration
-and Lock classes. It supports both built-in validation patterns and custom
-validator registration for extensible validation logic.
-
-Example Usage:
-    Basic lock creation:
-        >>> from stageflow.gates.lock import Lock, LockType
-        >>> lock = Lock("user.age", LockType.GREATER_THAN, 18)
-
-    Custom validator registration:
-        >>> register_validator("email", lambda v, _: "@" in str(v))
-        >>> email_lock = Lock("email", LockType.CUSTOM, validator_name="email")
-
-    Range validation:
-        >>> price_lock = Lock("price", LockType.RANGE, [10.0, 100.0])
-
-    Type checking:
-        >>> name_lock = Lock("name", LockType.TYPE_CHECK, str)
 """
 
 import re
@@ -218,15 +200,19 @@ class LockResult:
     expected_value: Any = None
     error_message: str = ""
 
-
-class LockConfig(TypedDict):
-    """Type definition for lock configuration dictionary."""
-
+class LockDefinitionDict(TypedDict):
+    type: LockType
     property_path: str
-    lock_type: LockType
-    expected_value: Any | None
-    metadata: LockMetaData | None
+    expected_value: str | int | LockMetaData
 
+
+class LockShorthandDict(TypedDict):
+    exists: str | None
+    is_true: str | None
+    is_false: str | None
+
+
+LockDefinition = LockDefinitionDict | LockShorthandDict
 
 class Lock:
     """
@@ -243,9 +229,9 @@ class Lock:
 
     def __init__(
         self,
-        config: LockConfig
+        config: LockDefinitionDict
         ) -> None:
-        self.lock_type = config.get("lock_type")
+        self.lock_type = config.get("type")
         self.property_path = config.get("property_path")
         self.expected_value = self.expected_value = config.get("expected_value")
         self.metadata = config.get("metadata", {}) or {}
@@ -281,25 +267,18 @@ class Lock:
                 error_message=f"Error resolving property: {e}",
             )
 
+    def to_dict(self) -> LockDefinitionDict:
+        return {
+            "property_path": self.property_path,
+            "type": self.lock_type,
+            "expected_value": self.expected_value,
+        }
 
 LockShorhands = {
         "is_true": (LockType.EQUALS, True),
         "is_false": (LockType.EQUALS, False),
         "exists": (LockType.EXISTS, True),
 }
-
-class LockDefinitionDict(TypedDict):
-    type: LockType
-    property_path: str
-    expected_value: str | int | LockMetaData
-
-class LockShorthandDict(TypedDict):
-    exists: str | None
-    is_true: str | None
-    is_false: str | None
-
-
-LockDefinition = LockDefinitionDict | LockShorthandDict
 
 
 class LockFactory:
@@ -316,20 +295,18 @@ class LockFactory:
     def create(cls, lock_definition:  LockDefinition) -> Lock:
         if "type" in lock_definition and "property_path" in lock_definition:
             return Lock({
-                "lock_type": lock_definition["type"],
+                "type": lock_definition["type"],
                 "property_path": lock_definition["property_path"],
                 "expected_value": lock_definition.get("expected_value"),
-                "metadata": None
             })
         else:
             for key in cls.SHORTHAND_KEYS:
                 if key in lock_definition and lock_definition[key] is not None:
                     lock_type, expected_value = LockShorhands[key]
                     return Lock({
-                        "lock_type": lock_type,
+                        "type": lock_type,
                         "property_path": lock_definition[key],
                         "expected_value": expected_value,
-                        "metadata": None
                     })
         raise ValueError("Invalid lock definition format")
 

@@ -102,3 +102,12 @@ class Gate:
             paths.update(lock.property_path)
         return paths
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize gate to a dictionary."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "target_stage": self.target_stage,
+            "locks": [lock.to_dict() for lock in self._locks],
+        }
+
