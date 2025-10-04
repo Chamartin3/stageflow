@@ -1,146 +1,68 @@
 """Stage definition and validation for StageFlow."""
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, TypedDict
 
-# removed StageInterface - using concrete class
-from .common.types import ActionType, Priority
+from stageflow.gates.gate import GateDefinition
+
 from .element import Element
 from .gates import Gate, GateResult
-from .process.result import Action
-# validation simplified - using direct property checks
 
 
-@dataclass(frozen=True)
-class ActionDefinition:
-    """
-    Declarative action definition for stage states.
+class ActionDefinition(TypedDict):
+    """TypedDict for action definition."""
 
-    Defines what actions should be generated when the stage
-    is in a specific evaluation state.
-    """
-
-    type: ActionType
     description: str
-    priority: Priority = Priority.NORMAL
-    conditions: list[str] = field(default_factory=list)
-    template_vars: dict[str, str] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    related_properties: list[str]
 
-    def resolve_action(self, element: Element, context: dict[str, Any] | None = None) -> Action:
-        """
-        Resolve this action definition into a concrete Action.
-
-        Args:
-            element: The element being evaluated
-            context: Additional context for template resolution
-
-        Returns:
-            Resolved Action instance
-        """
-        resolved_description = self._resolve_template(self.description, element, context or {})
-        resolved_conditions = [self._resolve_template(cond, element, context or {}) for cond in self.conditions]
-        resolved_metadata = {
-            key: self._resolve_template(str(value), element, context or {}) if isinstance(value, str) else value
-            for key, value in self.metadata.items()
-        }
-
-        return Action(
-            type=self.type,
-            description=resolved_description,
-            priority=self.priority,
-            conditions=resolved_conditions,
-            metadata=resolved_metadata
-        )
-
-    def _resolve_template(self, template: str, element: Element, context: dict[str, Any]) -> str:
-        """
-        Resolve template variables in a string.
-
-        Args:
-            template: Template string with variables like {field_name}
-            element: Element for property resolution
-            context: Additional context variables
-
-        Returns:
-            Resolved string
-        """
-        # Create variable mapping
-        variables = {}
-
-        # Add template variables
-        for var_name, property_path in self.template_vars.items():
-            try:
-                value = element.get_property(property_path)
-                variables[var_name] = str(value) if value is not None else ""
-            except Exception:
-                variables[var_name] = ""
-
-        # Add context variables
-        variables.update(context)
-
-        # Simple template resolution (can be enhanced with proper templating engine)
-        try:
-            return template.format(**variables)
-        except (KeyError, ValueError):
-            return template
+class ActionType(StrEnum):
+    UPDATE = "update" # The opject needs to update properties to meet gate requirements
+    TRANSITION = "transition" # The object is ready to transition
+    EXCECUTE = "execute" # An external action is required to meet gate requirements
 
 
 @dataclass(frozen=True)
-class StageActionDefinitions:
-    """
-    Collection of action definitions for different stage evaluation states.
-    """
+class Action:
+    """Action that can be taken to help an element progress through stages."""
 
-    fulfilling: list[ActionDefinition] = field(default_factory=list)
-    qualifying: list[ActionDefinition] = field(default_factory=list)
-    awaiting: list[ActionDefinition] = field(default_factory=list)
-    advancing: list[ActionDefinition] = field(default_factory=list)
-    regressing: list[ActionDefinition] = field(default_factory=list)
-    completed: list[ActionDefinition] = field(default_factory=list)
+    description: str
+    related_properties: list[str]
+    action_type: ActionType
+    target_stage: str | None = None
 
-    def get_actions_for_state(self, state: str) -> list[ActionDefinition]:
-        """Get action definitions for a specific evaluation state."""
-        state_map = {
-            "fulfilling": self.fulfilling,
-            "qualifying": self.qualifying,
-            "awaiting": self.awaiting,
-            "advancing": self.advancing,
-            "regressing": self.regressing,
-            "completed": self.completed,
-        }
-        return state_map.get(state, [])
+class StageStatus(StrEnum):
+    INVALID_SCHEMA = "invalid_schema" # The element is missing required properties for this stage | scoping
+    READY_FOR_TRANSITION = "ready" # A gate has passed and the element can transition to the next stage | done
+    ACTION_REQUIRED = "action_required" # The element has not met gate requirements and requires action | in progress
 
 
 @dataclass(frozen=True)
-class StageResult:
+class StageEvaluationResult:
     """Result of stage evaluation against an element."""
 
-    stage_name: str
-    schema_valid: bool
-    schema_errors: list[str]
+    status: StageStatus
     gate_results: dict[str, GateResult]
-    overall_passed: bool
-    actions: list[str]
-    metadata: dict[str, Any]
-
-    @property
-    def has_failures(self) -> bool:
-        """Check if stage evaluation has any failures."""
-        return not self.overall_passed or not self.schema_valid
-
-    @property
-    def passed_gates(self) -> list[str]:
-        """Get names of gates that passed."""
-        return [name for name, result in self.gate_results.items() if result.passed]
-
-    @property
-    def failed_gates(self) -> list[str]:
-        """Get names of gates that failed."""
-        return [name for name, result in self.gate_results.items() if not result.passed]
+    sugested_action: list[Action]
 
 
-@dataclass(frozen=True)
+class StageObjectPropertyDefinition(TypedDict):
+    type: str | None
+    default: Any | None
+
+
+ExpectedObjectSchmema = dict[str, StageObjectPropertyDefinition | None] | None
+
+class StageDefinition(TypedDict):
+    """TypedDict for stage definition."""
+
+    name: str
+    description: str
+    gates: list[GateDefinition]
+    expected_actions: list[ActionDefinition]
+    expected_properties: ExpectedObjectSchmema
+    is_final: bool
+
 class Stage:
     """
     Individual validation stage with schema and gates.
@@ -148,32 +70,81 @@ class Stage:
     Stages represent discrete validation points in a process, each with
     their own schema requirements and composed gate validation logic.
     """
-
     name: str
-    gates: list[Gate] = field(default_factory=list)
-    required_properties: set[str] = field(default_factory=set)  # Direct property requirements
-    metadata: dict[str, Any] = field(default_factory=dict)
-    allow_partial: bool = False  # Whether partial gate fulfillment is acceptable
-    action_definitions: StageActionDefinitions = field(default_factory=StageActionDefinitions)
+    gates: tuple[Gate, ...]
+    stage_actions: list[ActionDefinition]
 
-    def __post_init__(self):
-        """Validate stage configuration after initialization."""
-        if not self.name:
-            raise ValueError("Stage must have a name")
+    def __init__(
+        self,
+        id: str,
+        config: StageDefinition,
+    ):
+        """
+        Initialize Stage with configuration.
 
-        # Validate no duplicate gate names
-        gate_names = [gate.name for gate in self.gates]
-        if len(gate_names) != len(set(gate_names)):
-            duplicates = {name for name in gate_names if gate_names.count(name) > 1}
-            raise ValueError(f"Stage '{self.name}' has duplicate gate names: {duplicates}")
+        Args:
+            id: Unique identifier for the stage
+            config: Stage configuration dictionary
+        """
+        self._id = id
+        self.name = config["name"]
+        self.description = config.get("description", "")
 
-        # Validate gate compatibility
-        for i, gate1 in enumerate(self.gates):
-            for gate2 in self.gates[i + 1 :]:
-                if not gate1.is_compatible_with(gate2):
-                    raise ValueError(f"Incompatible gates in stage '{self.name}': {gate1.name}, {gate2.name}")
+        # Define gates and required properties from those gates
+        gates_definition:list[GateDefinition] = [{
+            **gate_def,
+            "parent_stage": self._id,
+        } for gate_def in config.get("gates", [])]
+        self.is_final = config.get("is_final", False)
+        if not gates_definition and not self.is_final:
+            raise ValueError(f"Non-final stage '{self.name}' must have at least one gate")
+        self.gates = tuple(Gate(definition) for definition in gates_definition)
+        self._evaluated_paths = [path for gate in self.gates for path in gate.required_paths]
 
-    def evaluate(self, element: Element) -> StageResult:
+        # Validate action definitions
+        actions = config.get("expected_actions", [])
+        self._validate_actions(actions)
+        self.stage_actions = actions
+
+        # define object schema for rquiered properties
+        expected_properties = config.get("expected_properties", {})
+        self._validate_schema(expected_properties)
+        self._base_schema = expected_properties
+
+    @property
+    def posible_transitions(self) -> list[str]:
+        """Get all possible target stages from this stage's gates."""
+        return list({gate.target_stage for gate in self.gates})
+
+    def _validate_schema(self, shape: ExpectedObjectSchmema) -> None:
+        """Validate that all evaluated paths exist in the expected properties schema."""
+        for prop_path in self._evaluated_paths:
+            nested = shape
+            for part in prop_path.split('.'):
+                if nested is None or part not in nested:
+                    raise ValueError(f"Gate property '{prop_path}' is not defined in stage '{self.name}' schema")
+                nested = nested[part]
+
+    def _validate_actions(self, actions: list[ActionDefinition]) -> None:
+        """Verify that all action related properties are evaluated by gates."""
+        for action in actions:
+            properties = action.get("related_properties", [])
+            for prop in properties:
+                if prop not in self._evaluated_paths:
+                    raise ValueError(f"Action property '{prop}' is not evaluated by any gate in stage '{self.name}'")
+
+
+    def _get_missing_properties(self, element: Element) -> dict[str, Any]:
+        """Contains the requies propesties."""
+        missing = {}
+        for prop_path, definition in (self._base_schema or {}).items():
+            if not element.has_property(prop_path):
+                suggested = definition.get("default") if definition else None
+                missing[prop_path] = suggested
+        return missing
+
+
+    def evaluate(self, element: Element) -> StageEvaluationResult:
         """
         Evaluate element against this stage's requirements.
 
@@ -183,185 +154,66 @@ class Stage:
         Returns:
             StageResult containing evaluation outcome and details
         """
-        # Check required properties directly
-        schema_errors = []
-        missing_fields = []
-        for prop_path in self.required_properties:
-            if not element.has_property(prop_path):
-                missing_fields.append(prop_path)
-                schema_errors.append(f"Required property '{prop_path}' is missing")
+        missing_properties = self._get_missing_properties(element)
+        schema_valid = len(missing_properties) == 0
+        if not schema_valid:
+            actions = [Action(
+                description=f"Add missing property '{prop}' with suggested default '{default}'",
+                related_properties=[prop],
+                action_type=ActionType.UPDATE,
+            ) for prop, default in missing_properties.items()]
 
-        schema_valid = len(schema_errors) == 0
-
-        # Evaluate each gate
-        gate_results = {}
-        all_actions = []
-
+            return StageEvaluationResult(
+                status=StageStatus.INVALID_SCHEMA,
+                gate_results={},
+                sugested_action=actions,
+            )
+        gate_evaluation_results = {}
         for gate in self.gates:
             gate_result = gate.evaluate(element)
-            gate_results[gate.name] = gate_result
-            all_actions.extend(gate_result.actions)
+            if gate_result.success:
+                transition_action = Action(
+                    description=f"Element is ready to transition to {gate.target_stage} via gate '{gate.name}'",
+                    related_properties=[],
+                    action_type=ActionType.TRANSITION,
+                    target_stage=gate.target_stage,
+                )
+                return StageEvaluationResult(
+                    status=StageStatus.READY_FOR_TRANSITION,
+                    gate_results={gate.name: gate_result},
+                    sugested_action=[transition_action]
+                )
+            gate_evaluation_results[gate.name] = gate_result
 
-        # Determine overall pass/fail
-        overall_passed = self._determine_overall_result(gate_results, schema_valid)
-
-        return StageResult(
-            stage_name=self.name,
-            schema_valid=schema_valid,
-            schema_errors=schema_errors,
-            gate_results=gate_results,
-            overall_passed=overall_passed,
-            actions=all_actions,
-            metadata=self.metadata.copy(),
+        gate_actions = []
+        for action_def in self.stage_actions:
+            action = Action(
+                description=action_def["description"],
+                related_properties=action_def.get("related_properties", []),
+                action_type=ActionType.EXCECUTE,
+            )
+            gate_actions.append(action)
+        for message in (msg for result in gate_evaluation_results.values() for msg in result.messages):
+            gate_actions.append(Action(
+                description=message,
+                related_properties=[],
+                action_type=ActionType.EXCECUTE,
+            ))
+        return StageEvaluationResult(
+            status=StageStatus.ACTION_REQUIRED,
+            gate_results=gate_evaluation_results,
+            sugested_action=gate_actions
         )
 
-    def _determine_overall_result(self, gate_results: dict[str, GateResult], schema_valid: bool) -> bool:
-        """
-        Determine overall stage result based on gate results and schema validation.
+    # Serialization
+    def to_dict(self) -> StageDefinition:
+        """Serialize stage to dictionary."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "gates": [gate.to_dict() for gate in self.gates],
+            "expected_actions": self.stage_actions,
+            "expected_properties": self._base_schema,
+            "is_final": self.is_final,
+        }
 
-        Args:
-            gate_results: Results from gate evaluations
-            schema_valid: Whether schema validation passed
-
-        Returns:
-            True if stage passes overall, False otherwise
-        """
-        if not schema_valid:
-            return False
-
-        if not gate_results:
-            return True  # No gates means stage passes if schema is valid
-
-        if self.allow_partial:
-            # At least one gate must pass for partial fulfillment
-            return any(result.passed for result in gate_results.values())
-        else:
-            # All gates must pass for full fulfillment
-            return all(result.passed for result in gate_results.values())
-
-    def get_required_properties(self) -> set[str]:
-        """
-        Get all properties required by this stage.
-
-        Returns:
-            Set of property paths required by gates and schema
-        """
-        properties = set()
-
-        # Add properties from gates
-        for gate in self.gates:
-            properties.update(gate.get_property_paths())
-
-        # Add required properties from stage
-        properties.update(self.required_properties)
-
-        return properties
-
-    def has_gate(self, gate_name: str) -> bool:
-        """
-        Check if stage contains a specific gate.
-
-        Args:
-            gate_name: Name of gate to check
-
-        Returns:
-            True if gate exists in stage
-        """
-        return any(gate.name == gate_name for gate in self.gates)
-
-    def get_gate(self, gate_name: str) -> Gate | None:
-        """
-        Get gate by name.
-
-        Args:
-            gate_name: Name of gate to retrieve
-
-        Returns:
-            Gate instance or None if not found
-        """
-        for gate in self.gates:
-            if gate.name == gate_name:
-                return gate
-        return None
-
-    def is_compatible_with_element(self, element: Element) -> bool:
-        """
-        Check if element has minimum properties to evaluate this stage.
-
-        Args:
-            element: Element to check
-
-        Returns:
-            True if element can be evaluated against this stage
-        """
-        # Check required properties
-        for field_path in self.required_properties:
-            if not element.has_property(field_path):
-                return False
-
-        return True
-
-    def get_completion_percentage(self, element: Element) -> float:
-        """
-        Calculate completion percentage for this stage.
-
-        Args:
-            element: Element to evaluate
-
-        Returns:
-            Percentage (0.0 to 1.0) of stage completion
-        """
-        if not self.gates:
-            # No gates means completion is based on required properties only
-            if self.required_properties:
-                # Check if all required properties are present
-                for prop_path in self.required_properties:
-                    if not element.has_property(prop_path):
-                        return 0.0
-                return 1.0
-            return 1.0
-
-        stage_result = self.evaluate(element)
-        passed_gates = len(stage_result.passed_gates)
-        total_gates = len(self.gates)
-
-        gate_percentage = passed_gates / total_gates if total_gates > 0 else 1.0
-        schema_percentage = 1.0 if stage_result.schema_valid else 0.0
-
-        # Weight schema and gates equally
-        return (gate_percentage + schema_percentage) / 2.0
-
-    def get_summary(self) -> str:
-        """
-        Get human-readable summary of stage requirements.
-
-        Returns:
-            Summary string describing stage composition
-        """
-        gate_count = len(self.gates)
-        props_desc = f" with {len(self.required_properties)} required properties" if self.required_properties else ""
-        partial_desc = " (partial fulfillment allowed)" if self.allow_partial else ""
-
-        if gate_count == 0:
-            return f"Stage '{self.name}'{props_desc} with no gates{partial_desc}"
-
-        return f"Stage '{self.name}' with {gate_count} gate(s){props_desc}{partial_desc}"
-
-    def resolve_actions_for_state(self, state: str, element: Element, context: dict[str, Any] | None = None) -> list[Action]:
-        """
-        Resolve declarative action definitions for a specific evaluation state.
-
-        Args:
-            state: The evaluation state (fulfilling, qualifying, etc.)
-            element: The element being evaluated
-            context: Additional context for template resolution
-
-        Returns:
-            List of resolved Action instances
-        """
-        action_definitions = self.action_definitions.get_actions_for_state(state)
-        return [action_def.resolve_action(element, context) for action_def in action_definitions]
-
-    def has_action_definitions_for_state(self, state: str) -> bool:
-        """Check if this stage has action definitions for a specific state."""
-        return len(self.action_definitions.get_actions_for_state(state)) > 0
