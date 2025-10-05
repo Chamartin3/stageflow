@@ -1,0 +1,104 @@
+# Action Required Process Definition
+# Demonstrates scenarios where elements need specific actions before progressing
+
+process:
+  name: action_required_demo
+  description: Process designed to demonstrate ACTION_REQUIRED status with clear actionable feedback
+  initial_stage: initial_submission
+  final_stage: approved
+
+  stages:
+    initial_submission:
+      name: "Initial Submission"
+      description: "Basic submission with minimal requirements"
+      schema:
+        required_fields:
+          - email
+          - user_type
+
+      gates:
+        basic_info_check:
+          target_stage: profile_completion
+          locks:
+            - exists: "email"
+            - type: "regex"
+              property_path: "email"
+              expected_value: "^[^@]+@[^@]+\\.[^@]+$"
+
+    profile_completion:
+      name: "Profile Completion"
+      description: "Complete profile information required"
+      schema:
+        required_fields:
+          - email
+          - user_type
+          - first_name
+          - last_name
+          - phone
+          - address
+
+      gates:
+        profile_complete:
+          target_stage: verification
+          locks:
+            - exists: "first_name"
+            - exists: "last_name"
+            - exists: "phone"
+            - exists: "address.street"
+            - exists: "address.city"
+            - exists: "address.zip"
+
+    verification:
+      name: "Verification"
+      description: "Identity and contact verification required"
+      schema:
+        required_fields:
+          - email
+          - user_type
+          - first_name
+          - last_name
+          - phone
+          - address
+          - email_verified_at
+          - phone_verified_at
+          - identity_verified_at
+
+      gates:
+        all_verifications_complete:
+          target_stage: approved
+          locks:
+            - exists: "email_verified_at"
+            - exists: "phone_verified_at"
+            - exists: "identity_verified_at"
+            - type: "equals"
+              property_path: "identity_status"
+              expected_value: "verified"
+
+    approved:
+      name: "Approved"
+      description: "All requirements met, user approved"
+      schema:
+        required_fields:
+          - email
+          - user_type
+          - first_name
+          - last_name
+          - phone
+          - address
+          - email_verified_at
+          - phone_verified_at
+          - identity_verified_at
+          - approval_status
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Demonstrates ACTION_REQUIRED scenarios with clear feedback on missing requirements"
+    test_case: "action_required_validation"
+    expected_outcomes:
+      - "Elements missing profile fields show specific completion requirements"
+      - "Elements missing verification show specific verification steps needed"
+      - "Clear actionable feedback for each missing requirement"

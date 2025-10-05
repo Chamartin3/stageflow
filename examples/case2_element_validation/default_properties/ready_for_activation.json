@@ -1,0 +1,37 @@
+{
+  "email": "david.wilson@example.com",
+  "password": "hashed_password_xyz",
+  "email_verified_at": "2024-01-15T14:00:00Z",
+  "first_name": "David",
+  "last_name": "Wilson",
+  "notification_preferences": {
+    "email_notifications": true,
+    "push_notifications": true,
+    "marketing_emails": true
+  },
+  "privacy_settings": {
+    "profile_public": true,
+    "show_email": true,
+    "analytics_tracking": true
+  },
+  "theme_preferences": {
+    "color_scheme": "light",
+    "font_size": "large",
+    "compact_mode": true
+  },
+  "accessibility_options": {
+    "high_contrast": true,
+    "screen_reader": false,
+    "keyboard_navigation": true
+  },
+  "language_preferences": {
+    "primary_language": "en",
+    "timezone": "America/New_York",
+    "date_format": "MM/DD/YYYY"
+  },
+  "metadata": {
+    "signup_method": "web",
+    "completed_tutorial": true,
+    "preferences_timestamp": "2024-01-15T14:30:00Z"
+  }
+}

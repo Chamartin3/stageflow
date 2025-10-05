@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "test_case": "empty_element",
+    "description": "Element with minimal data to test edge case handling",
+    "expected_result": "Should fail validation due to missing required fields"
+  }
+}

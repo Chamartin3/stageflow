@@ -1,0 +1,18 @@
+{
+  "email": "alex.jones@example.com",
+  "password": "hashed_password_789",
+  "email_verified_at": "2024-01-15T12:00:00Z",
+  "first_name": "Alex",
+  "last_name": "Jones",
+  "notification_preferences": {
+    "email_notifications": false,
+    "marketing_emails": true
+  },
+  "privacy_settings": {
+    "profile_public": true
+  },
+  "metadata": {
+    "signup_method": "api",
+    "referred_by": "friend"
+  }
+}

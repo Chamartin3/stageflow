@@ -1,0 +1,12 @@
+{
+  "email": "missing.password@example.com",
+  "verification": {
+    "email_verified_at": "2024-01-15T10:00:00Z"
+  },
+  "meta": {
+    "created_at": "2024-01-15T09:30:00Z",
+    "user_id": "user_66666",
+    "source": "external_oauth",
+    "notes": "User registered via OAuth but password field is missing"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "email": "pending.user@example.com",
+  "password": "userpassword123",
+  "verification": {
+    "verification_token": "token_sent_but_not_verified"
+  },
+  "meta": {
+    "created_at": "2024-01-15T11:00:00Z",
+    "user_id": "user_22222",
+    "source": "web_registration",
+    "notes": "User registered but has not clicked email verification link"
+  }
+}

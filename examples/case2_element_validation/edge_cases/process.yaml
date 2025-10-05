@@ -1,0 +1,73 @@
+# Edge Cases Process Definition
+# Tests unusual but valid element scenarios like empty data, nested properties, large data, and special characters
+
+process:
+  name: edge_cases_validation
+  description: Process designed to handle edge cases and unusual element scenarios
+  initial_stage: data_intake
+  final_stage: processed
+
+  stages:
+    data_intake:
+      name: "Data Intake"
+      description: "Accept any form of data input for processing"
+      schema:
+        required_fields: []  # No required fields to handle empty elements
+        optional_fields:
+          - data
+          - metadata
+          - nested_content
+
+      gates:
+        basic_validation:
+          target_stage: processing
+          locks:
+            # Very permissive validation to handle edge cases
+            - type: "type_check"
+              property_path: "data"
+              expected_value: "any"  # Accept any type
+
+    processing:
+      name: "Processing"
+      description: "Process the data regardless of complexity or size"
+      schema:
+        required_fields: []  # Still permissive
+        optional_fields:
+          - data
+          - metadata
+          - nested_content
+          - processing_status
+
+      gates:
+        edge_case_processing:
+          target_stage: processed
+          locks:
+            # Any of these conditions allow processing
+            - exists: "data"
+
+    processed:
+      name: "Processed"
+      description: "Data has been successfully processed despite edge case characteristics"
+      schema:
+        required_fields:
+          - processing_status
+        optional_fields:
+          - data
+          - metadata
+          - nested_content
+          - edge_case_type
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Tests edge cases like empty elements, deeply nested properties, large data, and special characters"
+    test_case: "edge_cases_validation"
+    use_cases:
+      - "Empty or minimal data elements"
+      - "Deeply nested object structures"
+      - "Large data payloads"
+      - "Special characters and encoding"
+      - "Unusual data types and formats"

@@ -1,0 +1,8 @@
+{
+  "user_id": "user_456",
+  "email": "jane.smith@example.com",
+  "created_at": "2024-01-15T11:00:00Z",
+  "metadata": {
+    "note": "This user has progressed to needs_configuration stage but is missing preferences, settings, and profile objects that should get default values"
+  }
+}

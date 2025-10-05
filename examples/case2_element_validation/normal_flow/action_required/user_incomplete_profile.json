@@ -1,0 +1,17 @@
+{
+  "email": "incomplete.profile@example.com",
+  "password": "profilepassword456",
+  "verification": {
+    "email_verified_at": "2024-01-15T10:00:00Z"
+  },
+  "profile": {
+    "first_name": "Incomplete",
+    "last_name": ""
+  },
+  "meta": {
+    "created_at": "2024-01-15T09:30:00Z",
+    "user_id": "user_33333",
+    "source": "mobile_app",
+    "notes": "User started profile setup but left last name empty"
+  }
+}
