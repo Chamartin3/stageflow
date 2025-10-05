@@ -1,0 +1,89 @@
+# Default Properties Demonstration Process
+# Shows how elements can progress with missing properties that should get default values
+
+process:
+  name: defaults_application_demo
+  description: Demonstrates default value application for missing properties during stage progression
+  initial_stage: minimal_data
+  final_stage: fully_configured
+
+  stages:
+    minimal_data:
+      name: "Minimal Data"
+      description: "Basic data entry with minimal requirements"
+      schema:
+        required_fields:
+          - user_id
+          - email
+
+      gates:
+        has_basic_info:
+          target_stage: needs_configuration
+          locks:
+            - exists: "user_id"
+            - exists: "email"
+
+    needs_configuration:
+      name: "Needs Configuration"
+      description: "Stage where additional configuration is expected but has defaults"
+      schema:
+        required_fields:
+          - user_id
+          - email
+          # These would be required but have defaults available:
+          - preferences  # Should get default preferences
+          - settings     # Should get default settings
+          - profile      # Should get default profile
+
+        # Documentation of what defaults should be applied
+        default_recommendations:
+          preferences:
+            theme: "light"
+            language: "en"
+            notifications: true
+          settings:
+            auto_save: true
+            privacy_level: "standard"
+            analytics: false
+          profile:
+            visibility: "private"
+            show_email: false
+
+      gates:
+        # This gate will fail for elements missing configuration, showing action_required
+        configuration_complete:
+          target_stage: fully_configured
+          locks:
+            - exists: "preferences"
+            - exists: "settings"
+            - exists: "profile"
+            # Additional checks for nested properties
+            - exists: "preferences.theme"
+            - exists: "settings.auto_save"
+            - exists: "profile.visibility"
+
+    fully_configured:
+      name: "Fully Configured"
+      description: "All configuration present (either user-provided or defaults applied)"
+      schema:
+        required_fields:
+          - user_id
+          - email
+          - preferences
+          - settings
+          - profile
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: false
+
+  metadata:
+    description: "Demonstrates how elements should get defaults applied for missing configuration"
+    test_case: "default_properties_application"
+    example_workflow: |
+      1. Element arrives with minimal data (user_id, email)
+      2. Element progresses to needs_configuration stage
+      3. System detects missing preferences/settings/profile
+      4. System should apply documented defaults
+      5. Element can then progress to fully_configured

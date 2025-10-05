@@ -1,0 +1,132 @@
+# Case 1.1: Complex Multi-Stage Process
+# Tests: Complex process with multiple stages and branching paths
+
+process:
+  name: ecommerce_order_processing
+  initial_stage: cart
+  final_stage: completed
+
+  stages:
+    cart:
+      schema:
+        required_fields:
+          - items
+          - customer_id
+
+      gates:
+        proceed_to_checkout:
+          target_stage: checkout
+          locks:
+            - exists: "items"
+            - type: NOT_EMPTY
+              property_path: "items"
+            - exists: "customer_id"
+
+    checkout:
+      schema:
+        required_fields:
+          - items
+          - customer_id
+          - shipping_address
+          - billing_address
+
+      gates:
+        submit_payment:
+          target_stage: payment_processing
+          locks:
+            - exists: "shipping_address.street"
+            - exists: "billing_address.street"
+            - exists: "payment_method"
+
+    payment_processing:
+      schema:
+        required_fields:
+          - payment_method
+          - total_amount
+
+      gates:
+        payment_success:
+          target_stage: fulfillment
+          locks:
+            - type: EQUALS
+              property_path: "payment_status"
+              expected_value: "completed"
+            - exists: "transaction_id"
+
+        payment_failed:
+          target_stage: payment_retry
+          locks:
+            - type: EQUALS
+              property_path: "payment_status"
+              expected_value: "failed"
+
+    payment_retry:
+      schema:
+        required_fields:
+          - payment_method
+          - retry_count
+
+      gates:
+        retry_payment:
+          target_stage: payment_processing
+          locks:
+            - type: LESS_THAN
+              property_path: "retry_count"
+              expected_value: 3
+            - exists: "payment_method"
+
+        payment_abandoned:
+          target_stage: abandoned
+          locks:
+            - type: GREATER_THAN
+              property_path: "retry_count"
+              expected_value: 2
+
+    fulfillment:
+      schema:
+        required_fields:
+          - shipping_carrier
+          - tracking_number
+
+      gates:
+        order_shipped:
+          target_stage: shipped
+          locks:
+            - exists: "tracking_number"
+            - type: NOT_EMPTY
+              property_path: "tracking_number"
+
+    shipped:
+      schema:
+        required_fields:
+          - tracking_number
+          - shipped_date
+
+      gates:
+        order_delivered:
+          target_stage: completed
+          locks:
+            - exists: "delivery_date"
+            - type: EQUALS
+              property_path: "delivery_status"
+              expected_value: "delivered"
+
+    completed:
+      schema:
+        required_fields:
+          - delivery_date
+          - order_status
+
+    abandoned:
+      schema:
+        required_fields:
+          - abandonment_reason
+          - abandonment_date
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Complex e-commerce order processing workflow"
+    version: "1.0.0"
+    test_case: "valid_complex_multistage"

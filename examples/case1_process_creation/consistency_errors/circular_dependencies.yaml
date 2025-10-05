@@ -1,0 +1,69 @@
+# Case 1.3: Circular Stage Dependencies
+# Tests: Process consistency with circular stage references
+# Expected: Consistency check should detect circular dependencies
+
+process:
+  name: circular_dependencies
+  initial_stage: stage_a
+  final_stage: stage_d
+
+  stages:
+    stage_a:
+      schema:
+        required_fields:
+          - data_a
+
+      gates:
+        go_to_b:
+          target_stage: stage_b
+          locks:
+            - exists: "data_a"
+
+    stage_b:
+      schema:
+        required_fields:
+          - data_b
+
+      gates:
+        go_to_c:
+          target_stage: stage_c
+          locks:
+            - exists: "data_b"
+
+    stage_c:
+      schema:
+        required_fields:
+          - data_c
+
+      gates:
+        # Creates circular dependency: C -> A -> B -> C
+        go_back_to_a:
+          target_stage: stage_a
+          locks:
+            - exists: "data_c"
+
+        # Also goes to D, but circular path exists
+        go_to_d:
+          target_stage: stage_d
+          locks:
+            - exists: "data_c"
+            - exists: "final_condition"
+
+    stage_d:
+      schema:
+        required_fields:
+          - final_data
+
+      gates:
+        # Creates another circular dependency: D -> B -> C -> A -> B
+        loop_back_to_b:
+          target_stage: stage_b
+          locks:
+            - exists: "restart_condition"
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with circular stage dependencies"
+    test_case: "consistency_circular_dependencies"

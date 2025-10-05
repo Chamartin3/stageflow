@@ -1,0 +1,27 @@
+{
+  "email": "maria.garcia@example.com",
+  "password": "hashed_password_abc",
+  "email_verified_at": "2024-01-15T13:00:00Z",
+  "first_name": "Maria",
+  "last_name": "Garcia",
+  "notification_preferences": {
+    "email_notifications": true,
+    "push_notifications": true,
+    "marketing_emails": false
+  },
+  "privacy_settings": {
+    "profile_public": false,
+    "show_email": false,
+    "analytics_tracking": false
+  },
+  "theme_preferences": {
+    "color_scheme": "dark"
+  },
+  "language_preferences": {
+    "primary_language": "es"
+  },
+  "metadata": {
+    "signup_method": "social",
+    "social_provider": "google"
+  }
+}

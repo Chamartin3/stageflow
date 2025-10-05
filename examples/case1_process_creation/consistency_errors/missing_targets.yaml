@@ -1,0 +1,61 @@
+# Case 1.3: Missing Target Stages
+# Tests: Process where final_stage cannot be reached from any stage
+# Expected: Consistency check should detect unreachable final stage
+
+process:
+  name: missing_targets
+  initial_stage: start
+  final_stage: unreachable_final
+
+  stages:
+    start:
+      schema:
+        required_fields:
+          - data
+
+      gates:
+        proceed:
+          target_stage: middle
+          locks:
+            - exists: "data"
+
+    middle:
+      schema:
+        required_fields:
+          - processed_data
+
+      gates:
+        loop_back:
+          target_stage: start
+          locks:
+            - exists: "restart_flag"
+
+        go_to_dead_end:
+          target_stage: dead_end
+          locks:
+            - exists: "processed_data"
+
+    dead_end:
+      schema:
+        required_fields:
+          - final_processed_data
+
+      # No gates - this is a dead end with no path to final stage
+
+    # This is the declared final stage but it's unreachable
+    unreachable_final:
+      schema:
+        required_fields:
+          - completion_data
+
+  # Additional consistency issues:
+  # 1. final_stage "unreachable_final" cannot be reached
+  # 2. Process creates infinite loops between start and middle
+  # 3. dead_end stage has no exit paths
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process where final stage cannot be reached"
+    test_case: "consistency_missing_targets"

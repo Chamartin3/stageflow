@@ -1,0 +1,126 @@
+# User Onboarding Process with Default Properties
+# Demonstrates how elements advance through stages that introduce new properties with defaults
+
+process:
+  name: user_onboarding_with_defaults
+  description: User registration process with progressive property requirements and defaults
+  initial_stage: signup
+  final_stage: active_user
+
+  stages:
+    signup:
+      name: "Initial Signup"
+      description: "User provides basic information"
+      schema:
+        required_fields:
+          - email
+          - password
+
+      gates:
+        email_verified:
+          target_stage: profile_setup
+          locks:
+            - exists: "email_verified_at"
+
+    profile_setup:
+      name: "Profile Setup"
+      description: "User completes profile - missing preferences will get defaults"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          # notification_preferences and privacy_settings are optional here
+          # They will be populated with defaults if missing
+
+        # Default values for new properties introduced at this stage
+        default_values:
+          notification_preferences:
+            email_notifications: true
+            push_notifications: false
+            marketing_emails: false
+          privacy_settings:
+            profile_public: false
+            show_email: false
+            analytics_tracking: true
+
+      gates:
+        ready_for_preferences:
+          target_stage: preferences_config
+          locks:
+            # Basic profile requirements (always required)
+            - exists: "first_name"
+            - exists: "last_name"
+            # No additional requirements - system will handle missing preferences with defaults
+
+    preferences_config:
+      name: "Preferences Configuration"
+      description: "Advanced preferences with additional defaults"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
+          - theme_preferences
+          - accessibility_options
+          - language_preferences
+
+        # Additional defaults for this stage
+        default_values:
+          theme_preferences:
+            color_scheme: "light"
+            font_size: "medium"
+            compact_mode: false
+          accessibility_options:
+            high_contrast: false
+            screen_reader: false
+            keyboard_navigation: false
+          language_preferences:
+            primary_language: "en"
+            timezone: "UTC"
+            date_format: "YYYY-MM-DD"
+
+      gates:
+        preferences_set:
+          target_stage: active_user
+          locks:
+            - exists: "theme_preferences.color_scheme"
+            - exists: "language_preferences.primary_language"
+
+    active_user:
+      name: "Active User"
+      description: "Fully configured user account"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
+          - theme_preferences
+          - accessibility_options
+          - language_preferences
+          - account_status
+
+        # Final defaults
+        default_values:
+          account_status:
+            status: "active"
+            created_at: "current_timestamp"
+            last_login: null
+            login_count: 0
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Demonstrates default property handling during stage progression"
+    test_case: "default_properties_progression"

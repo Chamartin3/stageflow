@@ -1,0 +1,46 @@
+# Case 1.2: Invalid Stage References
+# Tests: Gates referencing non-existent stages
+# Expected: Validation should fail with invalid reference errors
+
+process:
+  name: invalid_references
+  initial_stage: start
+  final_stage: nonexistent_final  # References non-existent stage
+
+  stages:
+    start:
+      schema:
+        required_fields:
+          - data
+
+      gates:
+        proceed_to_middle:
+          target_stage: middle  # References non-existent stage
+          locks:
+            - exists: "data"
+
+        jump_to_end:
+          target_stage: undefined_stage  # References non-existent stage
+          locks:
+            - exists: "ready"
+
+    existing_stage:
+      schema:
+        required_fields:
+          - info
+
+      gates:
+        go_nowhere:
+          target_stage: void  # References non-existent stage
+          locks:
+            - exists: "info"
+
+  # Note: No 'middle', 'undefined_stage', 'void', or 'nonexistent_final' stages defined
+  # All gate references are invalid
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with invalid stage references"
+    test_case: "invalid_stage_references"
