@@ -1,0 +1,28 @@
+{
+  "id": "element_005",
+  "status": "inactive",
+  "processed_data": {
+    "validation_passed": true,
+    "processing_date": "2024-01-15T06:30:00Z"
+  },
+  "advanced_features": {
+    "feature_a_enabled": true,
+    "feature_b_configured": true,
+    "configuration_score": 90
+  },
+  "meta": {
+    "current_stage": "basic",
+    "expected_stage": "advanced",
+    "regression_type": "value_change",
+    "changed_properties": [
+      {
+        "property": "status",
+        "previous_value": "active",
+        "current_value": "inactive",
+        "change_date": "2024-01-15T11:00:00Z"
+      }
+    ],
+    "regression_reason": "Status changed from 'active' to 'inactive', breaking basic stage requirements",
+    "last_valid_advanced_date": "2024-01-15T08:30:00Z"
+  }
+}

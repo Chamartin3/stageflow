@@ -1,0 +1,22 @@
+{
+  "id": "element_004",
+  "status": "active",
+  "processed_data": {
+    "validation_passed": true,
+    "processing_date": "2024-01-15T07:00:00Z",
+    "processing_id": "proc_12345"
+  },
+  "completion_metadata": {
+    "completed_by": "system",
+    "completion_date": "2024-01-15T09:00:00Z"
+  },
+  "meta": {
+    "current_stage": "intermediate",
+    "expected_stage": "completed",
+    "regression_type": "property_loss",
+    "lost_properties": ["advanced_features"],
+    "regression_reason": "Advanced features configuration was lost, element cannot reach completion",
+    "last_completed_state_date": "2024-01-15T09:00:00Z",
+    "property_loss_date": "2024-01-15T10:45:00Z"
+  }
+}

@@ -1,0 +1,82 @@
+# Case 2.2: Regression Detection Process
+# Process for testing regression detection scenarios
+
+process:
+  name: regression_testing
+  initial_stage: basic
+  final_stage: completed
+
+  stages:
+    basic:
+      schema:
+        required_fields:
+          - id
+          - status
+
+      gates:
+        advance_to_intermediate:
+          target_stage: intermediate
+          locks:
+            - type: exists
+              property_path: "id"
+            - type: exists
+              property_path: "status"
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+
+    intermediate:
+      schema:
+        required_fields:
+          - id
+          - status
+          - processed_data
+
+      gates:
+        advance_to_advanced:
+          target_stage: advanced
+          locks:
+            - type: exists
+              property_path: "processed_data.validation_passed"
+            - type: equals
+              property_path: "processed_data.validation_passed"
+              expected_value: true
+            - type: exists
+              property_path: "processed_data.processing_date"
+
+    advanced:
+      schema:
+        required_fields:
+          - id
+          - status
+          - processed_data
+          - advanced_features
+
+      gates:
+        complete:
+          target_stage: completed
+          locks:
+            - type: exists
+              property_path: "advanced_features.feature_a_enabled"
+            - type: exists
+              property_path: "advanced_features.feature_b_configured"
+            - type: greater_than
+              property_path: "advanced_features.configuration_score"
+              expected_value: 80
+
+    completed:
+      schema:
+        required_fields:
+          - id
+          - status
+          - processed_data
+          - advanced_features
+          - completion_metadata
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process for testing regression detection"
+    version: "1.0.0"
+    test_case: "regression_detection"

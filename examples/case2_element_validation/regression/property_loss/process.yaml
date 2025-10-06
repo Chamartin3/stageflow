@@ -1,0 +1,100 @@
+# Property Loss Regression Process Definition
+# Demonstrates detection of elements that have lost previously required properties
+
+process:
+  name: property_loss_regression_demo
+  description: Process designed to detect when elements lose properties they previously had
+  initial_stage: basic_profile
+  final_stage: complete_profile
+
+  stages:
+    basic_profile:
+      name: "Basic Profile"
+      description: "Basic user profile information"
+      schema:
+        required_fields:
+          - user_id
+          - email
+          - first_name
+
+      gates:
+        basic_complete:
+          target_stage: extended_profile
+          locks:
+            - exists: "user_id"
+            - exists: "email"
+            - exists: "first_name"
+
+    extended_profile:
+      name: "Extended Profile"
+      description: "Extended profile with additional information"
+      schema:
+        required_fields:
+          - user_id
+          - email
+          - first_name
+          - last_name
+          - phone
+          - address
+
+      gates:
+        extended_complete:
+          target_stage: verified_profile
+          locks:
+            - exists: "last_name"
+            - exists: "phone"
+            - exists: "address.street"
+            - exists: "address.city"
+
+    verified_profile:
+      name: "Verified Profile"
+      description: "Profile with verified contact information"
+      schema:
+        required_fields:
+          - user_id
+          - email
+          - first_name
+          - last_name
+          - phone
+          - address
+          - email_verified_at
+          - phone_verified_at
+
+      gates:
+        verification_complete:
+          target_stage: complete_profile
+          locks:
+            - exists: "email_verified_at"
+            - exists: "phone_verified_at"
+            - type: "equals"
+              property_path: "verification_status"
+              expected_value: "verified"
+
+    complete_profile:
+      name: "Complete Profile"
+      description: "Fully completed and verified user profile"
+      schema:
+        required_fields:
+          - user_id
+          - email
+          - first_name
+          - last_name
+          - phone
+          - address
+          - email_verified_at
+          - phone_verified_at
+          - profile_completion_date
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Demonstrates property loss regression when elements lose previously acquired properties"
+    test_case: "property_loss_regression_validation"
+    expected_outcomes:
+      - "Elements missing properties they had in earlier stages show regression"
+      - "Extended profile elements missing basic profile fields show property loss"
+      - "Verified profile elements missing extended profile data show regression"
+      - "Clear identification of which properties were lost during progression"

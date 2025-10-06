@@ -1,0 +1,179 @@
+# Visualization Formats Demo Process
+# Designed to showcase different visualization capabilities and formats
+
+process:
+  name: visualization_formats_demo
+  description: Process optimized for demonstrating various visualization formats and styles
+  initial_stage: design_phase
+  final_stage: deployed
+
+  stages:
+    design_phase:
+      name: "Design Phase"
+      description: "Initial design and planning stage"
+      schema:
+        required_fields:
+          - project_id
+          - design_type
+          - stakeholders
+
+      gates:
+        design_approved:
+          target_stage: development
+          locks:
+            - exists: "design_approved_by"
+            - type: "equals"
+              property_path: "design_status"
+              expected_value: "approved"
+
+        needs_revision:
+          target_stage: design_phase  # Self-loop for revisions
+          locks:
+            - type: "equals"
+              property_path: "design_status"
+              expected_value: "needs_revision"
+
+    development:
+      name: "Development"
+      description: "Implementation and coding phase"
+      schema:
+        required_fields:
+          - project_id
+          - design_type
+          - stakeholders
+          - development_team
+          - tech_stack
+
+      gates:
+        ready_for_testing:
+          target_stage: testing
+          locks:
+            - type: "in_list"
+              property_path: "development_status"
+              expected_value: ["feature_complete", "prototype"]
+
+        parallel_qa:
+          target_stage: quality_assurance
+          locks:
+            - type: "equals"
+              property_path: "qa_enabled"
+              expected_value: true
+
+    testing:
+      name: "Testing"
+      description: "Quality assurance and testing phase"
+      schema:
+        required_fields:
+          - project_id
+          - development_team
+          - tech_stack
+          - test_results
+
+      gates:
+        tests_passed:
+          target_stage: staging
+          locks:
+            - type: "equals"
+              property_path: "test_status"
+              expected_value: "passed"
+            - type: "greater_than"
+              property_path: "test_coverage"
+              expected_value: 0.8
+
+        critical_issues:
+          target_stage: development  # Back to development
+          locks:
+            - type: "equals"
+              property_path: "test_status"
+              expected_value: "critical_issues"
+
+    quality_assurance:
+      name: "Quality Assurance"
+      description: "Parallel QA process for comprehensive validation"
+      schema:
+        required_fields:
+          - project_id
+          - qa_team
+          - qa_checklist
+
+      gates:
+        qa_approved:
+          target_stage: staging
+          locks:
+            - type: "equals"
+              property_path: "qa_status"
+              expected_value: "approved"
+
+        qa_failed:
+          target_stage: development
+          locks:
+            - type: "equals"
+              property_path: "qa_status"
+              expected_value: "failed"
+
+    staging:
+      name: "Staging"
+      description: "Pre-production staging environment"
+      schema:
+        required_fields:
+          - project_id
+          - staging_url
+          - performance_metrics
+
+      gates:
+        staging_validated:
+          target_stage: production_ready
+          locks:
+            - type: "equals"
+              property_path: "staging_status"
+              expected_value: "validated"
+
+        performance_issues:
+          target_stage: development
+          locks:
+            - type: "less_than"
+              property_path: "performance_score"
+              expected_value: 0.7
+
+    production_ready:
+      name: "Production Ready"
+      description: "Ready for production deployment"
+      schema:
+        required_fields:
+          - project_id
+          - staging_url
+          - performance_metrics
+          - deployment_plan
+
+      gates:
+        deploy_to_production:
+          target_stage: deployed
+          locks:
+            - type: "equals"
+              property_path: "deployment_approved"
+              expected_value: true
+
+    deployed:
+      name: "Deployed"
+      description: "Successfully deployed to production"
+      schema:
+        required_fields:
+          - project_id
+          - production_url
+          - deployment_date
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Complex process with multiple paths, loops, and parallel stages for visualization testing"
+    test_case: "visualization_formats_demo"
+    visualization_features:
+      - "Multiple branching paths"
+      - "Self-loops and backward transitions"
+      - "Parallel processing stages"
+      - "Complex stage relationships"
+      - "Clear decision points"
+      - "Terminal and final stages"

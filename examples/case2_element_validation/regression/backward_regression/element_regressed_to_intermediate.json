@@ -1,0 +1,16 @@
+{
+  "id": "element_002",
+  "status": "active",
+  "processed_data": {
+    "validation_passed": true,
+    "processing_date": "2024-01-15T07:30:00Z"
+  },
+  "meta": {
+    "current_stage": "intermediate",
+    "previous_stage": "completed",
+    "regression_detected": true,
+    "regression_reason": "Element lost advanced_features and completion_metadata, regressed from completed to intermediate",
+    "last_completed_date": "2024-01-15T09:00:00Z",
+    "regression_date": "2024-01-15T11:30:00Z"
+  }
+}

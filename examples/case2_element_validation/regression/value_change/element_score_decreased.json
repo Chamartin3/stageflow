@@ -1,0 +1,32 @@
+{
+  "id": "element_006",
+  "status": "active",
+  "processed_data": {
+    "validation_passed": true,
+    "processing_date": "2024-01-15T07:15:00Z"
+  },
+  "advanced_features": {
+    "feature_a_enabled": true,
+    "feature_b_configured": true,
+    "configuration_score": 65
+  },
+  "completion_metadata": {
+    "completed_by": "user",
+    "completion_date": "2024-01-15T09:30:00Z"
+  },
+  "meta": {
+    "current_stage": "intermediate",
+    "expected_stage": "completed",
+    "regression_type": "value_change",
+    "changed_properties": [
+      {
+        "property": "advanced_features.configuration_score",
+        "previous_value": 95,
+        "current_value": 65,
+        "change_date": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "regression_reason": "Configuration score dropped below threshold (80), element regressed from completed to intermediate",
+    "last_valid_completed_date": "2024-01-15T09:30:00Z"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "element_001",
+  "status": "active",
+  "meta": {
+    "current_stage": "basic",
+    "previous_stage": "advanced",
+    "regression_detected": true,
+    "regression_reason": "Element was previously in advanced stage but now only meets basic requirements",
+    "last_advanced_date": "2024-01-15T08:00:00Z",
+    "regression_date": "2024-01-15T12:00:00Z"
+  }
+}
