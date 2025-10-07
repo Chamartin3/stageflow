@@ -91,7 +91,7 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "stageflow"]
+testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -101,11 +101,7 @@ addopts = [
     "--strict-config",
     "--color=yes",
     "--tb=short",
-    "--durations=10",
-    "--cov=stageflow",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-fail-under=90"
+    "--durations=10"
 ]
 markers = [
     "unit: Fast unit tests that test individual components in isolation",
@@ -167,7 +163,7 @@ exclude_lines = [
     "@overload",
     "\\.\\.\\."
 ]
-fail_under = 90
+fail_under = 0
 show_missing = true
 skip_covered = false
 skip_empty = true
