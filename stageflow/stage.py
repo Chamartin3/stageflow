@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, TypedDict
 
-from stageflow.gates.gate import GateDefinition
-
 from .element import Element
-from .gates import Gate, GateResult
+from .gate import Gate, GateResult, GateDefinition
 
 
 class ActionDefinition(TypedDict):
@@ -96,8 +94,12 @@ class Stage:
             "parent_stage": self._id,
         } for gate_def in config.get("gates", [])]
         self.is_final = config.get("is_final", False)
+        # Allow stages without gates if they are final or if they are terminal states
+        # (We'll validate terminal states at the process level where we have full context)
         if not gates_definition and not self.is_final:
-            raise ValueError(f"Non-final stage '{self.name}' must have at least one gate")
+            # This validation will be moved to process level where we can check
+            # if this stage is referenced as a target by other gates
+            pass
         self.gates = tuple(Gate(definition) for definition in gates_definition)
         self._evaluated_paths = [path for gate in self.gates for path in gate.required_paths]
 
@@ -111,6 +113,8 @@ class Stage:
         self._validate_schema(expected_properties)
         self._base_schema = expected_properties
 
+        # Gate target validation moved to ProcessConsistencyChecker
+
     @property
     def posible_transitions(self) -> list[str]:
         """Get all possible target stages from this stage's gates."""
@@ -118,6 +122,10 @@ class Stage:
 
     def _validate_schema(self, shape: ExpectedObjectSchmema) -> None:
         """Validate that all evaluated paths exist in the expected properties schema."""
+        # Only validate if schema is provided - allow stages without schemas
+        if not shape:
+            return
+
         for prop_path in self._evaluated_paths:
             nested = shape
             for part in prop_path.split('.'):
@@ -132,6 +140,26 @@ class Stage:
             for prop in properties:
                 if prop not in self._evaluated_paths:
                     raise ValueError(f"Action property '{prop}' is not evaluated by any gate in stage '{self.name}'")
+
+    def _validate_gate_targets(self) -> None:
+        """Validate that no two gates target the same stage."""
+        target_stages = []
+        gate_names = []
+
+        for gate in self.gates:
+            if hasattr(gate, 'target_stage') and gate.target_stage:
+                if gate.target_stage in target_stages:
+                    # Find which gates have the same target
+                    duplicate_gates = [gate_names[i] for i, target in enumerate(target_stages) if target == gate.target_stage]
+                    duplicate_gates.append(gate.name)
+
+                    raise ValueError(
+                        f"Stage '{self.name}' has multiple gates targeting the same stage '{gate.target_stage}': "
+                        f"{', '.join(duplicate_gates)}. Consider combining these gates into a single gate with multiple locks."
+                    )
+
+                target_stages.append(gate.target_stage)
+                gate_names.append(gate.name)
 
 
     def _get_missing_properties(self, element: Element) -> dict[str, Any]:

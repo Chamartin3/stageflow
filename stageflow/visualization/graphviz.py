@@ -3,7 +3,7 @@
 from typing import Any
 
 # Use relative imports for the process models
-from stageflow.process.main import Process
+from stageflow.process import Process
 
 
 class GraphvizDotGenerator:
@@ -103,6 +103,9 @@ class GraphvizDotGenerator:
             # Connect to next stage
             if i < len(process.stage_order) - 1:
                 next_stage_name = process.stage_order[i + 1]
+                # Skip if next stage doesn't exist in stage_nodes (handles malformed data)
+                if next_stage_name not in stage_nodes:
+                    continue
                 next_node = stage_nodes[next_stage_name]
 
                 edge_label = self._generate_edge_label(stage, style)

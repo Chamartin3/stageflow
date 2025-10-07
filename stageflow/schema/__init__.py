@@ -1,86 +1,35 @@
 """
-Schema module for StageFlow process domain.
+Simplified Schema module for StageFlow.
 
-This module centralizes all schema-related functionality including model definitions,
-core schema types, and loaders for various formats (YAML, JSON).
+This module provides simple loading functionality for process definitions.
+All validation is handled by the core Process class.
 """
 
-# Core schema types
-from stageflow.process.schema.core import (
-    FieldDefinition,
-    ItemSchema,
-    ItemSchemaModel,
-    SchemaError,
-    ValidationError,
-    ValidationResult,
-)
+# Import core definitions from main modules
+from stageflow.process import Process, ProcessDefinition, ProcessElementEvaluationResult
+from stageflow.stage import StageDefinition, ActionDefinition
+from stageflow.gate import GateDefinition
+from stageflow.lock import LockDefinition
 
-# Loaders
-from stageflow.process.schema.loaders import (
-    JsonLoader,
-    JSONLoadError,
-    JSONReferenceError,
-    JSONSchemaError,
-    SchemaParsingError,
-    SchemaValidationError,
-    YAMLIncludeError,
-    YamlLoader,
-    YAMLLoadError,
-    YAMLSchemaError,
-    load_json_process,
-    load_json_process_from_string,
+# Import simplified loader
+from stageflow.schema.loader import (
+    LoadError,
     load_process,
-    load_process_from_string,
-)
-
-# Schema models and validation
-from stageflow.process.schema.models import (
-    BaseStageFlowModel,
-    FieldDefinitionModel,
-    GateModel,
-    LockModel,
-    ProcessConfigModel,
-    ProcessModel,
-    StageFlowSchemaModel,
-    StageModel,
-    ValidationContext,
-    validate_process_definition,
-    validate_stageflow_schema,
+    load_process_data
 )
 
 __all__ = [
-    # Core schema types
-    "FieldDefinition",
-    "ItemSchema",
-    "ItemSchemaModel",
-    "SchemaError",
-    "ValidationError",
-    "ValidationResult",
-    # Schema models
-    "BaseStageFlowModel",
-    "FieldDefinitionModel",
-    "GateModel",
-    "LockModel",
-    "ProcessConfigModel",
-    "ProcessModel",
-    "StageFlowSchemaModel",
-    "StageModel",
-    "ValidationContext",
-    "validate_process_definition",
-    "validate_stageflow_schema",
-    # Loaders
-    "JsonLoader",
-    "JSONLoadError",
-    "JSONReferenceError",
-    "JSONSchemaError",
-    "SchemaParsingError",
-    "SchemaValidationError",
-    "YamlLoader",
-    "YAMLIncludeError",
-    "YAMLLoadError",
-    "YAMLSchemaError",
-    "load_json_process",
-    "load_json_process_from_string",
+    # Core classes and types
+    "Process",
+    "ProcessDefinition",
+    "ProcessElementEvaluationResult",
+    "StageDefinition",
+    "ActionDefinition",
+    "GateDefinition",
+    "LockDefinition",
+
+    # Loader functions
+    "LoadError",
     "load_process",
-    "load_process_from_string",
+    "load_process_data",
 ]
