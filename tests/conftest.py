@@ -9,21 +9,22 @@ from typing import Any
 
 import pytest
 
-from stageflow import Process
+# from stageflow import Process
 from stageflow.element import DictElement
-from stageflow.gates import Gate, Lock, LockType
-from stageflow.process.schema.core import ItemSchema
-from stageflow.stage import Stage
+from stageflow.gate import Gate
+from stageflow.lock import Lock, LockType
+# from stageflow.process.schema.core import ItemSchema
+# from stageflow.stage import Stage
 
 # Import fixtures from specialized modules
 # These imports make fixtures available to all test modules
-pytest_plugins = [
-    "tests.fixtures.core_models",
-    "tests.fixtures.sample_data",
-    "tests.fixtures.process_schemas",
-    "tests.fixtures.mock_objects",
-    "tests.fixtures.parameters"
-]
+# pytest_plugins = [
+#     "tests.fixtures.core_models",
+#     "tests.fixtures.sample_data",
+#     "tests.fixtures.process_schemas",
+#     "tests.fixtures.mock_objects",
+#     "tests.fixtures.parameters"
+# ]
 
 
 @pytest.fixture
@@ -133,97 +134,109 @@ def sample_element(sample_element_data) -> DictElement:
 @pytest.fixture
 def basic_lock() -> Lock:
     """Basic lock for testing."""
-    return Lock(
-        property_path="email",
-        lock_type=LockType.EXISTS,
-    )
+    return Lock({
+        "property_path": "email",
+        "type": LockType.EXISTS,
+    })
 
 
 @pytest.fixture
 def email_lock() -> Lock:
     """Email validation lock for testing."""
-    return Lock(
-        property_path="email",
-        lock_type=LockType.REGEX,
-        expected_value=r"^[^@]+@[^@]+\.[^@]+$",
-    )
+    return Lock({
+        "property_path": "email",
+        "type": LockType.REGEX,
+        "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+    })
 
 
 @pytest.fixture
-def basic_gate(basic_lock) -> Gate:
+def basic_gate() -> Gate:
     """Basic gate for testing."""
-    return Gate.create(
-        basic_lock,
-        name="basic_validation",
-    )
+    return Gate({
+        "name": "basic_validation",
+        "description": "Basic validation gate",
+        "target_stage": "validated",
+        "parent_stage": "unvalidated",
+        "locks": [{"exists": "email"}]
+    })
 
 
 @pytest.fixture
-def email_gate(email_lock) -> Gate:
+def email_gate() -> Gate:
     """Email validation gate for testing."""
-    return Gate.create(
-        email_lock,
-        name="email_validation",
-    )
+    return Gate({
+        "name": "email_validation",
+        "description": "Email validation gate",
+        "target_stage": "email_verified",
+        "parent_stage": "unverified",
+        "locks": [{
+            "type": LockType.REGEX,
+            "property_path": "email",
+            "expected_value": r"^[^@]+@[^@]+\.[^@]+$"
+        }]
+    })
 
 
-@pytest.fixture
-def basic_schema() -> ItemSchema:
-    """Basic schema for testing."""
-    return ItemSchema(
-        name="basic_schema",
-        required_fields={"email", "user_id"},
-        optional_fields={"profile.first_name", "profile.last_name"},
-        field_types={"email": "string", "user_id": "string"},
-    )
+# @pytest.fixture
+# def basic_schema() -> ItemSchema:
+#     """Basic schema for testing."""
+#     return ItemSchema(
+#         name="basic_schema",
+#         required_fields={"email", "user_id"},
+#         optional_fields={"profile.first_name", "profile.last_name"},
+#         field_types={"email": "string", "user_id": "string"},
+#     )
 
 
-@pytest.fixture
-def basic_stage(basic_gate, basic_schema) -> Stage:
-    """Basic stage for testing."""
-    return Stage(
-        name="registration",
-        gates=[basic_gate],
-        schema=basic_schema,
-    )
+# @pytest.fixture
+# def basic_stage(basic_gate, basic_schema) -> Stage:
+#     """Basic stage for testing."""
+#     return Stage(
+#         name="registration",
+#         gates=[basic_gate],
+#         schema=basic_schema,
+#     )
 
 
-@pytest.fixture
-def multi_stage_process(basic_stage) -> Process:
-    """Multi-stage process for testing."""
-    # Create additional stages
-    profile_lock = Lock(
-        property_path="profile.first_name",
-        lock_type=LockType.EXISTS,
-    )
-    profile_gate = Gate.create(
-        profile_lock,
-        name="profile_complete",
-    )
-    profile_stage = Stage(
-        name="profile_setup",
-        gates=[profile_gate],
-    )
+# @pytest.fixture
+# def multi_stage_process(basic_stage) -> Process:
+#     """Multi-stage process for testing."""
+#     # Create additional stages
+#     profile_lock = Lock({
+#         "property_path": "profile.first_name",
+#         "type": LockType.EXISTS,
+#     })
+#     profile_gate = Gate({
+#         "name": "profile_complete",
+#         "description": "Profile completion gate",
+#         "target_stage": "profile_verified",
+#         "parent_stage": "profile_pending",
+#         "locks": [{"exists": "profile.first_name"}]
+#     })
 
-    verification_lock = Lock(
-        property_path="verification.email_verified",
-        lock_type=LockType.EQUALS,
-        expected_value=True,
-    )
-    verification_gate = Gate.create(
-        verification_lock,
-        name="email_verified",
-    )
-    verification_stage = Stage(
-        name="verification",
-        gates=[verification_gate],
-    )
+#     verification_lock = Lock({
+#         "property_path": "verification.email_verified",
+#         "type": LockType.EQUALS,
+#         "expected_value": True,
+#     })
+#     verification_gate = Gate({
+#         "name": "email_verified",
+#         "description": "Email verification gate",
+#         "target_stage": "verified",
+#         "parent_stage": "unverified",
+#         "locks": [{
+#             "type": LockType.EQUALS,
+#             "property_path": "verification.email_verified",
+#             "expected_value": True
+#         }]
+#     })
 
-    return Process(
-        name="user_onboarding",
-        stages=[basic_stage, profile_stage, verification_stage],
-        stage_order=["registration", "profile_setup", "verification"],
-    )
+#     return Process(
+#         name="user_onboarding",
+#         stages=[basic_stage, profile_stage, verification_stage],
+#         stage_order=["registration", "profile_setup", "verification"],
+#     )
 
 
 @pytest.fixture

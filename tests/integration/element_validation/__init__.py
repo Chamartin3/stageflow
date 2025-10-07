@@ -1,0 +1,1 @@
+"""Integration tests for StageFlow element validation and evaluation."""
