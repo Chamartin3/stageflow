@@ -1,11 +1,11 @@
 """Element interface and implementations for StageFlow."""
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Union
 
 
-class Element:
+class Element(ABC):
     """
     Abstract base class for data elements in StageFlow.
 
@@ -85,7 +85,8 @@ class DictElement(Element):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
-        return self._data.copy()
+        import copy
+        return copy.deepcopy(self._data)
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -364,6 +365,37 @@ class DictElement(Element):
                     result += f".{part}"
 
         return result
+
+    def get_property(self, path: str) -> Any:
+        """
+        Get a property value using dot/bracket notation.
+
+        Args:
+            path: Property path (e.g., "user.profile.name" or "items[0].price")
+
+        Returns:
+            The property value, or None if not found
+        """
+        try:
+            return self._resolve_path(self._data, path)
+        except (KeyError, IndexError, TypeError):
+            return None
+
+    def has_property(self, path: str) -> bool:
+        """
+        Check if a property exists.
+
+        Args:
+            path: Property path to check
+
+        Returns:
+            True if property exists, False otherwise
+        """
+        try:
+            self._resolve_path(self._data, path)
+            return True
+        except (KeyError, IndexError, TypeError):
+            return False
 
 
 # Factory function for creating elements

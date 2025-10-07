@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, TypedDict
 
 from stageflow.element import Element
-from stageflow.gates.lock import Lock, LockDefinition, LockFactory, LockResult
+from stageflow.lock import Lock, LockDefinition, LockFactory, LockResult
 
 
 class GateDefinition(TypedDict):
@@ -35,8 +35,9 @@ class GateResult:
     def messages(self) -> list[str]:
         """Aggregate messages from all failed components."""
         msgs = []
-        for lock in self.failed:
-            msgs.extend(lock.error_message)
+        for lock_result in self.failed:
+            if lock_result.error_message:
+                msgs.append(lock_result.error_message)
         return msgs
 
 
@@ -75,15 +76,17 @@ class Gate:
 
 
     def evaluate(self, element: Element) -> GateResult:
-
+        """Evaluate element against all locks using AND logic."""
         passed = []
         failed = []
+
         for lock in self._locks:
             result: LockResult = lock.validate(element)
             if result.success:
-                passed.append(lock)
+                passed.append(result)
             else:
-                failed.append(lock)
+                failed.append(result)
+
         gate_passed = len(failed) == 0
         success_rate = len(passed) / len(self._locks) if self._locks else 0.0
 
@@ -95,11 +98,16 @@ class Gate:
         )
 
     @property
+    def locks(self) -> list[Lock]:
+        """Get all locks in this gate."""
+        return self._locks.copy()
+
+    @property
     def required_paths(self) -> set[str]:
         """Get all property paths required by the gate."""
         paths = set()
         for lock in self._locks:
-            paths.update(lock.property_path)
+            paths.add(lock.property_path)
         return paths
 
     def to_dict(self) -> dict[str, Any]:

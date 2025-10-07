@@ -14,8 +14,8 @@ from stageflow.element import Element
 
 class LockMetaData(TypedDict, total=False):
     expected_value: Any
-    min_value: int| None
-    max_value: int|None
+    min_value: int | None
+    max_value: int | None
 
 
 class LockType(Enum):
@@ -78,7 +78,7 @@ class LockType(Enum):
             return f"Property '{property_path}' should be of type '{expected_type}' but is '{actual_type}' with value '{actual_value}'"
 
         if self == LockType.RANGE:
-            if isinstance(expected_value, (list |tuple)) and len(expected_value) == 2:
+            if isinstance(expected_value, (list | tuple)) and len(expected_value) == 2:
                 min_val, max_val = expected_value
                 return f"Property '{property_path}' should be between {min_val} and {max_val} but is {actual_value}"
 
@@ -86,7 +86,7 @@ class LockType(Enum):
 
 
     def validate(self, value: Any, lock_meta:LockMetaData) -> bool:
-        lock_type = self.value
+        lock_type = self
         if lock_type == LockType.EXISTS:
             return value is not None and (not isinstance(value, str) or len(value.strip()) > 0)
 
@@ -144,13 +144,16 @@ class LockType(Enum):
                 if isinstance(value, str) and isinstance(expected_value, str):
                     return expected_value in value
                 elif hasattr(value, '__contains__'):
-                    return str(expected_value) in value
+                    # For collections, check if expected_value is in the collection
+                    # or if string representation matches any element
+                    return (expected_value in value or
+                            str(expected_value) in [str(item) for item in value])
                 else:
                     return False
             except (TypeError, AttributeError):
                 return False
         if lock_type == LockType.IN_LIST:
-            if not isinstance(expected_value, (list| tuple|set)):
+            if not isinstance(expected_value, (list | tuple | set)):
                 return False
             return value in expected_value
 
@@ -231,9 +234,14 @@ class Lock:
         self,
         config: LockDefinitionDict
         ) -> None:
-        self.lock_type = config.get("type")
+        lock_type_value = config.get("type")
+        if isinstance(lock_type_value, str):
+            # Handle case-insensitive lock type names for compatibility
+            self.lock_type = LockType(lock_type_value.lower())
+        else:
+            self.lock_type = lock_type_value
         self.property_path = config.get("property_path")
-        self.expected_value = self.expected_value = config.get("expected_value")
+        self.expected_value = config.get("expected_value")
         self.metadata = config.get("metadata", {}) or {}
 
 
@@ -298,6 +306,7 @@ class LockFactory:
                 "type": lock_definition["type"],
                 "property_path": lock_definition["property_path"],
                 "expected_value": lock_definition.get("expected_value"),
+                "metadata": lock_definition.get("metadata", {}),
             })
         else:
             for key in cls.SHORTHAND_KEYS:
