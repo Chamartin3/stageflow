@@ -1,0 +1,10 @@
+{
+  "email": "john.doe@example.com",
+  "password": "hashed_password_123",
+  "email_verified_at": "2024-01-15T10:30:00Z",
+  "metadata": {
+    "signup_method": "web",
+    "ip_address": "192.168.1.100",
+    "user_agent": "Mozilla/5.0"
+  }
+}

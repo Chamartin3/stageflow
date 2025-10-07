@@ -1,0 +1,62 @@
+{
+  "email": "special.chars+test@example-domain.co.uk",
+  "password": "P@ssw0rd!2024#$%^&*()",
+  "verification": {
+    "email_verified_at": "2024-01-15T10:00:00Z",
+    "phone_verified_at": "2024-01-15T10:15:00Z",
+    "identity_verified_at": "2024-01-15T10:30:00Z",
+    "status": "verified"
+  },
+  "profile": {
+    "first_name": "José",
+    "last_name": "Müller-García",
+    "full_name_unicode": "José Müller-García (测试用户)",
+    "bio": "Software engineer with experience in Unicode handling 🚀, emoji support 😊, and internationalization (i18n) 🌍. Speaks multiple languages: English, Español, Deutsch, 中文, العربية, Русский",
+    "phone_number": "+33-1-23-45-67-89",
+    "website": "https://josé-müller.example.com/portfolio?lang=es&theme=dark",
+    "social_media": {
+      "twitter": "@josé_dev_🔥",
+      "linkedin": "linkedin.com/in/josé-müller-garcía",
+      "github": "github.com/jose_muller_dev"
+    }
+  },
+  "address": {
+    "street": "123 Königstraße",
+    "apartment": "Wohnung №5",
+    "city": "München",
+    "postal_code": "80331",
+    "country": "Deutschland",
+    "formatted": "123 Königstraße, Wohnung №5\n80331 München\nDeutschland"
+  },
+  "special_characters_test": {
+    "mathematical_symbols": "∑∏∫∂∇∆√∞±≠≤≥≈",
+    "currency_symbols": "$€£¥₹₿",
+    "arrows_and_symbols": "→←↑↓⇒⇐⇑⇓⟨⟩⟪⟫",
+    "quotation_marks": "\"'`''\"\"«»",
+    "diacritics": "àáâãäåæçèéêëìíîïñòóôõöøùúûüýÿ",
+    "cyrillic": "Привет мир ЁЖИКЪ ёжикъ",
+    "arabic": "مرحبا بالعالم اختبار النص",
+    "chinese": "你好世界测试文本",
+    "japanese": "こんにちは世界テストテキスト",
+    "korean": "안녕하세요 세계 테스트 텍스트",
+    "emoji_text": "Hello 👋 World 🌍! Testing 🧪 with emoji 😀🎉🚀",
+    "zero_width_chars": "Zero\u200Bwidth\u200Cjoiner\u200Dtest",
+    "control_chars": "Line\nbreak\ttab\rcarriage\fform vertical",
+    "escape_sequences": "Quotes: \\\"test\\\" Backslash: \\\\ Null: \\0"
+  },
+  "file_paths": {
+    "unix_style": "/home/user/documents/file with spaces.txt",
+    "windows_style": "C:\\Users\\José\\Documents\\Müller's Files\\test file.docx",
+    "url_encoded": "https://example.com/search?q=special%20characters%20%26%20symbols",
+    "uri_with_fragment": "https://example.com/page#section-with-dashes_and_underscores"
+  },
+  "meta": {
+    "test_case": "special_characters_element",
+    "description": "Element with various special characters, Unicode, emoji, and edge case text to test character encoding and parsing",
+    "created_at": "2024-01-15T10:45:00Z",
+    "user_id": "user_unicode_001",
+    "encoding": "UTF-8",
+    "character_sets": ["ASCII", "Latin-1", "UTF-8", "Unicode"],
+    "notes": "Contains international characters, emoji, mathematical symbols, and various encoding edge cases"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "email": "large.data@example.com",
+  "password": "largedatapassword123",
+  "verification": {
+    "email_verified_at": "2024-01-15T10:00:00Z",
+    "phone_verified_at": "2024-01-15T10:15:00Z",
+    "identity_verified_at": "2024-01-15T10:30:00Z",
+    "status": "verified"
+  },
+  "profile": {
+    "first_name": "Large",
+    "last_name": "Data",
+    "date_of_birth": "1990-01-01",
+    "phone_number": "+1-555-0333"
+  },
+  "large_datasets": {
+    "transaction_history": [
+      {"id": "txn_001", "amount": 100.50, "date": "2024-01-01", "merchant": "Store A"},
+      {"id": "txn_002", "amount": 250.75, "date": "2024-01-02", "merchant": "Store B"},
+      {"id": "txn_003", "amount": 75.25, "date": "2024-01-03", "merchant": "Store C"},
+      {"id": "txn_004", "amount": 400.00, "date": "2024-01-04", "merchant": "Store D"},
+      {"id": "txn_005", "amount": 125.99, "date": "2024-01-05", "merchant": "Store E"},
+      {"id": "txn_006", "amount": 300.50, "date": "2024-01-06", "merchant": "Store F"},
+      {"id": "txn_007", "amount": 89.99, "date": "2024-01-07", "merchant": "Store G"},
+      {"id": "txn_008", "amount": 175.25, "date": "2024-01-08", "merchant": "Store H"},
+      {"id": "txn_009", "amount": 450.75, "date": "2024-01-09", "merchant": "Store I"},
+      {"id": "txn_010", "amount": 225.50, "date": "2024-01-10", "merchant": "Store J"}
+    ],
+    "activity_log": [
+      {"timestamp": "2024-01-15T08:00:00Z", "action": "login", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:05:00Z", "action": "view_profile", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:10:00Z", "action": "edit_profile", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:15:00Z", "action": "view_transactions", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:20:00Z", "action": "make_payment", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:25:00Z", "action": "view_statements", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:30:00Z", "action": "update_settings", "ip": "192.168.1.100"},
+      {"timestamp": "2024-01-15T08:35:00Z", "action": "logout", "ip": "192.168.1.100"}
+    ],
+    "preferences_matrix": {
+      "categories": ["finance", "shopping", "travel", "entertainment", "food", "education", "health", "technology"],
+      "preferences": [
+        [0.9, 0.7, 0.3, 0.5, 0.8, 0.6, 0.4, 0.9],
+        [0.8, 0.9, 0.4, 0.6, 0.7, 0.5, 0.3, 0.8],
+        [0.7, 0.8, 0.9, 0.7, 0.6, 0.4, 0.2, 0.7],
+        [0.6, 0.7, 0.8, 0.9, 0.5, 0.3, 0.1, 0.6],
+        [0.5, 0.6, 0.7, 0.8, 0.9, 0.2, 0.0, 0.5],
+        [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.4],
+        [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.3],
+        [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+      ]
+    },
+    "binary_data": {
+      "profile_image": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+      "document_scan": "UEsDBBQAAAAIANZjd0xWj+rDGwEAAC0CAAAVAAAAd29yZC9kb2N1bWVudC54bWy9kl1PwjAUhu9N/A9N7/dmTjOJYKJi4g2J3nhZ9jPa2qaVdhz+vW0RxJYY0qa9aHue9zlv394BABWLShVCJlxryXXhBfOy2gtCayWpEJLqVhCm7WCVybaQTFdKp9auNe8LdQ==",
+      "signature": "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+    }
+  },
+  "computed_fields": {
+    "total_transactions": 10,
+    "average_transaction_amount": 259.348,
+    "last_login": "2024-01-15T08:00:00Z",
+    "account_age_days": 15,
+    "risk_score": 0.15,
+    "engagement_score": 0.85
+  },
+  "meta": {
+    "test_case": "large_data_element",
+    "description": "Element with large amounts of data to test performance and memory handling",
+    "created_at": "2024-01-15T07:00:00Z",
+    "user_id": "user_large_001",
+    "data_size_bytes": 4096,
+    "processing_notes": "Contains large arrays, nested objects, and binary data"
+  }
+}

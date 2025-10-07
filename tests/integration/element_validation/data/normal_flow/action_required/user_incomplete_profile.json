@@ -1,0 +1,19 @@
+{
+  "email": "incomplete.profile@example.com",
+  "user_type": "standard",
+  "first_name": "Incomplete",
+  "phone": "+1-555-0123",
+  "address": {
+    "street": "123 Main St",
+    "city": "Somewhere"
+  },
+  "verification": {
+    "email_verified_at": "2024-01-15T10:00:00Z"
+  },
+  "meta": {
+    "created_at": "2024-01-15T09:30:00Z",
+    "user_id": "user_33333",
+    "source": "mobile_app",
+    "notes": "User started profile setup but missing last name and zip code - should trigger ACTION_REQUIRED"
+  }
+}

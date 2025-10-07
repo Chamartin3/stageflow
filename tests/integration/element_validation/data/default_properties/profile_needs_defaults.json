@@ -1,0 +1,14 @@
+{
+  "email": "jane.smith@example.com",
+  "password": "hashed_password_456",
+  "email_verified_at": "2024-01-15T11:00:00Z",
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "metadata": {
+    "signup_method": "mobile",
+    "ip_address": "10.0.0.50",
+    "stage_progression": "profile_setup",
+    "missing_defaults": ["notification_preferences", "privacy_settings"],
+    "default_application_needed": true
+  }
+}

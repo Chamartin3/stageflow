@@ -1,0 +1,13 @@
+{
+  "id": 12345,
+  "timestamp": "2024-01-15T09:30:00Z",
+  "data_type": "invalid_type",
+  "payload": "should be object but is string",
+  "version": "not.semver.format",
+  "meta": {
+    "created_at": "2024-01-15T09:30:00Z",
+    "user_id": "user_66666",
+    "source": "external_oauth",
+    "notes": "Element with wrong data types and invalid formats - should trigger INVALID_SCHEMA"
+  }
+}

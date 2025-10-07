@@ -1,0 +1,28 @@
+{
+  "user_id": "user_789",
+  "email": "alex.wilson@example.com",
+  "created_at": "2024-01-15T12:00:00Z",
+  "preferences": {
+    "theme": "light",
+    "language": "en",
+    "notifications": true
+  },
+  "settings": {
+    "auto_save": true,
+    "privacy_level": "standard",
+    "analytics": false
+  },
+  "profile": {
+    "visibility": "private",
+    "show_email": false
+  },
+  "metadata": {
+    "note": "This user demonstrates what the element would look like after defaults are applied",
+    "defaults_applied": {
+      "preferences": "Default values applied for theme, language, notifications",
+      "settings": "Default values applied for auto_save, privacy_level, analytics",
+      "profile": "Default values applied for visibility, show_email"
+    },
+    "applied_at": "2024-01-15T12:05:00Z"
+  }
+}

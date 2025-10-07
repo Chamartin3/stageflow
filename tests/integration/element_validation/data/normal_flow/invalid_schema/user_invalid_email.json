@@ -1,0 +1,12 @@
+{
+  "id": 12345,
+  "timestamp": 67890,
+  "data_type": ["should", "be", "string"],
+  "payload": "should be object but is string",
+  "meta": {
+    "created_at": "2024-01-15T09:45:00Z",
+    "user_id": "user_55555",
+    "source": "data_import",
+    "notes": "Element with completely wrong data types - should trigger INVALID_SCHEMA at data_validation stage"
+  }
+}

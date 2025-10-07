@@ -1,0 +1,78 @@
+# Case 2: Element Validation Process
+# Standard process for testing element validation scenarios
+
+process:
+  name: user_onboarding
+  description: "User onboarding process for element validation testing"
+  initial_stage: registration
+  final_stage: active
+
+  stages:
+    registration:
+      schema:
+        required_fields:
+          - email
+          - password
+
+      gates:
+        email_verification:
+          target_stage: profile_setup
+          locks:
+            - exists: "email"
+            - type: regex
+              property_path: "email"
+              expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+            - exists: "verification.email_verified_at"
+
+    profile_setup:
+      schema:
+        required_fields:
+          - email
+          - password
+          - profile
+
+      gates:
+        profile_completion:
+          target_stage: verification
+          locks:
+            - exists: "profile.first_name"
+            - exists: "profile.last_name"
+            - type: not_empty
+              property_path: "profile.first_name"
+            - type: not_empty
+              property_path: "profile.last_name"
+
+    verification:
+      schema:
+        required_fields:
+          - email
+          - password
+          - profile
+          - verification
+
+      gates:
+        identity_verified:
+          target_stage: active
+          locks:
+            - exists: "verification.identity_verified_at"
+            - exists: "verification.phone_verified_at"
+            - type: equals
+              property_path: "verification.status"
+              expected_value: "verified"
+
+    active:
+      schema:
+        required_fields:
+          - email
+          - password
+          - profile
+          - verification
+          - activation
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "User onboarding process for element validation testing"
+    version: "1.0.0"
+    test_case: "element_validation"
