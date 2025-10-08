@@ -1,0 +1,109 @@
+# Case 1.3: Conflicting Gate Conditions
+# Tests: Process with logically conflicting gate conditions
+# Expected: Consistency check should detect impossible transitions
+
+process:
+  name: conflicting_gates
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      schema:
+        required_fields:
+          - status
+          - value
+
+      gates:
+        # These two gates have conflicting conditions that cannot both be true
+        path_a:
+          target_stage: middle_a
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+            - type: greater_than
+              property_path: "value"
+              expected_value: 100
+
+        path_b:
+          target_stage: middle_b
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+            - type: less_than
+              property_path: "value"
+              expected_value: 50
+
+        # This gate conflicts with both above - impossible condition
+        impossible_path:
+          target_stage: impossible_stage
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+            - type: equals
+              property_path: "value"
+              expected_value: 75
+            - type: greater_than
+              property_path: "value"
+              expected_value: 100
+            - type: less_than
+              property_path: "value"
+              expected_value: 50
+
+    middle_a:
+      schema:
+        required_fields:
+          - status
+          - value
+          - path_a_data
+
+      gates:
+        # Another set of conflicting conditions
+        finish_path_a:
+          target_stage: end
+          locks:
+            - type: equals
+              property_path: "completion_status"
+              expected_value: "done"
+            - type: equals
+              property_path: "completion_status"
+              expected_value: "pending"  # Conflicts with above
+
+    middle_b:
+      schema:
+        required_fields:
+          - status
+          - value
+          - path_b_data
+
+      gates:
+        finish_path_b:
+          target_stage: end
+          locks:
+            - exists: "path_b_data"
+
+    impossible_stage:
+      schema:
+        required_fields:
+          - impossible_data
+
+      gates:
+        never_reachable:
+          target_stage: end
+          locks:
+            - exists: "impossible_data"
+
+    end:
+      schema:
+        required_fields:
+          - final_result
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with conflicting gate conditions"
+    test_case: "consistency_conflicting_gates"

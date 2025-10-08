@@ -1,0 +1,35 @@
+{
+  "application_id": "APP_001_MODIFIED",
+  "applicant_email": "changed.email@example.com",
+  "application_type": "business",
+  "submission_date": "2024-01-15T06:30:00Z",
+  "reviewer_id": "reviewer_001",
+  "review_started_at": "2024-01-15T07:00:00Z",
+  "risk_score": 0.5,
+  "background_check_id": "BGC_001",
+  "identity_verified": true,
+  "background_check_status": "cleared",
+  "approval_date": "2024-01-15T10:00:00Z",
+  "approved_by": "senior_reviewer_001",
+  "meta": {
+    "original_application_id": "APP_001_ORIGINAL",
+    "original_applicant_email": "original.email@example.com",
+    "regression_type": "value_change",
+    "changed_properties": [
+      {
+        "property": "application_id",
+        "previous_value": "APP_001_ORIGINAL",
+        "current_value": "APP_001_MODIFIED",
+        "change_date": "2024-01-15T11:00:00Z"
+      },
+      {
+        "property": "applicant_email",
+        "previous_value": "original.email@example.com",
+        "current_value": "changed.email@example.com",
+        "change_date": "2024-01-15T11:00:00Z"
+      }
+    ],
+    "regression_reason": "Critical identity fields (application_id, applicant_email) have been changed after approval - potential security issue",
+    "last_valid_date": "2024-01-15T10:00:00Z"
+  }
+}

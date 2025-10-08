@@ -1,0 +1,182 @@
+# Value Change Regression Process Definition
+# Demonstrates detection of elements where critical values have changed inappropriately
+
+process:
+  name: value_change_regression_demo
+  description: Process designed to detect when elements have inappropriate value changes
+  initial_stage: application_submitted
+  final_stage: process_completed
+
+  stages:
+    application_submitted:
+      name: "Application Submitted"
+      description: "Initial application with basic information"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+
+      gates:
+        initial_review:
+          target_stage: under_review
+          locks:
+            - exists: "application_id"
+            - exists: "applicant_email"
+            - type: "in_list"
+              property_path: "application_type"
+              expected_value: ["personal", "business", "premium"]
+
+    under_review:
+      name: "Under Review"
+      description: "Application being processed and reviewed"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+          - reviewer_id
+          - review_started_at
+          - risk_score
+
+      gates:
+        risk_assessment_passed:
+          target_stage: background_check
+          locks:
+            - type: "less_than"
+              property_path: "risk_score"
+              expected_value: 0.7
+            - exists: "risk_assessment_completed_at"
+
+        high_risk_identified:
+          target_stage: additional_review
+          locks:
+            - type: "greater_than"
+              property_path: "risk_score"
+              expected_value: 0.7
+
+    background_check:
+      name: "Background Check"
+      description: "Detailed background verification in progress"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+          - reviewer_id
+          - review_started_at
+          - risk_score
+          - background_check_id
+          - identity_verified
+
+      gates:
+        background_cleared:
+          target_stage: application_approved
+          locks:
+            - type: "equals"
+              property_path: "background_check_status"
+              expected_value: "cleared"
+            - type: "equals"
+              property_path: "identity_verified"
+              expected_value: true
+
+        background_failed:
+          target_stage: application_denied
+          locks:
+            - type: "equals"
+              property_path: "background_check_status"
+              expected_value: "failed"
+
+    additional_review:
+      name: "Additional Review"
+      description: "Enhanced review for high-risk applications"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+          - reviewer_id
+          - review_started_at
+          - risk_score
+          - senior_reviewer_id
+          - additional_documentation
+
+      gates:
+        enhanced_approval:
+          target_stage: application_approved
+          locks:
+            - type: "equals"
+              property_path: "senior_review_status"
+              expected_value: "approved"
+            - exists: "additional_documentation_verified"
+
+        enhanced_denial:
+          target_stage: application_denied
+          locks:
+            - type: "equals"
+              property_path: "senior_review_status"
+              expected_value: "denied"
+
+    application_approved:
+      name: "Application Approved"
+      description: "Application successfully approved"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+          - approval_date
+          - approved_by
+
+      gates:
+        approval_complete:
+          target_stage: process_completed
+          locks:
+            - exists: "approval_date"
+
+    application_denied:
+      name: "Application Denied"
+      description: "Application denied due to failed checks"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+          - denial_date
+          - denial_reason
+
+      gates:
+        denial_complete:
+          target_stage: process_completed
+          locks:
+            - exists: "denial_date"
+
+    process_completed:
+      name: "Process Completed"
+      description: "Application processing completed with final outcome"
+      schema:
+        required_fields:
+          - application_id
+          - applicant_email
+          - application_type
+          - submission_date
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Demonstrates value change regression when critical element values change inappropriately"
+    test_case: "value_change_regression_validation"
+    expected_outcomes:
+      - "Elements with changed application_id show identity tampering regression"
+      - "Elements with changed applicant_email show contact manipulation regression"
+      - "Elements with changed risk_score show assessment manipulation regression"
+      - "Clear identification of which critical values have been modified"

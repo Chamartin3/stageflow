@@ -1,0 +1,17 @@
+{
+  "content_id": "content_001",
+  "title": "Regressed Content",
+  "status": "draft_complete",
+  "reviewer_id": "reviewer_123",
+  "review_stage_entered_at": "2024-01-15T08:00:00Z",
+  "published_at": "2024-01-15T10:00:00Z",
+  "publication_url": "https://example.com/content_001",
+  "meta": {
+    "current_stage": "draft",
+    "previous_stage": "published",
+    "regression_detected": true,
+    "regression_reason": "Content was published but has regressed back to draft stage due to major revision requirements",
+    "last_published_date": "2024-01-15T10:00:00Z",
+    "regression_date": "2024-01-15T12:00:00Z"
+  }
+}

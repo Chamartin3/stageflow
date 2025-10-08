@@ -1,0 +1,17 @@
+{
+  "content_id": "content_002",
+  "title": "Intermediate Regressed Content",
+  "status": "draft_complete",
+  "reviewer_id": "reviewer_456",
+  "review_stage_entered_at": "2024-01-15T07:30:00Z",
+  "archived_at": "2024-01-15T09:00:00Z",
+  "archive_reason": "Content quality issues",
+  "meta": {
+    "current_stage": "review",
+    "previous_stage": "archived",
+    "regression_detected": true,
+    "regression_reason": "Content was archived but has regressed back to review stage for potential republication",
+    "last_archived_date": "2024-01-15T09:00:00Z",
+    "regression_date": "2024-01-15T11:30:00Z"
+  }
+}

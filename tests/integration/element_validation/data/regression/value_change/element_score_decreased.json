@@ -1,0 +1,31 @@
+{
+  "application_id": "APP_002",
+  "applicant_email": "score.test@example.com",
+  "application_type": "premium",
+  "submission_date": "2024-01-15T07:15:00Z",
+  "reviewer_id": "reviewer_002",
+  "review_started_at": "2024-01-15T07:30:00Z",
+  "risk_score": 0.9,
+  "background_check_id": "BGC_002",
+  "identity_verified": true,
+  "senior_reviewer_id": "senior_reviewer_002",
+  "additional_documentation": ["passport", "bank_statements", "employment_verification"],
+  "senior_review_status": "approved",
+  "additional_documentation_verified": "2024-01-15T09:30:00Z",
+  "approval_date": "2024-01-15T10:00:00Z",
+  "approved_by": "senior_reviewer_002",
+  "meta": {
+    "original_risk_score": 0.5,
+    "regression_type": "value_change",
+    "changed_properties": [
+      {
+        "property": "risk_score",
+        "previous_value": 0.5,
+        "current_value": 0.9,
+        "change_date": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "regression_reason": "Risk score increased significantly after approval - potential security manipulation",
+    "last_valid_date": "2024-01-15T10:00:00Z"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "element_003",
+  "status": "active",
+  "advanced_features": {
+    "feature_a_enabled": true,
+    "feature_b_configured": true,
+    "configuration_score": 85
+  },
+  "meta": {
+    "current_stage": "intermediate",
+    "expected_stage": "advanced",
+    "regression_type": "property_loss",
+    "lost_properties": ["processed_data"],
+    "regression_reason": "Critical processed_data property was lost, preventing advancement to advanced stage",
+    "last_valid_date": "2024-01-15T08:45:00Z",
+    "property_loss_date": "2024-01-15T10:15:00Z"
+  }
+}
