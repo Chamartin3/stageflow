@@ -1,0 +1,270 @@
+# Case 3.2: Deeply Nested Conditions
+# Tests: Complex process with multiple conditional branches and loops
+
+process:
+  name: complex_content_lifecycle
+  initial_stage: content_submitted
+  final_stage: content_archived
+
+  stages:
+    content_submitted:
+      schema:
+        required_fields:
+          - content_id
+          - content_type
+          - author_id
+
+      gates:
+        auto_publish_trusted:
+          target_stage: content_published
+          locks:
+            - type: equals
+              property_path: "author.trust_level"
+              expected_value: "high"
+            - type: in_list
+              property_path: "content_type"
+              expected_value: ["article", "blog_post"]
+            - type: less_than
+              property_path: "content.word_count"
+              expected_value: 1000
+
+        basic_moderation:
+          target_stage: basic_moderation_queue
+          locks:
+            - type: equals
+              property_path: "author.trust_level"
+              expected_value: "medium"
+            - type: not_in_list
+              property_path: "content_type"
+              expected_value: ["video", "live_stream"]
+
+        advanced_moderation:
+          target_stage: advanced_moderation_queue
+          locks:
+            - type: in_list
+              property_path: "author.trust_level"
+              expected_value: ["low", "new"]
+
+        special_content_review:
+          target_stage: special_review_queue
+          locks:
+            - type: in_list
+              property_path: "content_type"
+              expected_value: ["video", "live_stream", "podcast"]
+
+    basic_moderation_queue:
+      schema:
+        required_fields:
+          - content_id
+          - assigned_moderator
+          - moderation_priority
+
+      gates:
+        approve_basic:
+          target_stage: content_published
+          locks:
+            - type: equals
+              property_path: "moderation.decision"
+              expected_value: "approved"
+
+        reject_basic:
+          target_stage: content_rejected
+          locks:
+            - type: equals
+              property_path: "moderation.decision"
+              expected_value: "rejected"
+
+        escalate_to_advanced:
+          target_stage: advanced_moderation_queue
+          locks:
+            - type: equals
+              property_path: "moderation.decision"
+              expected_value: "escalate"
+
+    advanced_moderation_queue:
+      schema:
+        required_fields:
+          - content_id
+          - senior_moderator
+          - detailed_review_required
+
+      gates:
+        approve_advanced:
+          target_stage: content_published
+          locks:
+            - type: equals
+              property_path: "advanced_moderation.decision"
+              expected_value: "approved"
+
+        reject_advanced:
+          target_stage: content_rejected
+          locks:
+            - type: equals
+              property_path: "advanced_moderation.decision"
+              expected_value: "rejected"
+
+        request_author_revision:
+          target_stage: revision_requested
+          locks:
+            - type: equals
+              property_path: "advanced_moderation.decision"
+              expected_value: "needs_revision"
+
+        escalate_to_committee:
+          target_stage: committee_review
+          locks:
+            - type: equals
+              property_path: "advanced_moderation.decision"
+              expected_value: "committee_review"
+
+    special_review_queue:
+      schema:
+        required_fields:
+          - content_id
+          - specialist_reviewer
+          - technical_review_completed
+
+      gates:
+        approve_special:
+          target_stage: content_published
+          locks:
+            - type: equals
+              property_path: "special_review.technical_approved"
+              expected_value: true
+            - type: equals
+              property_path: "special_review.content_approved"
+              expected_value: true
+
+        reject_special:
+          target_stage: content_rejected
+          locks:
+            - type: equals
+              property_path: "special_review.final_decision"
+              expected_value: "rejected"
+
+    revision_requested:
+      schema:
+        required_fields:
+          - content_id
+          - revision_notes
+          - revision_deadline
+
+      gates:
+        resubmit_after_revision:
+          target_stage: basic_moderation_queue
+          locks:
+            - exists: "revision.resubmitted_content"
+            - type: equals
+              property_path: "revision.author_revised"
+              expected_value: true
+
+        abandon_revision:
+          target_stage: content_abandoned
+          locks:
+            - type: equals
+              property_path: "revision.abandoned"
+              expected_value: true
+
+    committee_review:
+      schema:
+        required_fields:
+          - content_id
+          - committee_members
+          - review_meeting_scheduled
+
+      gates:
+        committee_approve:
+          target_stage: content_published
+          locks:
+            - type: equals
+              property_path: "committee.decision"
+              expected_value: "approved"
+            - type: greater_than
+              property_path: "committee.approval_votes"
+              expected_value: 2
+
+        committee_reject:
+          target_stage: content_rejected
+          locks:
+            - type: equals
+              property_path: "committee.decision"
+              expected_value: "rejected"
+
+    content_published:
+      schema:
+        required_fields:
+          - content_id
+          - publication_date
+          - approval_path
+
+      gates:
+        schedule_review:
+          target_stage: periodic_review
+          locks:
+            - exists: "next_review_date"
+
+        archive_old_content:
+          target_stage: content_archived
+          locks:
+            - type: equals
+              property_path: "lifecycle.archive_requested"
+              expected_value: true
+
+    periodic_review:
+      schema:
+        required_fields:
+          - content_id
+          - review_date
+          - reviewer_id
+
+      gates:
+        keep_published:
+          target_stage: content_published
+          locks:
+            - type: equals
+              property_path: "periodic_review.decision"
+              expected_value: "keep_published"
+
+        archive_content:
+          target_stage: content_archived
+          locks:
+            - type: equals
+              property_path: "periodic_review.decision"
+              expected_value: "archive"
+
+        update_required:
+          target_stage: revision_requested
+          locks:
+            - type: equals
+              property_path: "periodic_review.decision"
+              expected_value: "needs_update"
+
+    content_rejected:
+      schema:
+        required_fields:
+          - content_id
+          - rejection_reason
+          - rejection_date
+
+    content_abandoned:
+      schema:
+        required_fields:
+          - content_id
+          - abandonment_reason
+          - abandonment_date
+
+    content_archived:
+      schema:
+        required_fields:
+          - content_id
+          - archive_date
+          - archive_reason
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Complex content lifecycle with nested conditions and loops for visualization testing"
+    version: "1.0.0"
+    test_case: "visualization_nested_conditions"
+    visualization_notes: "Should show complex branching with loops, escalation paths, and multiple decision points"

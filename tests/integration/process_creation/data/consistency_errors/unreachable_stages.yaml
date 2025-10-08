@@ -1,0 +1,81 @@
+# Case 1.3: Unreachable Stages
+# Tests: Process with stages that cannot be reached from initial stage
+# Expected: Consistency check should detect unreachable stages
+
+process:
+  name: unreachable_stages
+  initial_stage: start
+  final_stage: reachable_end
+
+  stages:
+    start:
+      schema:
+        required_fields:
+          - initial_data
+
+      gates:
+        proceed:
+          target_stage: middle
+          locks:
+            - exists: "initial_data"
+
+    middle:
+      schema:
+        required_fields:
+          - middle_data
+
+      gates:
+        finish:
+          target_stage: reachable_end
+          locks:
+            - exists: "middle_data"
+
+    reachable_end:
+      schema:
+        required_fields:
+          - final_data
+
+    # These stages are unreachable - no gates point to them
+    isolated_stage_1:
+      schema:
+        required_fields:
+          - isolated_data_1
+
+      gates:
+        go_to_isolated_2:
+          target_stage: isolated_stage_2
+          locks:
+            - exists: "isolated_data_1"
+
+    isolated_stage_2:
+      schema:
+        required_fields:
+          - isolated_data_2
+
+      gates:
+        # This creates an isolated loop
+        back_to_isolated_1:
+          target_stage: isolated_stage_1
+          locks:
+            - exists: "isolated_data_2"
+
+    # Another unreachable stage
+    orphaned_stage:
+      schema:
+        required_fields:
+          - orphaned_data
+
+      # No gates leading anywhere
+
+    # Final unreachable stage
+    dead_end:
+      schema:
+        required_fields:
+          - dead_end_data
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with unreachable stages"
+    test_case: "consistency_unreachable_stages"

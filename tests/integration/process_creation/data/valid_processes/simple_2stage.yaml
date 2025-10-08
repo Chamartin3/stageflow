@@ -1,0 +1,40 @@
+# Case 1.1: Simple 2-Stage Process
+# Tests: Basic process structure with minimal configuration
+
+process:
+  name: simple_approval
+  description: "Simple 2-stage approval process"
+  initial_stage: draft
+  final_stage: approved
+
+  stages:
+    draft:
+      schema:
+        required_fields:
+          - title
+          - content
+
+      gates:
+        submit_for_review:
+          target_stage: approved
+          locks:
+            - type: exists
+              property_path: "title"
+            - type: exists
+              property_path: "content"
+            - type: not_empty
+              property_path: "title"
+
+    approved:
+      schema:
+        required_fields:
+          - title
+          - content
+          - approved_by
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    version: "1.0.0"
+    test_case: "valid_simple_structure"

@@ -1,0 +1,81 @@
+# Case 3.1: Linear Process Flow
+# Tests: Simple linear process visualization
+
+process:
+  name: linear_document_approval
+  description: "Simple linear document approval process for visualization testing"
+  initial_stage: draft
+  final_stage: published
+
+  stages:
+    draft:
+      schema:
+        required_fields:
+          - title
+          - content
+          - author
+
+      gates:
+        submit_for_review:
+          target_stage: under_review
+          locks:
+            - exists: "title"
+            - exists: "content"
+            - exists: "author"
+            - type: not_empty
+              property_path: "title"
+
+    under_review:
+      schema:
+        required_fields:
+          - title
+          - content
+          - author
+          - reviewer
+
+      gates:
+        approve_document:
+          target_stage: approved
+          locks:
+            - exists: "review.decision"
+            - type: equals
+              property_path: "review.decision"
+              expected_value: "approved"
+
+    approved:
+      schema:
+        required_fields:
+          - title
+          - content
+          - author
+          - reviewer
+          - approval_date
+
+      gates:
+        publish_document:
+          target_stage: published
+          locks:
+            - exists: "approval_date"
+            - exists: "publication_ready"
+            - type: equals
+              property_path: "publication_ready"
+              expected_value: true
+
+    published:
+      schema:
+        required_fields:
+          - title
+          - content
+          - author
+          - reviewer
+          - approval_date
+          - publication_date
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Simple linear document approval process for visualization testing"
+    version: "1.0.0"
+    test_case: "visualization_linear_flow"
+    visualization_notes: "Should generate a simple left-to-right or top-to-bottom flow diagram"

@@ -1,0 +1,25 @@
+# Case 1.2: Missing Required Fields
+# Tests: Process missing essential configuration fields
+# Expected: Validation should fail with missing field errors
+
+process:
+  # Missing 'name' field - should cause validation error
+  initial_stage: start
+  # Missing 'final_stage' field - should cause validation error
+
+  stages:
+    start:
+      # Missing 'schema' field - should cause validation error
+      gates:
+        proceed:
+          # Missing 'target_stage' field - should cause validation error
+          locks:
+            - exists: "data"
+
+    # Missing target stage definition referenced by gate above
+    # This should also cause validation errors
+
+  # Missing other potentially required fields
+  metadata:
+    description: "Process with missing required fields"
+    test_case: "invalid_missing_required"

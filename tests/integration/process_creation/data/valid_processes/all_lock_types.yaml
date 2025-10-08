@@ -1,0 +1,124 @@
+# Case 1.1: Process with All Lock Types
+# Tests: All 12 lock types in various combinations
+
+process:
+  name: comprehensive_validation
+  description: "Comprehensive demonstration of all lock types"
+  initial_stage: data_entry
+  final_stage: validated
+
+  stages:
+    data_entry:
+      schema:
+        required_fields:
+          - user_info
+          - preferences
+          - metrics
+
+      gates:
+        basic_validation:
+          target_stage: advanced_validation
+          locks:
+            # EXISTS lock
+            - exists: "user_info.email"
+
+            # EQUALS lock
+            - type: equals
+              property_path: "user_info.status"
+              expected_value: "active"
+
+            # NOT_EMPTY lock
+            - type: not_empty
+              property_path: "user_info.name"
+
+            # TYPE_CHECK lock
+            - type: type_check
+              property_path: "user_info.age"
+              expected_value: "int"
+
+    advanced_validation:
+      schema:
+        required_fields:
+          - user_info
+          - preferences
+          - metrics
+          - verification
+
+      gates:
+        comprehensive_validation:
+          target_stage: final_checks
+          locks:
+            # GREATER_THAN lock
+            - type: greater_than
+              property_path: "user_info.age"
+              expected_value: 18
+
+            # LESS_THAN lock
+            - type: less_than
+              property_path: "user_info.age"
+              expected_value: 120
+
+            # RANGE lock
+            - type: range
+              property_path: "metrics.score"
+              expected_value: [0, 100]
+
+            # REGEX lock
+            - type: regex
+              property_path: "user_info.email"
+              expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+            # CONTAINS lock
+            - type: contains
+              property_path: "preferences.features"
+              expected_value: "notifications"
+
+            # LENGTH lock
+            - type: length
+              property_path: "user_info.phone"
+              expected_value: 10
+
+            # IN_LIST lock
+            - type: in_list
+              property_path: "user_info.role"
+              expected_value: ["admin", "user", "moderator"]
+
+            # NOT_IN_LIST lock
+            - type: not_in_list
+              property_path: "user_info.status"
+              expected_value: ["banned", "suspended", "pending"]
+
+    final_checks:
+      schema:
+        required_fields:
+          - user_info
+          - preferences
+          - metrics
+          - verification
+          - final_approval
+
+      gates:
+        completion:
+          target_stage: validated
+          locks:
+            - exists: "final_approval.approved_by"
+            - type: equals
+              property_path: "final_approval.status"
+              expected_value: true
+
+    validated:
+      schema:
+        required_fields:
+          - user_info
+          - preferences
+          - metrics
+          - verification
+          - final_approval
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process demonstrating all 12 lock types"
+    version: "1.0.0"
+    test_case: "valid_all_lock_types"

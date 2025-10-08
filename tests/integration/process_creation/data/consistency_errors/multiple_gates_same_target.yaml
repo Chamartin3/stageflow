@@ -1,0 +1,93 @@
+# Multiple Gates Targeting Same Stage - Consistency Error
+# Demonstrates the error: multiple gates from one stage targeting the same destination stage
+
+process:
+  name: multiple_gates_error_demo
+  description: Process with multiple gates targeting the same stage (consistency error)
+  initial_stage: draft
+  final_stage: published
+
+  stages:
+    draft:
+      name: "Draft Stage"
+      description: "Initial content creation"
+      schema:
+        required_fields:
+          - content_id
+          - title
+
+      gates:
+        ready_for_review:
+          target_stage: review
+          locks:
+            - exists: "title"
+            - type: "not_empty"
+              property_path: "title"
+
+    review:
+      name: "Review Stage"
+      description: "Content under review with problematic multiple gates"
+      schema:
+        required_fields:
+          - content_id
+          - title
+          - reviewer_assigned
+
+      # CONSISTENCY ERROR: Both gates target the same stage 'published'
+      gates:
+        standard_approval:
+          target_stage: published  # ← Same target
+          locks:
+            - type: "equals"
+              property_path: "review_status"
+              expected_value: "approved"
+            - exists: "approved_at"
+
+        fast_track_approval:
+          target_stage: published  # ← Same target (ERROR!)
+          locks:
+            - type: "equals"
+              property_path: "priority"
+              expected_value: "urgent"
+            - exists: "fast_track_approved_by"
+
+    published:
+      name: "Published Stage"
+      description: "Content is live"
+      schema:
+        required_fields:
+          - content_id
+          - title
+          - published_at
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Demonstrates multiple gates targeting same stage consistency error"
+    test_case: "multiple_gates_same_target_error"
+    expected_result: "❌ Consistency error: Stage 'Review Stage' has multiple gates targeting the same stage 'published'"
+    fix_suggestion: "Combine gates into single gate with multiple lock conditions or use different target stages"
+    example_fix: |
+      # Instead of two gates targeting 'published', use one gate:
+      gates:
+        approval_gate:
+          target_stage: published
+          locks:
+            # Option 1: OR logic - either condition works
+            - type: "or"
+              conditions:
+                - type: "and"
+                  conditions:
+                    - type: "equals"
+                      property_path: "review_status"
+                      expected_value: "approved"
+                    - exists: "approved_at"
+                - type: "and"
+                  conditions:
+                    - type: "equals"
+                      property_path: "priority"
+                      expected_value: "urgent"
+                    - exists: "fast_track_approved_by"
