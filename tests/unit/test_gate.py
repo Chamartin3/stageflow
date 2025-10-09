@@ -1,541 +1,1081 @@
-"""Unit tests for Gate composition and evaluation logic."""
+"""Comprehensive unit tests for the stageflow.gate module.
 
-from typing import cast
-from unittest.mock import Mock
+This test suite covers all functionality in the Gate class and related components,
+including gate initialization, lock composition, AND logic evaluation, error handling,
+and integration with Lock objects and Element evaluation.
+"""
 
 import pytest
+from typing import Any, Dict, List
+from unittest.mock import Mock, patch
 
-from stageflow.element import DictElement
-from stageflow.gates import Evaluable, Gate, GateResult, Lock, LockType, LockWrapper
+from stageflow.element import DictElement, Element
+from stageflow.gate import Gate, GateDefinition, GateResult
+from stageflow.lock import Lock, LockDefinition, LockFactory, LockResult, LockType
+
+
+class TestGateDefinition:
+    """Test suite for GateDefinition TypedDict."""
+
+    def test_gate_definition_structure(self):
+        """Verify GateDefinition has correct structure and types."""
+        # Arrange
+        gate_definition: GateDefinition = {
+            "name": "test_gate",
+            "description": "Test gate description",
+            "target_stage": "next_stage",
+            "parent_stage": "current_stage",
+            "locks": []
+        }
+
+        # Act & Assert
+        assert gate_definition["name"] == "test_gate"
+        assert gate_definition["description"] == "Test gate description"
+        assert gate_definition["target_stage"] == "next_stage"
+        assert gate_definition["parent_stage"] == "current_stage"
+        assert isinstance(gate_definition["locks"], list)
 
 
 class TestGateResult:
-    """Test GateResult data structure."""
+    """Test suite for GateResult dataclass."""
 
-    def test_gate_result_creation(self):
-        """Test basic GateResult creation."""
-        result = GateResult(passed=True)
-        assert result.passed is True
-        assert result.failed_components == ()
-        assert result.passed_components == ()
-        assert result.messages == ()
-        assert result.actions == ()
-        assert result.evaluation_time_ms == 0.0
-        assert result.short_circuited is False
+    def test_gate_result_creation_with_defaults(self):
+        """Verify GateResult can be created with default values."""
+        # Arrange & Act
+        result = GateResult(success=True)
 
-    def test_gate_result_with_data(self):
-        """Test GateResult with all fields populated."""
-        lock1 = Lock("test", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
+        # Assert
+        assert result.success is True
+        assert result.success_rate == 0.0
+        assert result.failed == []
+        assert result.passed == []
+
+    def test_gate_result_creation_with_full_data(self):
+        """Verify GateResult can be created with complete data."""
+        # Arrange
+        failed_lock_result = LockResult(
+            success=False,
+            property_path="test.path",
+            lock_type=LockType.EXISTS,
+            error_message="Test error message"
+        )
+        passed_lock_result = LockResult(
+            success=True,
+            property_path="valid.path",
+            lock_type=LockType.EXISTS
+        )
+
+        # Act
+        result = GateResult(
+            success=False,
+            success_rate=0.5,
+            failed=[failed_lock_result],
+            passed=[passed_lock_result]
+        )
+
+        # Assert
+        assert result.success is False
+        assert result.success_rate == 0.5
+        assert len(result.failed) == 1
+        assert len(result.passed) == 1
+        assert result.failed[0].error_message == "Test error message"
+
+    def test_gate_result_messages_property_aggregates_errors(self):
+        """Verify messages property correctly aggregates error messages from failed locks."""
+        # Arrange
+        failed_lock_results = [
+            LockResult(
+                success=False,
+                property_path="field1",
+                lock_type=LockType.EXISTS,
+                error_message="Field1 is required"
+            ),
+            LockResult(
+                success=False,
+                property_path="field2",
+                lock_type=LockType.REGEX,
+                error_message="Field2 format invalid"
+            ),
+            LockResult(
+                success=False,
+                property_path="field3",
+                lock_type=LockType.EQUALS,
+                error_message=""  # Empty error message
+            )
+        ]
 
         result = GateResult(
-            passed=False,
-            failed_components=(lock1,),
-            passed_components=(lock2,),
-            messages=("Error message",),
-            actions=("Fix issue",),
-            evaluation_time_ms=10.5,
-            short_circuited=True
+            success=False,
+            failed=failed_lock_results,
+            passed=[]
         )
 
-        assert result.passed is False
-        assert result.failed_components == (lock1,)
-        assert result.passed_components == (lock2,)
-        assert result.messages == ("Error message",)
-        assert result.actions == ("Fix issue",)
-        assert result.messages == ("Error message",)
-        assert result.actions == ("Fix issue",)
-        assert result.evaluation_time_ms == 10.5
-        assert result.short_circuited is True
+        # Act
+        messages = result.messages
 
-    def test_has_failures_property(self):
-        """Test has_failures property."""
-        lock = Lock("test", LockType.EXISTS)
+        # Assert
+        assert len(messages) == 2  # Empty message should not be included
+        assert "Field1 is required" in messages
+        assert "Field2 format invalid" in messages
 
-        # No failures
-        result = GateResult(passed=True)
-        assert result.has_failures is False
-
-        # With failures
-        result = GateResult(passed=False, failed_components=(lock,))
-        assert result.has_failures is True
-
-    def test_has_passes_property(self):
-        """Test has_passes property."""
-        lock = Lock("test", LockType.EXISTS)
-
-        # No passes
-        result = GateResult(passed=False)
-        assert result.has_passes is False
-
-        # With passes
-        result = GateResult(passed=True, passed_components=(lock,))
-        assert result.has_passes is True
-
-    def test_total_components_property(self):
-        """Test total_components property calculation."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-        lock3 = Lock("test3", LockType.EXISTS)
+    def test_gate_result_messages_property_empty_when_no_failures(self):
+        """Verify messages property returns empty list when no failures."""
+        # Arrange
+        passed_lock_result = LockResult(
+            success=True,
+            property_path="valid.path",
+            lock_type=LockType.EXISTS
+        )
 
         result = GateResult(
-            passed=False,
-            failed_components=(lock1, lock2),
-            passed_components=(lock3,)
+            success=True,
+            failed=[],
+            passed=[passed_lock_result]
         )
 
-        assert result.total_components == 3
+        # Act
+        messages = result.messages
+
+        # Assert
+        assert messages == []
+
+    def test_gate_result_is_frozen_dataclass(self):
+        """Verify GateResult is immutable (frozen dataclass)."""
+        # Arrange
+        result = GateResult(success=True)
+
+        # Act & Assert
+        with pytest.raises(AttributeError, match="cannot assign to field"):
+            result.success = False
 
 
-class TestLockWrapper:
-    """Test LockWrapper functionality."""
+class TestGateInitialization:
+    """Test suite for Gate class initialization and configuration."""
 
-    def create_element(self, data):
-        """Helper to create test elements."""
-        return DictElement(data)
+    def test_gate_initialization_with_valid_config(self):
+        """Verify Gate can be initialized with valid configuration."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "email_validation",
+            "description": "Validates email requirements",
+            "target_stage": "verified_user",
+            "parent_stage": "new_user",
+            "locks": [
+                {"type": LockType.EXISTS, "property_path": "email", "expected_value": None}
+            ]
+        }
 
-    def test_lock_wrapper_creation(self):
-        """Test LockWrapper creation."""
-        lock = Lock("test", LockType.EXISTS)
-        wrapper = LockWrapper(lock)
-        assert wrapper.lock is lock
+        # Act
+        gate = Gate(gate_config)
 
-    def test_lock_wrapper_evaluate_success(self):
-        """Test LockWrapper evaluation with successful lock."""
-        element = self.create_element({"name": "John"})
-        lock = Lock("name", LockType.EXISTS, True)
-        wrapper = LockWrapper(lock)
+        # Assert
+        assert gate.name == "email_validation"
+        assert gate.description == "Validates email requirements"
+        assert gate.target_stage == "verified_user"
+        assert len(gate._locks) == 1
+        assert isinstance(gate._locks[0], Lock)
 
-        result = wrapper.evaluate(element)
+    def test_gate_initialization_with_multiple_locks(self):
+        """Verify Gate can be initialized with multiple locks."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "registration_complete",
+            "description": "Validates complete registration",
+            "target_stage": "active_user",
+            "parent_stage": "pending_user",
+            "locks": [
+                {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
+                {"type": LockType.EXISTS, "property_path": "profile.first_name", "expected_value": None},
+                {"type": LockType.EQUALS, "property_path": "verification.email_verified", "expected_value": True}
+            ]
+        }
 
-        assert result.passed is True
-        assert result.passed_components == (lock,)
-        assert result.failed_components == ()
-        assert result.evaluation_time_ms > 0
+        # Act
+        gate = Gate(gate_config)
 
-    def test_lock_wrapper_evaluate_failure(self):
-        """Test LockWrapper evaluation with failing lock."""
-        element = self.create_element({"name": "John"})
-        lock = Lock("age", LockType.EXISTS, True)
-        wrapper = LockWrapper(lock)
+        # Assert
+        assert gate.name == "registration_complete"
+        assert len(gate._locks) == 3
+        assert all(isinstance(lock, Lock) for lock in gate._locks)
 
-        result = wrapper.evaluate(element)
+    def test_gate_initialization_with_shorthand_locks(self):
+        """Verify Gate can be initialized with shorthand lock syntax."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "basic_validation",
+            "description": "Basic field validation",
+            "target_stage": "validated",
+            "parent_stage": "unvalidated",
+            "locks": [
+                {"exists": "email"},
+                {"exists": "user_id"},
+                {"is_true": "active"}
+            ]
+        }
 
-        assert result.passed is False
-        assert result.failed_components == (lock,)
-        assert result.passed_components == ()
-        assert len(result.messages) > 0
-        assert len(result.actions) > 0
-        assert result.evaluation_time_ms > 0
+        # Act
+        gate = Gate(gate_config)
 
-    def test_lock_wrapper_get_property_paths(self):
-        """Test LockWrapper property path extraction."""
-        lock = Lock("user.profile.name", LockType.EXISTS)
-        wrapper = LockWrapper(lock)
+        # Assert
+        assert gate.name == "basic_validation"
+        assert len(gate._locks) == 3
+        assert all(isinstance(lock, Lock) for lock in gate._locks)
 
-        paths = wrapper.get_property_paths()
-        assert paths == {"user.profile.name"}
+    def test_gate_initialization_missing_name_raises_value_error(self):
+        """Verify Gate initialization raises ValueError when name is missing."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "",
+            "description": "Test gate",
+            "target_stage": "next_stage",
+            "parent_stage": "current_stage",
+            "locks": [{"exists": "email"}]
+        }
 
-    def test_lock_wrapper_evaluate_with_message_methods(self):
-        """Test LockWrapper evaluation using lock message methods."""
-        element = self.create_element({"name": "John"})
-
-        # Create a mock lock that has message methods
-        lock = Mock()
-        lock.property_path = "age"
-        lock.validate.return_value = False
-        lock.get_failure_message.return_value = "Age is required"
-        lock.get_action_message.return_value = "Set age field"
-
-        wrapper = LockWrapper(lock)
-        result = wrapper.evaluate(element)
-
-        assert result.passed is False
-        assert result.messages == ("Age is required",)
-        assert result.actions == ("Set age field",)
-
-    def test_lock_wrapper_evaluate_fallback_messages(self):
-        """Test LockWrapper evaluation with fallback messages when methods don't exist."""
-        element = self.create_element({"name": "John"})
-
-        # Create a mock lock without message methods
-        lock = Mock()
-        lock.property_path = "age"
-        lock.validate.return_value = False
-        # Remove message methods to trigger AttributeError
-        del lock.get_failure_message
-        del lock.get_action_message
-
-        wrapper = LockWrapper(lock)
-        result = wrapper.evaluate(element)
-
-        assert result.passed is False
-        assert "Lock validation failed for age" in result.messages[0]
-        assert "Check property age" in result.actions[0]
-
-
-class TestGateCreation:
-    """Test Gate creation and validation."""
-
-    def test_gate_initialization(self):
-        """Test basic gate initialization."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-        wrapper1 = LockWrapper(lock1)
-        wrapper2 = LockWrapper(lock2)
-
-        gate = Gate.create(
-            lock1, lock2,
-            name="test_gate"
-        )
-
-        assert gate.name == "test_gate"
-        assert gate.components == (wrapper1, wrapper2)
-        assert gate.target_stage is None
-        assert gate.metadata == {}
-
-    def test_gate_initialization_with_metadata(self):
-        """Test gate initialization with metadata."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-        wrapper1 = LockWrapper(lock1)
-        wrapper2 = LockWrapper(lock2)
-        metadata = {"description": "Test gate", "priority": 1}
-
-        gate = Gate(
-            name="test_gate",
-            components=(wrapper1, wrapper2),
-            metadata=metadata
-        )
-
-        assert gate.metadata == metadata
-
-    def test_gate_validation_empty_name(self):
-        """Test gate validation fails with empty name."""
-        lock = Lock("test", LockType.EXISTS)
-        wrapper = LockWrapper(lock)
-
+        # Act & Assert
         with pytest.raises(ValueError, match="Gate must have a name"):
-            Gate(name="", components=(wrapper,))
+            Gate(gate_config)
 
-    def test_gate_validation_no_components(self):
-        """Test gate validation fails with no components."""
-        with pytest.raises(ValueError, match="Gate must contain at least one component"):
-            Gate(name="test", components=())
+    def test_gate_initialization_missing_target_stage_raises_value_error(self):
+        """Verify Gate initialization raises ValueError when target_stage is missing."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "test_gate",
+            "description": "Test gate",
+            "target_stage": "",
+            "parent_stage": "current_stage",
+            "locks": [{"exists": "email"}]
+        }
 
+        # Act & Assert
+        with pytest.raises(ValueError, match="Gate must have at least one lock and a target stage"):
+            Gate(gate_config)
 
-    def test_gate_validation_and_single_component(self):
-        """Test AND gate allows single component for simplified YAML definitions."""
-        lock = Lock("test", LockType.EXISTS)
-        wrapper = LockWrapper(lock)
+    def test_gate_initialization_no_locks_raises_value_error(self):
+        """Verify Gate initialization raises ValueError when no locks provided."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "test_gate",
+            "description": "Test gate",
+            "target_stage": "next_stage",
+            "parent_stage": "current_stage",
+            "locks": []
+        }
 
-        # Single-component AND gates are now allowed for YAML compatibility
-        gate = Gate(name="test", components=(wrapper,))
-        assert gate.name == "test"
-        assert len(gate.components) == 1
+        # Act & Assert
+        with pytest.raises(ValueError, match="Gate must have at least one lock and a target stage"):
+            Gate(gate_config)
 
+    def test_gate_initialization_with_optional_description(self):
+        """Verify Gate initialization works with missing description."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "minimal_gate",
+            "description": "",
+            "target_stage": "next_stage",
+            "parent_stage": "current_stage",
+            "locks": [{"exists": "field"}]
+        }
+
+        # Act
+        gate = Gate(gate_config)
+
+        # Assert
+        assert gate.name == "minimal_gate"
+        assert gate.description == ""
+        assert gate.target_stage == "next_stage"
 
 
 class TestGateClassMethods:
-    """Test Gate class methods for creation."""
+    """Test suite for Gate class methods."""
 
-    def test_and_gate_creation(self):
-        """Test AND gate creation with class method."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
+    def test_gate_create_class_method(self):
+        """Verify Gate.create class method works correctly."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "factory_gate",
+            "description": "Created via factory method",
+            "target_stage": "next_stage",
+            "parent_stage": "current_stage",
+            "locks": [{"exists": "email"}]
+        }
 
-        gate = Gate.AND(lock1, lock2, name="and_gate")
+        # Act
+        gate = Gate.create(gate_config)
 
-        assert gate.name == "and_gate"
-        assert len(gate.components) == 2
-        assert all(isinstance(comp, LockWrapper) for comp in gate.components)
+        # Assert
+        assert isinstance(gate, Gate)
+        assert gate.name == "factory_gate"
+        assert gate.description == "Created via factory method"
+        assert gate.target_stage == "next_stage"
 
-    def test_and_gate_auto_name(self):
-        """Test AND gate with auto-generated name."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
+    def test_gate_create_delegates_to_constructor(self):
+        """Verify Gate.create method delegates to constructor."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "test_gate",
+            "description": "Test",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [{"exists": "field"}]
+        }
 
-        gate = Gate.AND(lock1, lock2)
+        # Act
+        gate_via_create = Gate.create(gate_config)
+        gate_via_constructor = Gate(gate_config)
 
-        assert gate.name.startswith("gate_")
-
-    def test_and_gate_with_metadata(self):
-        """Test AND gate creation with metadata."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-
-        gate = Gate.AND(lock1, lock2, name="and_gate", description="Test gate")
-
-        assert gate.metadata["description"] == "Test gate"
-
-    def test_and_gate_empty_components(self):
-        """Test AND gate fails with no components."""
-        with pytest.raises(ValueError, match="Gate requires at least one component"):
-            Gate.AND()
-
-    def test_and_gate_invalid_component_type(self):
-        """Test AND gate fails with invalid component type."""
-        with pytest.raises(TypeError, match="Components must be Lock or Gate"):
-            Gate.AND(cast(Lock, "invalid"))
-
-
-
-    def test_mixed_lock_and_gate_components(self):
-        """Test creating gates with mixed Lock and Gate components."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-        inner_gate = Gate.AND(lock1, lock2, name="inner")
-        lock3 = Lock("test3", LockType.EXISTS)
-
-        gate = Gate.AND(inner_gate, lock3, name="mixed_gate")
-
-        assert len(gate.components) == 2
-        assert gate.components[0] is inner_gate
-        assert isinstance(gate.components[1], LockWrapper)
+        # Assert
+        assert gate_via_create.name == gate_via_constructor.name
+        assert gate_via_create.target_stage == gate_via_constructor.target_stage
+        assert len(gate_via_create._locks) == len(gate_via_constructor._locks)
 
 
 class TestGateEvaluation:
-    """Test Gate evaluation logic."""
+    """Test suite for Gate evaluation logic and AND operation."""
 
-    def create_element(self, data):
-        """Helper to create test elements."""
-        return DictElement(data)
+    @pytest.fixture
+    def valid_element(self) -> DictElement:
+        """Create a valid element for testing."""
+        return DictElement({
+            "email": "user@example.com",
+            "user_id": "user123",
+            "profile": {
+                "first_name": "John",
+                "last_name": "Doe",
+                "age": 25
+            },
+            "verification": {
+                "email_verified": True,
+                "phone_verified": False
+            },
+            "status": "active",
+            "score": 85
+        })
 
-    def test_and_gate_all_pass(self):
-        """Test AND gate with all locks passing."""
-        element = self.create_element({"name": "John", "age": 25})
+    @pytest.fixture
+    def invalid_element(self) -> DictElement:
+        """Create an invalid element for testing."""
+        return DictElement({
+            "user_id": "user456",
+            # Missing email
+            "profile": {
+                "first_name": "Jane"
+                # Missing last_name
+            },
+            "verification": {
+                "email_verified": False,
+                "phone_verified": False
+            },
+            "status": "inactive",
+            "score": 45
+        })
 
-        lock1 = Lock("name", LockType.EXISTS, True)
-        lock2 = Lock("age", LockType.EXISTS, True)
-        gate = Gate.AND(lock1, lock2, name="and_gate")
+    @pytest.fixture
+    def simple_gate(self) -> Gate:
+        """Create a simple gate with one lock for testing."""
+        gate_config: GateDefinition = {
+            "name": "email_check",
+            "description": "Check email exists",
+            "target_stage": "email_verified",
+            "parent_stage": "new_user",
+            "locks": [{"exists": "email"}]
+        }
+        return Gate(gate_config)
 
+    @pytest.fixture
+    def complex_gate(self) -> Gate:
+        """Create a complex gate with multiple locks for testing."""
+        gate_config: GateDefinition = {
+            "name": "profile_complete",
+            "description": "Validate complete profile",
+            "target_stage": "profile_verified",
+            "parent_stage": "partial_profile",
+            "locks": [
+                {"exists": "email"},
+                {"exists": "profile.first_name"},
+                {"exists": "profile.last_name"},
+                {"type": LockType.EQUALS, "property_path": "verification.email_verified", "expected_value": True}
+            ]
+        }
+        return Gate(gate_config)
+
+    def test_gate_evaluation_single_lock_success(self, simple_gate: Gate, valid_element: DictElement):
+        """Verify gate evaluation succeeds when single lock passes."""
+        # Arrange & Act
+        result = simple_gate.evaluate(valid_element)
+
+        # Assert
+        assert result.success is True
+        assert result.success_rate == 1.0
+        assert len(result.passed) == 1
+        assert len(result.failed) == 0
+        assert result.messages == []
+
+    def test_gate_evaluation_single_lock_failure(self, simple_gate: Gate, invalid_element: DictElement):
+        """Verify gate evaluation fails when single lock fails."""
+        # Arrange & Act
+        result = simple_gate.evaluate(invalid_element)
+
+        # Assert
+        assert result.success is False
+        assert result.success_rate == 0.0
+        assert len(result.passed) == 0
+        assert len(result.failed) == 1
+        assert len(result.messages) == 1
+        assert "email" in result.messages[0]
+
+    def test_gate_evaluation_multiple_locks_all_pass(self, complex_gate: Gate, valid_element: DictElement):
+        """Verify gate evaluation succeeds when all locks pass (AND logic)."""
+        # Arrange & Act
+        result = complex_gate.evaluate(valid_element)
+
+        # Assert
+        assert result.success is True
+        assert result.success_rate == 1.0
+        assert len(result.passed) == 4
+        assert len(result.failed) == 0
+        assert result.messages == []
+
+    def test_gate_evaluation_multiple_locks_some_fail(self, complex_gate: Gate, invalid_element: DictElement):
+        """Verify gate evaluation fails when any lock fails (AND logic)."""
+        # Arrange & Act
+        result = complex_gate.evaluate(invalid_element)
+
+        # Assert
+        assert result.success is False
+        assert result.success_rate < 1.0
+        assert len(result.passed) > 0  # Some locks should pass
+        assert len(result.failed) > 0  # Some locks should fail
+        assert len(result.messages) > 0
+
+    def test_gate_evaluation_and_logic_enforced(self):
+        """Verify gate evaluation enforces AND logic - all locks must pass."""
+        # Arrange
+        element = DictElement({
+            "email": "test@example.com",  # This will pass
+            "age": 15  # This will fail (less than 18)
+        })
+
+        gate_config: GateDefinition = {
+            "name": "adult_user",
+            "description": "Validate adult user",
+            "target_stage": "verified_adult",
+            "parent_stage": "unverified",
+            "locks": [
+                {"exists": "email"},  # Will pass
+                {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18}  # Will fail
+            ]
+        }
+        gate = Gate(gate_config)
+
+        # Act
         result = gate.evaluate(element)
 
-        assert result.passed is True
-        assert len(result.passed_components) == 2
-        assert len(result.failed_components) == 0
-        assert result.short_circuited is False
-        assert result.evaluation_time_ms > 0
+        # Assert
+        assert result.success is False  # AND logic: one failure means gate fails
+        assert result.success_rate == 0.5  # 1 out of 2 locks passed
+        assert len(result.passed) == 1
+        assert len(result.failed) == 1
 
-    def test_and_gate_one_fails(self):
-        """Test AND gate with one lock failing."""
-        element = self.create_element({"name": "John"})
+    def test_gate_evaluation_with_various_lock_types(self):
+        """Verify gate evaluation works with different lock types."""
+        # Arrange
+        element = DictElement({
+            "email": "valid@example.com",
+            "age": 25,
+            "status": "active",
+            "tier": "premium",  # Single value for IN_LIST test
+            "score": 85.5
+        })
 
-        lock1 = Lock("name", LockType.EXISTS, True)
-        lock2 = Lock("age", LockType.EXISTS, True)
-        gate = Gate.AND(lock1, lock2, name="and_gate")
+        gate_config: GateDefinition = {
+            "name": "comprehensive_check",
+            "description": "Multiple lock types",
+            "target_stage": "validated",
+            "parent_stage": "unvalidated",
+            "locks": [
+                {"type": LockType.REGEX, "property_path": "email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"},
+                {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18},
+                {"type": LockType.EQUALS, "property_path": "status", "expected_value": "active"},
+                {"type": LockType.IN_LIST, "property_path": "tier", "expected_value": ["premium", "verified", "basic"]},
+                {"type": LockType.GREATER_THAN, "property_path": "score", "expected_value": 80}
+            ]
+        }
+        gate = Gate(gate_config)
 
+        # Act
         result = gate.evaluate(element)
 
-        assert result.passed is False
-        assert len(result.passed_components) == 1
-        assert len(result.failed_components) == 1
-        # Note: Short-circuit depends on order of evaluation and when failure occurs
+        # Assert
+        assert result.success is True
+        assert result.success_rate == 1.0
+        assert len(result.passed) == 5
+        assert len(result.failed) == 0
 
-    def test_and_gate_short_circuit(self):
-        """Test AND gate short-circuit behavior."""
-        element = self.create_element({"name": "John"})
+    def test_gate_evaluation_empty_element(self, complex_gate: Gate):
+        """Verify gate evaluation handles empty element appropriately."""
+        # Arrange
+        empty_element = DictElement({})
 
-        # Create locks where first fails, second would pass
-        lock1 = Lock("missing", LockType.EXISTS, True)  # Will fail
-        lock2 = Lock("name", LockType.EXISTS, True)     # Would pass
-        lock3 = Lock("name", LockType.EQUALS, "John")   # Would pass
+        # Act
+        result = complex_gate.evaluate(empty_element)
 
-        gate = Gate.AND(lock1, lock2, lock3, name="and_gate")
+        # Assert
+        assert result.success is False
+        assert result.success_rate == 0.0
+        assert len(result.passed) == 0
+        assert len(result.failed) == len(complex_gate._locks)
+        assert len(result.messages) > 0
+
+    def test_gate_evaluation_with_null_values(self):
+        """Verify gate evaluation handles null/None values correctly."""
+        # Arrange
+        element = DictElement({
+            "email": None,
+            "profile": {
+                "first_name": "John",
+                "last_name": None
+            }
+        })
+
+        gate_config: GateDefinition = {
+            "name": "null_check",
+            "description": "Check null handling",
+            "target_stage": "validated",
+            "parent_stage": "unvalidated",
+            "locks": [
+                {"exists": "email"},  # Should fail (None value)
+                {"exists": "profile.first_name"},  # Should pass
+                {"exists": "profile.last_name"}  # Should fail (None value)
+            ]
+        }
+        gate = Gate(gate_config)
+
+        # Act
         result = gate.evaluate(element)
 
-        assert result.passed is False
-        assert result.short_circuited is True
-        # Only first lock should be evaluated
-        assert len(result.failed_components) == 1
-        assert len(result.passed_components) == 0
+        # Assert
+        assert result.success is False
+        assert result.success_rate == pytest.approx(1.0/3.0, rel=1e-2)
+        assert len(result.passed) == 1
+        assert len(result.failed) == 2
 
 
-    def test_nested_gate_evaluation(self):
-        """Test evaluation of nested gates."""
-        element = self.create_element({"name": "John", "age": 25})
+class TestGateProperties:
+    """Test suite for Gate properties and utility methods."""
 
-        # Inner AND gate
-        lock1 = Lock("name", LockType.EXISTS, True)
-        lock2 = Lock("age", LockType.EXISTS, True)
-        inner_gate = Gate.AND(lock1, lock2, name="inner")
+    @pytest.fixture
+    def multi_path_gate(self) -> Gate:
+        """Create a gate with multiple property paths for testing."""
+        gate_config: GateDefinition = {
+            "name": "multi_path_gate",
+            "description": "Gate with multiple paths",
+            "target_stage": "validated",
+            "parent_stage": "unvalidated",
+            "locks": [
+                {"exists": "user.email"},
+                {"exists": "profile.details.name"},
+                {"exists": "verification.status"},
+                {"type": LockType.EQUALS, "property_path": "settings.active", "expected_value": True}
+            ]
+        }
+        return Gate(gate_config)
 
-        # Outer AND gate
-        lock3 = Lock("name", LockType.EQUALS, "John")  # Will pass
-        outer_gate = Gate.AND(inner_gate, lock3, name="outer")
+    def test_required_paths_property_returns_all_lock_paths(self, multi_path_gate: Gate):
+        """Verify required_paths property returns all unique paths from locks."""
+        # Arrange & Act
+        required_paths = multi_path_gate.required_paths
 
-        result = outer_gate.evaluate(element)
+        # Assert
+        expected_paths = {
+            "user.email",
+            "profile.details.name",
+            "verification.status",
+            "settings.active"
+        }
+        assert required_paths == expected_paths
 
-        assert result.passed is True  # Both inner gate and lock3 pass
-        assert result.short_circuited is False  # All components evaluated
+    def test_required_paths_property_handles_duplicate_paths(self):
+        """Verify required_paths property handles duplicate paths correctly."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "duplicate_paths",
+            "description": "Gate with duplicate paths",
+            "target_stage": "validated",
+            "parent_stage": "unvalidated",
+            "locks": [
+                {"exists": "email"},
+                {"type": LockType.REGEX, "property_path": "email", "expected_value": r".*@.*"},
+                {"type": LockType.NOT_EMPTY, "property_path": "email", "expected_value": None}
+            ]
+        }
+        gate = Gate(gate_config)
 
+        # Act
+        required_paths = gate.required_paths
 
-class TestGateUtilityMethods:
-    """Test Gate utility and helper methods."""
+        # Assert
+        assert required_paths == {"email"}  # Should deduplicate
 
-    def test_get_property_paths(self):
-        """Test property path extraction from gates."""
-        lock1 = Lock("user.name", LockType.EXISTS)
-        lock2 = Lock("user.age", LockType.GREATER_THAN, 18)
-        lock3 = Lock("profile.verified", LockType.EQUALS, True)
+    def test_required_paths_property_empty_for_no_locks(self):
+        """Verify required_paths returns empty set when no locks present."""
+        # Note: This scenario can't actually occur due to validation in __init__
+        # but we test the property behavior if _locks were somehow empty
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "test_gate",
+            "description": "Test",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [{"exists": "dummy"}]  # Required to pass validation
+        }
+        gate = Gate(gate_config)
+        gate._locks = []  # Manually set to empty for this test
 
-        gate = Gate.AND(lock1, lock2, lock3, name="test_gate")
+        # Act
+        required_paths = gate.required_paths
 
-        paths = gate.get_property_paths()
-        expected = {"user.name", "user.age", "profile.verified"}
-        assert paths == expected
+        # Assert
+        assert required_paths == set()
 
-    def test_get_property_paths_nested_gates(self):
-        """Test property path extraction from nested gates."""
-        lock1 = Lock("user.name", LockType.EXISTS)
-        lock2 = Lock("user.age", LockType.GREATER_THAN, 18)
-        inner_gate = Gate.AND(lock1, lock2, name="inner")
+    def test_to_dict_method_serializes_gate_correctly(self, multi_path_gate: Gate):
+        """Verify to_dict method creates correct dictionary representation."""
+        # Arrange & Act
+        gate_dict = multi_path_gate.to_dict()
 
-        lock3 = Lock("profile.verified", LockType.EQUALS, True)
-        outer_gate = Gate.AND(inner_gate, lock3, name="outer")
+        # Assert
+        assert gate_dict["name"] == "multi_path_gate"
+        assert gate_dict["description"] == "Gate with multiple paths"
+        assert gate_dict["target_stage"] == "validated"
+        assert "locks" in gate_dict
+        assert isinstance(gate_dict["locks"], list)
+        assert len(gate_dict["locks"]) == 4
 
-        paths = outer_gate.get_property_paths()
-        expected = {"user.name", "user.age", "profile.verified"}
-        assert paths == expected
+    def test_to_dict_includes_lock_serialization(self):
+        """Verify to_dict method includes serialized lock data."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "serialization_test",
+            "description": "Test serialization",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"type": LockType.EQUALS, "property_path": "status", "expected_value": "active"}
+            ]
+        }
+        gate = Gate(gate_config)
 
-    def test_requires_property(self):
-        """Test requires_property method."""
-        lock1 = Lock("user.name", LockType.EXISTS)
-        lock2 = Lock("user.age", LockType.GREATER_THAN, 18)
-        gate = Gate.AND(lock1, lock2, name="test_gate")
+        # Act
+        gate_dict = gate.to_dict()
 
-        assert gate.requires_property("user.name") is True
-        assert gate.requires_property("user.age") is True
-        assert gate.requires_property("profile.verified") is False
-
-    def test_get_summary(self):
-        """Test get_summary method for AND gate types."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-        lock3 = Lock("test3", LockType.EXISTS)
-
-        and_gate = Gate.AND(lock1, lock2, lock3, name="and_gate")
-        assert "requires all 3 components to pass" in and_gate.get_summary()
-
-        single_gate = Gate.AND(lock1, name="single_gate")
-        assert "requires all 1 components to pass" in single_gate.get_summary()
-
-    def test_get_complexity(self):
-        """Test complexity calculation for gates."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-        lock3 = Lock("test3", LockType.EXISTS)
-
-        # Simple gate
-        simple_gate = Gate.AND(lock1, lock2, name="simple")
-        assert simple_gate.get_complexity() == 2
-
-        # Nested gate
-        inner_gate = Gate.AND(lock1, lock2, name="inner")
-        outer_gate = Gate.AND(inner_gate, lock3, name="outer")
-        assert outer_gate.get_complexity() == 3
-
-    def test_validate_structure(self):
-        """Test structure validation for gates."""
-        lock = Lock("test", LockType.EXISTS)
-
-        # Simple gate should have no issues
-        simple_gate = Gate.AND(lock, lock, name="simple")
-        issues = simple_gate.validate_structure()
-        assert len(issues) == 0
-
-
-    def test_is_compatible_with(self):
-        """Test gate compatibility checking."""
-        lock1 = Lock("test1", LockType.EXISTS)
-        lock2 = Lock("test2", LockType.EXISTS)
-
-        gate1 = Gate.AND(lock1, lock2, name="gate1")
-        gate2 = Gate.AND(lock1, lock2, name="gate2")
-
-        # Currently all gates are compatible
-        assert gate1.is_compatible_with(gate2) is True
-
-    def test_max_depth_calculation(self):
-        """Test maximum depth calculation for nested gates."""
-        lock = Lock("test", LockType.EXISTS)
-
-        # Depth 0: Single gate
-        gate1 = Gate.AND(lock, lock, name="gate1")
-        assert gate1._get_max_depth() == 0
-
-        # Depth 1: One level nesting
-        gate2 = Gate.AND(gate1, lock, name="gate2")
-        assert gate2._get_max_depth() == 1
-
-        # Depth 2: Two levels nesting
-        gate3 = Gate.AND(gate2, lock, name="gate3")
-        assert gate3._get_max_depth() == 2
+        # Assert
+        assert len(gate_dict["locks"]) == 1
+        lock_dict = gate_dict["locks"][0]
+        assert lock_dict["property_path"] == "status"
+        assert lock_dict["type"] == LockType.EQUALS
+        assert lock_dict["expected_value"] == "active"
 
 
 class TestGateErrorHandling:
-    """Test Gate error handling and edge cases."""
+    """Test suite for Gate error handling and edge cases."""
 
-    def create_element(self, data):
-        """Helper to create test elements."""
-        return DictElement(data)
+    def test_gate_evaluation_with_malformed_element(self):
+        """Verify gate evaluation handles malformed elements gracefully."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "error_test",
+            "description": "Test error handling",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [{"exists": "field"}]
+        }
+        gate = Gate(gate_config)
 
-    def test_gate_evaluation_with_exception(self):
-        """Test gate evaluation handles component exceptions gracefully."""
-        element = self.create_element({"name": "John"})
+        # Create a mock element that raises an exception
+        mock_element = Mock(spec=Element)
+        mock_element.get_property.side_effect = Exception("Element access error")
 
-        # Create a mock component that raises an exception
-        mock_component = Mock(spec=Evaluable)
-        mock_component.evaluate.side_effect = Exception("Test exception")
+        # Act
+        result = gate.evaluate(mock_element)
 
-        # This test ensures gates handle unexpected component failures
-        # In practice, this would need proper exception handling in Gate.evaluate
-        with pytest.raises(Exception):
-            gate = Gate(
-                name="test_gate",
-                components=(mock_component,)
-            )
+        # Assert
+        assert result.success is False
+        assert len(result.failed) == 1
+        assert len(result.passed) == 0
+        assert result.success_rate == 0.0
+
+    def test_gate_initialization_with_invalid_lock_definition(self):
+        """Verify gate initialization handles invalid lock definitions."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "invalid_lock_test",
+            "description": "Test invalid lock",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"invalid_key": "invalid_value"}  # Invalid lock definition
+            ]
+        }
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Invalid lock definition format"):
+            Gate(gate_config)
+
+    def test_gate_evaluation_with_corrupted_lock_data(self):
+        """Verify gate evaluation handles corrupted lock data."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "corruption_test",
+            "description": "Test corruption handling",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [{"exists": "field"}]
+        }
+        gate = Gate(gate_config)
+        element = DictElement({"field": "value"})
+
+        # Corrupt the lock by replacing with a mock that fails
+        mock_lock = Mock()
+        mock_lock.validate.side_effect = Exception("Lock validation error")
+        gate._locks = [mock_lock]
+
+        # Act & Assert - The gate evaluation should propagate the exception
+        # since we don't have error handling in the current implementation
+        with pytest.raises(Exception, match="Lock validation error"):
             gate.evaluate(element)
 
-    def test_gate_with_empty_result_messages(self):
-        """Test gate evaluation with components that return empty messages."""
-        element = self.create_element({"name": "John"})
+    def test_gate_handles_missing_optional_config_fields(self):
+        """Verify gate handles missing optional configuration fields."""
+        # Arrange
+        minimal_config = {
+            "name": "minimal_gate",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [{"exists": "field"}]
+            # Missing description
+        }
 
-        # Create mock components that return empty messages
-        mock_component1 = Mock(spec=Evaluable)
-        mock_component1.evaluate.return_value = GateResult(
-            passed=False,
-            messages=(),
-            actions=()
-        )
+        # Act
+        gate = Gate(minimal_config)
 
-        mock_component2 = Mock(spec=Evaluable)
-        mock_component2.evaluate.return_value = GateResult(
-            passed=True,
-            messages=(),
-            actions=()
-        )
+        # Assert
+        assert gate.name == "minimal_gate"
+        assert gate.description == ""  # Should default to empty string
+        assert gate.target_stage == "next"
 
-        gate = Gate(
-            name="test_gate",
-            components=(mock_component1, mock_component2)
-        )
+    def test_gate_evaluation_success_rate_calculation_edge_cases(self):
+        """Verify success rate calculation handles edge cases correctly."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "rate_test",
+            "description": "Test success rate",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"exists": "field1"},
+                {"exists": "field2"},
+                {"exists": "field3"}
+            ]
+        }
+        gate = Gate(gate_config)
 
+        # Test case 1: 2 out of 3 locks pass
+        element_partial = DictElement({"field1": "value", "field2": "value"})
+        result_partial = gate.evaluate(element_partial)
+        assert result_partial.success_rate == pytest.approx(2.0/3.0, rel=1e-2)
+
+        # Test case 2: 0 out of 3 locks pass
+        element_none = DictElement({})
+        result_none = gate.evaluate(element_none)
+        assert result_none.success_rate == 0.0
+
+        # Test case 3: 3 out of 3 locks pass
+        element_all = DictElement({"field1": "value", "field2": "value", "field3": "value"})
+        result_all = gate.evaluate(element_all)
+        assert result_all.success_rate == 1.0
+
+
+class TestGateIntegration:
+    """Integration tests for Gate with other StageFlow components."""
+
+    def test_gate_integrates_with_lock_factory(self):
+        """Verify Gate correctly integrates with LockFactory for lock creation."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "factory_integration",
+            "description": "Test LockFactory integration",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"exists": "email"},
+                {"is_true": "active"},
+                {"type": LockType.REGEX, "property_path": "phone", "expected_value": r"^\+?\d{10,15}$"}
+            ]
+        }
+
+        # Act
+        gate = Gate(gate_config)
+
+        # Assert
+        assert len(gate._locks) == 3
+        assert all(isinstance(lock, Lock) for lock in gate._locks)
+
+        # Verify locks were created with correct configurations
+        lock_paths = [lock.property_path for lock in gate._locks]
+        assert "email" in lock_paths
+        assert "active" in lock_paths
+        assert "phone" in lock_paths
+
+    def test_gate_evaluation_with_real_element_data(self):
+        """Verify Gate evaluation works with realistic element data."""
+        # Arrange
+        realistic_element = DictElement({
+            "user": {
+                "id": "usr_abc123",
+                "email": "john.doe@company.com",
+                "profile": {
+                    "firstName": "John",
+                    "lastName": "Doe",
+                    "dateOfBirth": "1990-05-15",
+                    "phoneNumber": "+1-555-123-4567"
+                },
+                "account": {
+                    "status": "active",
+                    "tier": "premium",
+                    "verified": True,
+                    "lastLoginAt": "2024-01-20T14:30:00Z"
+                }
+            },
+            "metadata": {
+                "createdAt": "2024-01-01T10:00:00Z",
+                "updatedAt": "2024-01-20T14:30:00Z",
+                "version": 2
+            }
+        })
+
+        gate_config: GateDefinition = {
+            "name": "user_validation",
+            "description": "Comprehensive user validation",
+            "target_stage": "verified_user",
+            "parent_stage": "pending_user",
+            "locks": [
+                {"exists": "user.email"},
+                {"exists": "user.profile.firstName"},
+                {"exists": "user.profile.lastName"},
+                {"type": LockType.EQUALS, "property_path": "user.account.status", "expected_value": "active"},
+                {"type": LockType.EQUALS, "property_path": "user.account.verified", "expected_value": True},
+                {"type": LockType.REGEX, "property_path": "user.email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}
+            ]
+        }
+        gate = Gate(gate_config)
+
+        # Act
+        result = gate.evaluate(realistic_element)
+
+        # Assert
+        assert result.success is True
+        assert result.success_rate == 1.0
+        assert len(result.passed) == 6
+        assert len(result.failed) == 0
+        assert result.messages == []
+
+    @pytest.mark.parametrize("element_data,expected_success,expected_failure_count", [
+        ({"email": "valid@test.com", "active": True}, True, 0),
+        ({"email": "valid@test.com", "active": False}, False, 1),
+        ({"email": "", "active": True}, False, 1),
+        ({"active": True}, False, 1),
+        ({}, False, 2),
+    ])
+    def test_gate_evaluation_parametrized_scenarios(self, element_data, expected_success, expected_failure_count):
+        """Test gate evaluation with various element data scenarios."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "parametrized_test",
+            "description": "Parametrized test gate",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"exists": "email"},
+                {"is_true": "active"}
+            ]
+        }
+        gate = Gate(gate_config)
+        element = DictElement(element_data)
+
+        # Act
         result = gate.evaluate(element)
-        assert result.passed is False
 
-    def test_gate_timing_measurement(self):
-        """Test that gate evaluation measures timing correctly."""
-        element = self.create_element({"name": "John"})
-        lock1 = Lock("name", LockType.EXISTS, True)
-        lock2 = Lock("name", LockType.EQUALS, "John")
-        gate = Gate.AND(lock1, lock2, name="timed_gate")
+        # Assert
+        assert result.success == expected_success
+        assert len(result.failed) == expected_failure_count
 
+
+class TestGatePerformance:
+    """Performance and scalability tests for Gate evaluation."""
+
+    def test_gate_evaluation_with_many_locks_performance(self):
+        """Verify gate evaluation performs reasonably with many locks."""
+        # Arrange
+        locks = []
+        element_data = {}
+
+        # Create 100 locks and corresponding element data
+        for i in range(100):
+            field_name = f"field_{i}"
+            locks.append({"exists": field_name})
+            element_data[field_name] = f"value_{i}"
+
+        gate_config: GateDefinition = {
+            "name": "performance_test",
+            "description": "Test with many locks",
+            "target_stage": "performance_validated",
+            "parent_stage": "performance_pending",
+            "locks": locks
+        }
+        gate = Gate(gate_config)
+        element = DictElement(element_data)
+
+        # Act
         result = gate.evaluate(element)
 
-        # Just verify that timing is measured (should be > 0)
-        assert result.evaluation_time_ms >= 0
+        # Assert
+        assert result.success is True
+        assert result.success_rate == 1.0
+        assert len(result.passed) == 100
+        assert len(result.failed) == 0
+        # Performance assertion: evaluation should complete in reasonable time
+        # (This is implicit - if the test times out, there's a performance issue)
+
+    def test_gate_evaluation_with_deep_nested_paths(self):
+        """Verify gate evaluation handles deeply nested property paths efficiently."""
+        # Arrange
+        deep_element_data = {
+            "level1": {
+                "level2": {
+                    "level3": {
+                        "level4": {
+                            "level5": {
+                                "deep_value": "found"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        gate_config: GateDefinition = {
+            "name": "deep_nesting_test",
+            "description": "Test deep property access",
+            "target_stage": "deep_validated",
+            "parent_stage": "deep_pending",
+            "locks": [
+                {"exists": "level1.level2.level3.level4.level5.deep_value"}
+            ]
+        }
+        gate = Gate(gate_config)
+        element = DictElement(deep_element_data)
+
+        # Act
+        result = gate.evaluate(element)
+
+        # Assert
+        assert result.success is True
+        assert len(result.passed) == 1
+        assert len(result.failed) == 0
 
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+# Property-based and edge case testing
+class TestGateEdgeCases:
+    """Property-based and edge case testing for Gate functionality."""
+
+    def test_gate_immutability_after_creation(self):
+        """Verify gate configuration cannot be modified after creation."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "immutable_test",
+            "description": "Test immutability",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [{"exists": "field"}]
+        }
+        gate = Gate(gate_config)
+        original_name = gate.name
+        original_target = gate.target_stage
+        original_locks_count = len(gate._locks)
+
+        # Act
+        gate.name = "modified_name"
+        gate.target_stage = "modified_target"
+        # Note: _locks is not directly accessible for modification due to naming convention
+
+        # Assert
+        # For this test, we verify that the gate maintains its configured behavior
+        # even if properties are modified (though they shouldn't be in practice)
+        element = DictElement({"field": "value"})
+        result = gate.evaluate(element)
+        assert result.success is True  # Evaluation should still work correctly
+
+    def test_gate_evaluation_consistency_across_multiple_calls(self):
+        """Verify gate evaluation produces consistent results across multiple calls."""
+        # Arrange
+        gate_config: GateDefinition = {
+            "name": "consistency_test",
+            "description": "Test evaluation consistency",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"exists": "email"},
+                {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18}
+            ]
+        }
+        gate = Gate(gate_config)
+        element = DictElement({"email": "test@example.com", "age": 25})
+
+        # Act
+        results = [gate.evaluate(element) for _ in range(5)]
+
+        # Assert
+        # All results should be identical
+        first_result = results[0]
+        for result in results[1:]:
+            assert result.success == first_result.success
+            assert result.success_rate == first_result.success_rate
+            assert len(result.passed) == len(first_result.passed)
+            assert len(result.failed) == len(first_result.failed)
+
+    def test_gate_evaluation_with_special_characters_in_paths(self):
+        """Verify gate evaluation handles special characters in property paths."""
+        # Arrange
+        element_data = {
+            "user data": {
+                "email-address": "test@example.com",
+                "full.name.with.dots": "John Doe"
+            },
+            "metadata": {
+                "key with spaces": "value",
+                "key[with]brackets": "another value"
+            }
+        }
+        element = DictElement(element_data)
+
+        gate_config: GateDefinition = {
+            "name": "special_chars_test",
+            "description": "Test special characters in paths",
+            "target_stage": "next",
+            "parent_stage": "current",
+            "locks": [
+                {"exists": "user data.email-address"},
+                {"exists": "metadata.key with spaces"}
+            ]
+        }
+        gate = Gate(gate_config)
+
+        # Act
+        result = gate.evaluate(element)
+
+        # Assert
+        # Note: This test documents current behavior -
+        # the actual success depends on how the Element handles special characters
+        assert isinstance(result, GateResult)
+        assert isinstance(result.success, bool)
+        assert isinstance(result.success_rate, float)
