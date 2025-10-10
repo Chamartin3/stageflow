@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any, TypedDict
 
 from .element import Element
-from .gate import Gate, GateResult, GateDefinition
+from .gate import Gate, GateDefinition, GateResult
 
 
 class ActionDefinition(TypedDict):

@@ -45,7 +45,8 @@ class MermaidDiagramGenerator:
 
         # Generate stage nodes with proper transitions
         stage_nodes = {}
-        for i, stage_name in enumerate(process.stage_order):
+        stage_order = process.get_sorted_stages()
+        for i, stage_name in enumerate(stage_order):
             stage = process.get_stage(stage_name)
             if not stage:
                 continue
@@ -57,8 +58,8 @@ class MermaidDiagramGenerator:
             stage_label = self._generate_stage_label(stage, style)
 
             # Determine stage type for styling
-            is_initial = i == 0
-            is_final = i == len(process.stage_order) - 1
+            is_initial = (stage_name == process.initial_stage._id) if process.initial_stage else (i == 0)
+            is_final = (stage_name == process.final_stage._id) if process.final_stage else (i == len(stage_order) - 1)
 
             if is_initial:
                 lines.append(f"    {node_id}[{stage_label}]")
@@ -67,34 +68,34 @@ class MermaidDiagramGenerator:
             else:
                 lines.append(f"    {node_id}[{stage_label}]")
 
-        # Generate stage transitions with gate information
-        for i, stage_name in enumerate(process.stage_order):
+        # Generate stage transitions based on actual gate relationships
+        for stage_name in stage_order:
             stage = process.get_stage(stage_name)
-            if not stage:
+            if not stage or not stage.gates:
                 continue
 
             current_node = stage_nodes[stage_name]
 
-            # Find transitions from this stage
-            if i < len(process.stage_order) - 1:
-                next_stage_name = process.stage_order[i + 1]
-                # Skip if next stage doesn't exist in stage_nodes (handles malformed data)
-                if next_stage_name not in stage_nodes:
-                    continue
-                next_node = stage_nodes[next_stage_name]
+            # Generate transitions for each gate from this stage
+            for gate in stage.gates:
+                if hasattr(gate, 'target_stage') and gate.target_stage:
+                    target_stage_name = gate.target_stage
+                    # Only create transition if target stage exists in our nodes
+                    if target_stage_name in stage_nodes:
+                        target_node = stage_nodes[target_stage_name]
 
-                # Generate transition label based on gates
-                transition_label = self._generate_transition_label(stage, style)
-                if transition_label:
-                    lines.append(f"    {current_node} -->|{transition_label}| {next_node}")
-                else:
-                    lines.append(f"    {current_node} --> {next_node}")
+                        # Generate transition label based on gate
+                        gate_label = self._generate_gate_label(gate, style)
+                        if gate_label and style in ["detailed", "full"]:
+                            lines.append(f"    {current_node} -->|{gate_label}| {target_node}")
+                        else:
+                            lines.append(f"    {current_node} --> {target_node}")
 
         # Add gate details as subgraphs for full style
         if style == "full":
             lines.append("")
             lines.append("    %% Gate Details")
-            for stage_name in process.stage_order:
+            for stage_name in stage_order:
                 stage = process.get_stage(stage_name)
                 if not stage or not stage.gates:
                     continue
@@ -345,12 +346,18 @@ flowchart TD
         lines.append("")
 
         # Apply stage type styling
-        for i, stage_name in enumerate(process.stage_order):
+        stage_order = process.get_sorted_stages()
+        for i, stage_name in enumerate(stage_order):
             if stage_name in stage_nodes:
                 node_id = stage_nodes[stage_name]
-                if i == 0:
+
+                # Check actual initial and final stages from process
+                is_initial = (stage_name == process.initial_stage._id) if process.initial_stage else (i == 0)
+                is_final = (stage_name == process.final_stage._id) if process.final_stage else (i == len(stage_order) - 1)
+
+                if is_initial:
                     lines.append(f"    class {node_id} initial")
-                elif i == len(process.stage_order) - 1:
+                elif is_final:
                     lines.append(f"    class {node_id} final")
                 else:
                     lines.append(f"    class {node_id} stage")

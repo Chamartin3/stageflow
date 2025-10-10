@@ -302,7 +302,7 @@ def _print_process_info_for_evaluation(process):
         status_icon = "❌"
         status_text = "Invalid"
 
-    click.echo(f"📋 Process Information")
+    click.echo("📋 Process Information")
     click.echo(f"{status_icon} Process: {description['name']} ({status_text})")
     if description['description']:
         click.echo(f"   Description: {description['description']}")
@@ -370,6 +370,7 @@ def _print_evaluation_result(result):
 
 def _handle_visualization(process, output: Path, json_output: bool, verbose: bool):
     """Handle visualization generation."""
+    from stageflow.visualization.mermaid import MermaidDiagramGenerator
 
     if not output:
         error_msg = "Output file (-o) is required for visualization"
@@ -384,8 +385,9 @@ def _handle_visualization(process, output: Path, json_output: bool, verbose: boo
         show_progress("Generating mermaid visualization...", verbose=True)
 
     try:
-        # Create a simple text-based visualization for now
-        diagram = _create_simple_mermaid_diagram(process)
+        # Use the visualization module
+        generator = MermaidDiagramGenerator()
+        diagram = generator.generate_process_diagram(process, style="overview")
 
         # Ensure .md extension for mermaid
         if not output.suffix:
@@ -408,60 +410,6 @@ def _handle_visualization(process, output: Path, json_output: bool, verbose: boo
         ctx.exit(1)
 
 
-def _create_simple_mermaid_diagram(process):
-    """Create a simple mermaid diagram for the process."""
-    lines = ["```mermaid", "flowchart TD"]
-
-    # Get stage order (similar to what we do for description)
-    visited = set()
-    stage_order = []
-
-    def collect_stages(stage_id):
-        if stage_id in visited or not stage_id:
-            return
-        visited.add(stage_id)
-        stage_order.append(stage_id)
-
-        stage = process.get_stage(stage_id)
-        if stage:
-            for gate in stage.gates:
-                if hasattr(gate, 'target_stage') and gate.target_stage:
-                    collect_stages(gate.target_stage)
-
-    # Start from initial stage
-    if process.initial_stage:
-        collect_stages(process.initial_stage._id)
-
-    # Add remaining stages
-    for stage in process.stages:
-        if stage._id not in visited:
-            stage_order.append(stage._id)
-
-    # Create nodes for each stage
-    for stage_id in stage_order:
-        stage = process.get_stage(stage_id)
-        if stage:
-            if stage.is_final:
-                node_label = f"{stage.name} [Final]"
-                lines.append(f"    {stage_id}[\"{node_label}\"]")
-            else:
-                node_label = f"{stage.name}"
-                lines.append(f"    {stage_id}[\"{node_label}\"]")
-
-    # Create transitions between stages (avoid duplicates)
-    transitions_added = set()
-    for stage_id in stage_order:
-        stage = process.get_stage(stage_id)
-        if stage:
-            for gate in stage.gates:
-                if hasattr(gate, 'target_stage') and gate.target_stage:
-                    transition = f"{stage_id} --> {gate.target_stage}"
-                    if transition not in transitions_added:
-                        lines.append(f"    {transition}")
-                        transitions_added.add(transition)
-
-    lines.append("```")
-    return "\n".join(lines)
 
 
 def main():

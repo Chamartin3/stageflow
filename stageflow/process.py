@@ -78,6 +78,7 @@ class ProcessIssueTypes(StrEnum):
     CIRCULAR_DEPENDENCY = "circular_dependency"
     LOGICAL_CONFLICT = "logical_conflict"
     MULTIPLE_GATES_SAME_TARGET = "multiple_gates_same_target"
+    SELF_REFERENCING_GATE = "self_referencing_gate"
 
 @dataclass(frozen=True)
 class ConsistencyIssue:
@@ -114,6 +115,7 @@ class ProcessConsistencyChecker:
         self._check_dead_end_stages()
         self._check_unreachable_stages()
         self._check_orphaned_stages()
+        self._check_self_referencing_gates()
         self._check_circular_dependencies()
         self._check_logical_conflicts()
         self._check_multiple_gates_same_target()
@@ -196,6 +198,18 @@ class ProcessConsistencyChecker:
                 )
                 self.issues.append(issue)
 
+    def _check_self_referencing_gates(self) -> None:
+        """Identify gates that reference their own stage (self-loops)."""
+        for stage in self.stages:
+            for gate in stage.gates:
+                if hasattr(gate, 'target_stage') and gate.target_stage == stage._id:
+                    issue = ConsistencyIssue(
+                        issue_type=ProcessIssueTypes.SELF_REFERENCING_GATE,
+                        description=f"Gate '{gate.name}' in stage '{stage.name}' references the same stage, creating a self-loop. This can lead to infinite loops and should be avoided",
+                        stages=[stage.name]
+                    )
+                    self.issues.append(issue)
+
     def _check_circular_dependencies(self) -> None:
         """Identify circular dependencies in stage transitions."""
         visited = set()
@@ -216,7 +230,7 @@ class ProcessConsistencyChecker:
                     # Found a cycle
                     issue = ConsistencyIssue(
                         issue_type=ProcessIssueTypes.CIRCULAR_DEPENDENCY,
-                        description=f"Circular dependency detected: stages can transition in a cycle without reaching the final stage",
+                        description="Circular dependency detected: stages can transition in a cycle without reaching the final stage",
                         stages=list(rec_stack)
                     )
                     self.issues.append(issue)
@@ -445,6 +459,34 @@ class Process:
             if stage._id == stage_id:
                 return stage
         return None
+
+    def get_sorted_stages(self) -> list[str]:
+        """Get stages in topological order for visualization."""
+        visited = set()
+        stage_order = []
+
+        def collect_stages(stage_id: str):
+            if stage_id in visited or not stage_id:
+                return
+            visited.add(stage_id)
+            stage_order.append(stage_id)
+
+            stage = self.get_stage(stage_id)
+            if stage:
+                for gate in stage.gates:
+                    if hasattr(gate, 'target_stage') and gate.target_stage:
+                        collect_stages(gate.target_stage)
+
+        # Start from initial stage
+        if self.initial_stage:
+            collect_stages(self.initial_stage._id)
+
+        # Add remaining stages
+        for stage in self.stages:
+            if stage._id not in visited:
+                stage_order.append(stage._id)
+
+        return stage_order
 
     @property
     def consistensy_issues(self) -> list[ConsistencyIssue]:

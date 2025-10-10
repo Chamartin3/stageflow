@@ -62,7 +62,18 @@ def load_process(file_path: str | Path) -> Process:
             raise LoadError("File must contain a dictionary")
 
         if 'process' not in data:
-            raise LoaderValidationError("File must contain a 'process' key")
+            # Check if this looks like element data instead of process data
+            if any(key in data for key in ['email', 'user_id', 'profile', 'first_name', 'last_name']):
+                raise LoaderValidationError(
+                    "This appears to be an element data file (JSON), not a process definition file. "
+                    "Use a YAML file containing a 'process' key for process definitions. "
+                    "Element files are used with the -e/--elem flag for evaluation."
+                )
+            else:
+                raise LoaderValidationError(
+                    "File must contain a 'process' key. This should be a process definition file (YAML), "
+                    "not an element data file (JSON)."
+                )
 
         # Convert YAML format to internal format
         # Convert YAML format to internal format
@@ -113,7 +124,18 @@ def load_process_data(file_path: str | Path) -> ProcessDefinition:
             raise LoadError("File must contain a dictionary")
 
         if 'process' not in data:
-            raise LoaderValidationError("File must contain a 'process' key")
+            # Check if this looks like element data instead of process data
+            if any(key in data for key in ['email', 'user_id', 'profile', 'first_name', 'last_name']):
+                raise LoaderValidationError(
+                    "This appears to be an element data file (JSON), not a process definition file. "
+                    "Use a YAML file containing a 'process' key for process definitions. "
+                    "Element files are used with the -e/--elem flag for evaluation."
+                )
+            else:
+                raise LoaderValidationError(
+                    "File must contain a 'process' key. This should be a process definition file (YAML), "
+                    "not an element data file (JSON)."
+                )
 
         return data['process']
 

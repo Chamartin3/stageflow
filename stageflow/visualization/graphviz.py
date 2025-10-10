@@ -71,8 +71,9 @@ class GraphvizDotGenerator:
         # Generate stage nodes
         stage_nodes = {}
         lines.append("    // Stage nodes")
+        stage_order = process.get_sorted_stages()
 
-        for i, stage_name in enumerate(process.stage_order):
+        for i, stage_name in enumerate(stage_order):
             stage = process.get_stage(stage_name)
             if not stage:
                 continue
@@ -82,7 +83,7 @@ class GraphvizDotGenerator:
 
             # Determine stage styling
             is_initial = i == 0
-            is_final = i == len(process.stage_order) - 1
+            is_final = i == len(stage_order) - 1
 
             label = self._generate_stage_label(stage, style)
             shape, color = self._get_stage_styling(is_initial, is_final)
@@ -93,7 +94,7 @@ class GraphvizDotGenerator:
 
         # Generate edges between stages
         lines.append("    // Stage transitions")
-        for i, stage_name in enumerate(process.stage_order):
+        for i, stage_name in enumerate(stage_order):
             stage = process.get_stage(stage_name)
             if not stage:
                 continue
@@ -101,8 +102,8 @@ class GraphvizDotGenerator:
             current_node = stage_nodes[stage_name]
 
             # Connect to next stage
-            if i < len(process.stage_order) - 1:
-                next_stage_name = process.stage_order[i + 1]
+            if i < len(stage_order) - 1:
+                next_stage_name = stage_order[i + 1]
                 # Skip if next stage doesn't exist in stage_nodes (handles malformed data)
                 if next_stage_name not in stage_nodes:
                     continue
@@ -118,7 +119,7 @@ class GraphvizDotGenerator:
         if style == "full":
             lines.append("")
             lines.append("    // Gate details")
-            for stage_name in process.stage_order:
+            for stage_name in stage_order:
                 stage = process.get_stage(stage_name)
                 if not stage or not stage.gates:
                     continue
