@@ -18,7 +18,7 @@ process:
           target_stage: checkout
           locks:
             - exists: "items"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "items"
             - exists: "customer_id"
 
@@ -48,7 +48,7 @@ process:
         payment_success:
           target_stage: fulfillment
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "payment_status"
               expected_value: "completed"
             - exists: "transaction_id"
@@ -56,7 +56,7 @@ process:
         payment_failed:
           target_stage: payment_retry
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "payment_status"
               expected_value: "failed"
 
@@ -70,7 +70,7 @@ process:
         retry_payment:
           target_stage: payment_processing
           locks:
-            - type: LESS_THAN
+            - type: less_than
               property_path: "retry_count"
               expected_value: 3
             - exists: "payment_method"
@@ -78,7 +78,7 @@ process:
         payment_abandoned:
           target_stage: abandoned
           locks:
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "retry_count"
               expected_value: 2
 
@@ -93,7 +93,7 @@ process:
           target_stage: shipped
           locks:
             - exists: "tracking_number"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "tracking_number"
 
     shipped:
@@ -107,7 +107,7 @@ process:
           target_stage: completed
           locks:
             - exists: "delivery_date"
-            - type: EQUALS
+            - type: equals
               property_path: "delivery_status"
               expected_value: "delivered"
 

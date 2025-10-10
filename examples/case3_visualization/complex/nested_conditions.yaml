@@ -18,37 +18,37 @@ process:
         auto_publish_trusted:
           target_stage: content_published
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "author.trust_level"
               expected_value: "high"
-            - type: IN_LIST
+            - type: in_list
               property_path: "content_type"
               expected_value: ["article", "blog_post"]
-            - type: LESS_THAN
+            - type: less_than
               property_path: "content.word_count"
               expected_value: 1000
 
         basic_moderation:
           target_stage: basic_moderation_queue
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "author.trust_level"
               expected_value: "medium"
-            - type: NOT_IN_LIST
+            - type: not_in_list
               property_path: "content_type"
               expected_value: ["video", "live_stream"]
 
         advanced_moderation:
           target_stage: advanced_moderation_queue
           locks:
-            - type: IN_LIST
+            - type: in_list
               property_path: "author.trust_level"
               expected_value: ["low", "new"]
 
         special_content_review:
           target_stage: special_review_queue
           locks:
-            - type: IN_LIST
+            - type: in_list
               property_path: "content_type"
               expected_value: ["video", "live_stream", "podcast"]
 
@@ -63,21 +63,21 @@ process:
         approve_basic:
           target_stage: content_published
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "moderation.decision"
               expected_value: "approved"
 
         reject_basic:
           target_stage: content_rejected
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "moderation.decision"
               expected_value: "rejected"
 
         escalate_to_advanced:
           target_stage: advanced_moderation_queue
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "moderation.decision"
               expected_value: "escalate"
 
@@ -92,28 +92,28 @@ process:
         approve_advanced:
           target_stage: content_published
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "advanced_moderation.decision"
               expected_value: "approved"
 
         reject_advanced:
           target_stage: content_rejected
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "advanced_moderation.decision"
               expected_value: "rejected"
 
         request_author_revision:
           target_stage: revision_requested
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "advanced_moderation.decision"
               expected_value: "needs_revision"
 
         escalate_to_committee:
           target_stage: committee_review
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "advanced_moderation.decision"
               expected_value: "committee_review"
 
@@ -128,17 +128,17 @@ process:
         approve_special:
           target_stage: content_published
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "special_review.technical_approved"
               expected_value: true
-            - type: EQUALS
+            - type: equals
               property_path: "special_review.content_approved"
               expected_value: true
 
         reject_special:
           target_stage: content_rejected
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "special_review.final_decision"
               expected_value: "rejected"
 
@@ -154,14 +154,14 @@ process:
           target_stage: basic_moderation_queue
           locks:
             - exists: "revision.resubmitted_content"
-            - type: EQUALS
+            - type: equals
               property_path: "revision.author_revised"
               expected_value: true
 
         abandon_revision:
           target_stage: content_abandoned
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "revision.abandoned"
               expected_value: true
 
@@ -176,17 +176,17 @@ process:
         committee_approve:
           target_stage: content_published
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "committee.decision"
               expected_value: "approved"
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "committee.approval_votes"
               expected_value: 2
 
         committee_reject:
           target_stage: content_rejected
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "committee.decision"
               expected_value: "rejected"
 
@@ -206,7 +206,7 @@ process:
         archive_old_content:
           target_stage: content_archived
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "lifecycle.archive_requested"
               expected_value: true
 
@@ -221,21 +221,21 @@ process:
         keep_published:
           target_stage: content_published
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "periodic_review.decision"
               expected_value: "keep_published"
 
         archive_content:
           target_stage: content_archived
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "periodic_review.decision"
               expected_value: "archive"
 
         update_required:
           target_stage: revision_requested
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "periodic_review.decision"
               expected_value: "needs_update"
 

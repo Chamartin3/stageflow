@@ -19,20 +19,20 @@ process:
         path_a:
           target_stage: middle_a
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "status"
               expected_value: "active"
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "value"
               expected_value: 100
 
         path_b:
           target_stage: middle_b
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "status"
               expected_value: "active"
-            - type: LESS_THAN
+            - type: less_than
               property_path: "value"
               expected_value: 50
 
@@ -40,16 +40,16 @@ process:
         impossible_path:
           target_stage: impossible_stage
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "status"
               expected_value: "active"
-            - type: EQUALS
+            - type: equals
               property_path: "value"
               expected_value: 75
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "value"
               expected_value: 100
-            - type: LESS_THAN
+            - type: less_than
               property_path: "value"
               expected_value: 50
 
@@ -65,10 +65,10 @@ process:
         finish_path_a:
           target_stage: end
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "completion_status"
               expected_value: "done"
-            - type: EQUALS
+            - type: equals
               property_path: "completion_status"
               expected_value: "pending"  # Conflicts with above
 

@@ -23,29 +23,29 @@ process:
               expected_value: "something"
 
             # Missing required property_path for EQUALS lock
-            - type: EQUALS
+            - type: equals
               expected_value: "test"
 
             # Invalid structure - neither shorthand nor full format
             - invalid_structure: true
 
             # RANGE lock with invalid expected_value format
-            - type: RANGE
+            - type: range
               property_path: "score"
               expected_value: "not_an_array"
 
             # REGEX lock with invalid regex pattern
-            - type: REGEX
+            - type: regex
               property_path: "email"
               expected_value: "[invalid regex("
 
             # TYPE_CHECK with invalid type name
-            - type: TYPE_CHECK
+            - type: type_check
               property_path: "value"
               expected_value: "invalid_type"
 
             # IN_LIST with non-array expected_value
-            - type: IN_LIST
+            - type: in_list
               property_path: "category"
               expected_value: "not_a_list"
 

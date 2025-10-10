@@ -18,21 +18,21 @@ process:
         online_order:
           target_stage: online_validation
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "channel"
               expected_value: "online"
 
         phone_order:
           target_stage: phone_validation
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "channel"
               expected_value: "phone"
 
         in_store_order:
           target_stage: store_validation
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "channel"
               expected_value: "in_store"
 
@@ -46,7 +46,7 @@ process:
         online_validated:
           target_stage: inventory_check
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "online_payment_verified"
               expected_value: true
 
@@ -61,7 +61,7 @@ process:
         phone_validated:
           target_stage: payment_processing
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "customer_verified"
               expected_value: true
 
@@ -88,7 +88,7 @@ process:
         payment_completed:
           target_stage: inventory_check
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "payment_status"
               expected_value: "completed"
 
@@ -102,14 +102,14 @@ process:
         items_available:
           target_stage: fulfillment
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "inventory_verified"
               expected_value: true
 
         backorder_required:
           target_stage: backorder_processing
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "inventory_verified"
               expected_value: false
 
@@ -137,7 +137,7 @@ process:
           target_stage: order_fulfilled
           locks:
             - exists: "tracking_number"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "tracking_number"
 
     order_fulfilled:

@@ -21,7 +21,7 @@ process:
             - exists: "title"
             - exists: "content"
             - exists: "author"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "title"
 
     under_review:
@@ -37,7 +37,7 @@ process:
           target_stage: approved
           locks:
             - exists: "review.decision"
-            - type: EQUALS
+            - type: equals
               property_path: "review.decision"
               expected_value: "approved"
 
@@ -56,7 +56,7 @@ process:
           locks:
             - exists: "approval_date"
             - exists: "publication_ready"
-            - type: EQUALS
+            - type: equals
               property_path: "publication_ready"
               expected_value: true
 

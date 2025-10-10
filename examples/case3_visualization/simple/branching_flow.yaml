@@ -18,24 +18,24 @@ process:
         auto_approve_simple:
           target_stage: completed
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "request_type"
               expected_value: "simple"
-            - type: EQUALS
+            - type: equals
               property_path: "requestor.auto_approve_eligible"
               expected_value: true
 
         manual_review_required:
           target_stage: manual_review
           locks:
-            - type: IN_LIST
+            - type: in_list
               property_path: "request_type"
               expected_value: ["complex", "sensitive", "high_value"]
 
         standard_approval:
           target_stage: standard_review
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "request_type"
               expected_value: "standard"
 
@@ -50,14 +50,14 @@ process:
         approve_request:
           target_stage: completed
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "review.decision"
               expected_value: "approved"
 
         reject_request:
           target_stage: rejected
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "review.decision"
               expected_value: "rejected"
 
@@ -71,14 +71,14 @@ process:
         pass_standard_checks:
           target_stage: completed
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "standard_checks_completed"
               expected_value: true
 
         fail_standard_checks:
           target_stage: rejected
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "standard_checks_completed"
               expected_value: false
 

@@ -18,7 +18,7 @@ process:
           target_stage: profile_setup
           locks:
             - exists: "email"
-            - type: REGEX
+            - type: regex
               property_path: "email"
               expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
             - exists: "verification.email_verified_at"
@@ -36,9 +36,9 @@ process:
           locks:
             - exists: "profile.first_name"
             - exists: "profile.last_name"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "profile.first_name"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "profile.last_name"
 
     verification:
@@ -55,7 +55,7 @@ process:
           locks:
             - exists: "verification.identity_verified_at"
             - exists: "verification.phone_verified_at"
-            - type: EQUALS
+            - type: equals
               property_path: "verification.status"
               expected_value: "verified"
 

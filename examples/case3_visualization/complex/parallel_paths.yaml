@@ -19,7 +19,7 @@ process:
           target_stage: credit_check_initiated
           locks:
             - exists: "application_id"
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "loan_amount"
               expected_value: 0
 
@@ -44,7 +44,7 @@ process:
           target_stage: credit_analysis_complete
           locks:
             - exists: "credit_report"
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "credit_score"
               expected_value: 0
 
@@ -59,7 +59,7 @@ process:
           target_stage: income_analysis_complete
           locks:
             - exists: "income_verification.verified"
-            - type: EQUALS
+            - type: equals
               property_path: "income_verification.verified"
               expected_value: true
 
@@ -74,7 +74,7 @@ process:
           target_stage: collateral_analysis_complete
           locks:
             - exists: "collateral_value"
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "collateral_value"
               expected_value: 0
 
@@ -129,20 +129,20 @@ process:
         approve_loan:
           target_stage: loan_decision
           locks:
-            - type: EQUALS
+            - type: equals
               property_path: "credit_decision"
               expected_value: "approved"
-            - type: EQUALS
+            - type: equals
               property_path: "income_decision"
               expected_value: "approved"
-            - type: EQUALS
+            - type: equals
               property_path: "collateral_decision"
               expected_value: "approved"
 
         reject_loan:
           target_stage: loan_decision
           locks:
-            - type: IN_LIST
+            - type: in_list
               property_path: "overall_decision"
               expected_value: ["rejected", "denied"]
 

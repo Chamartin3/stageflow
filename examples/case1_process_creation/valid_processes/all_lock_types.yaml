@@ -22,16 +22,16 @@ process:
             - exists: "user_info.email"
 
             # EQUALS lock
-            - type: EQUALS
+            - type: equals
               property_path: "user_info.status"
               expected_value: "active"
 
             # NOT_EMPTY lock
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "user_info.name"
 
             # TYPE_CHECK lock
-            - type: TYPE_CHECK
+            - type: type_check
               property_path: "user_info.age"
               expected_value: "int"
 
@@ -48,42 +48,42 @@ process:
           target_stage: final_checks
           locks:
             # GREATER_THAN lock
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "user_info.age"
               expected_value: 18
 
             # LESS_THAN lock
-            - type: LESS_THAN
+            - type: less_than
               property_path: "user_info.age"
               expected_value: 120
 
             # RANGE lock
-            - type: RANGE
+            - type: range
               property_path: "metrics.score"
               expected_value: [0, 100]
 
             # REGEX lock
-            - type: REGEX
+            - type: regex
               property_path: "user_info.email"
               expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
 
             # CONTAINS lock
-            - type: CONTAINS
+            - type: contains
               property_path: "preferences.features"
               expected_value: "notifications"
 
             # LENGTH lock
-            - type: LENGTH
+            - type: length
               property_path: "user_info.phone"
               expected_value: 10
 
             # IN_LIST lock
-            - type: IN_LIST
+            - type: in_list
               property_path: "user_info.role"
               expected_value: ["admin", "user", "moderator"]
 
             # NOT_IN_LIST lock
-            - type: NOT_IN_LIST
+            - type: not_in_list
               property_path: "user_info.status"
               expected_value: ["banned", "suspended", "pending"]
 
@@ -101,7 +101,7 @@ process:
           target_stage: validated
           locks:
             - exists: "final_approval.approved_by"
-            - type: EQUALS
+            - type: equals
               property_path: "final_approval.status"
               expected_value: true
 

@@ -19,19 +19,19 @@ process:
           target_stage: published
           locks:
             - exists: "author.trusted_status"
-            - type: EQUALS
+            - type: equals
               property_path: "author.trusted_status"
               expected_value: true
-            - type: LESS_THAN
+            - type: less_than
               property_path: "content.word_count"
               expected_value: 500
 
         send_to_moderation:
           target_stage: under_review
           locks:
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "content.text"
-            - type: GREATER_THAN
+            - type: greater_than
               property_path: "content.word_count"
               expected_value: 0
 
@@ -39,7 +39,7 @@ process:
           target_stage: rejected
           locks:
             - exists: "flags.spam_detected"
-            - type: EQUALS
+            - type: equals
               property_path: "flags.spam_detected"
               expected_value: true
 
@@ -55,7 +55,7 @@ process:
           target_stage: published
           locks:
             - exists: "moderation.decision"
-            - type: EQUALS
+            - type: equals
               property_path: "moderation.decision"
               expected_value: "approved"
             - exists: "moderation.reviewed_by"
@@ -64,7 +64,7 @@ process:
           target_stage: rejected
           locks:
             - exists: "moderation.decision"
-            - type: EQUALS
+            - type: equals
               property_path: "moderation.decision"
               expected_value: "rejected"
             - exists: "moderation.rejection_reason"
@@ -73,7 +73,7 @@ process:
           target_stage: revision_requested
           locks:
             - exists: "moderation.decision"
-            - type: EQUALS
+            - type: equals
               property_path: "moderation.decision"
               expected_value: "needs_revision"
             - exists: "moderation.revision_notes"
@@ -82,7 +82,7 @@ process:
           target_stage: senior_review
           locks:
             - exists: "flags.escalation_requested"
-            - type: EQUALS
+            - type: equals
               property_path: "flags.escalation_requested"
               expected_value: true
 
@@ -98,7 +98,7 @@ process:
           target_stage: under_review
           locks:
             - exists: "content.revised_text"
-            - type: NOT_EMPTY
+            - type: not_empty
               property_path: "content.revised_text"
             - exists: "revision.submitted_date"
 
@@ -106,7 +106,7 @@ process:
           target_stage: abandoned
           locks:
             - exists: "revision.abandoned"
-            - type: EQUALS
+            - type: equals
               property_path: "revision.abandoned"
               expected_value: true
 
@@ -123,7 +123,7 @@ process:
           target_stage: published
           locks:
             - exists: "senior_review.decision"
-            - type: EQUALS
+            - type: equals
               property_path: "senior_review.decision"
               expected_value: "approved"
 
@@ -131,7 +131,7 @@ process:
           target_stage: rejected
           locks:
             - exists: "senior_review.decision"
-            - type: EQUALS
+            - type: equals
               property_path: "senior_review.decision"
               expected_value: "rejected"
 
