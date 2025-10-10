@@ -1,385 +1,703 @@
-"""Tests for Stage class and stage evaluation."""
+"""Comprehensive unit tests for Stage class and stage evaluation logic."""
 
 import pytest
+from typing import Any, Dict
 
-from stageflow.stage import Stage
-from stageflow.element import create_element
-from stageflow.stage import StageResult
-from stageflow.gates import Gate, GateResult, Lock, LockType
+from stageflow.element import DictElement
+from stageflow.stage import (
+    Stage,
+    StageDefinition,
+    StageEvaluationResult,
+    StageStatus,
+    Action,
+    ActionType,
+    ActionDefinition
+)
+from stageflow.gate import GateDefinition
+from stageflow.lock import LockType
 
 
-class TestStageResult:
-    """Test StageResult data class."""
+class TestStageStatus:
+    """Test StageStatus enumeration."""
 
-    def test_stage_result_initialization(self):
-        """Test StageResult proper initialization."""
-        result = StageResult(
-            stage_name="test_stage",
-            schema_valid=True,
-            schema_errors=[],
+    def test_stage_status_values(self):
+        """Verify StageStatus enum contains expected values."""
+        # Arrange & Act & Assert
+        assert StageStatus.INVALID_SCHEMA == "invalid_schema"
+        assert StageStatus.READY_FOR_TRANSITION == "ready"
+        assert StageStatus.ACTION_REQUIRED == "action_required"
+
+
+class TestActionType:
+    """Test ActionType enumeration."""
+
+    def test_action_type_values(self):
+        """Verify ActionType enum contains expected values."""
+        # Arrange & Act & Assert
+        assert ActionType.UPDATE == "update"
+        assert ActionType.TRANSITION == "transition"
+        assert ActionType.EXCECUTE == "execute"
+
+
+class TestAction:
+    """Test Action dataclass."""
+
+    def test_action_creation(self):
+        """Verify Action can be created with required fields."""
+        # Arrange & Act
+        action = Action(
+            description="Update user email",
+            related_properties=["user.email"],
+            action_type=ActionType.UPDATE
+        )
+
+        # Assert
+        assert action.description == "Update user email"
+        assert action.related_properties == ["user.email"]
+        assert action.action_type == ActionType.UPDATE
+        assert action.target_stage is None
+
+    def test_action_creation_with_target_stage(self):
+        """Verify Action can be created with target stage."""
+        # Arrange & Act
+        action = Action(
+            description="Ready to proceed",
+            related_properties=[],
+            action_type=ActionType.TRANSITION,
+            target_stage="next_stage"
+        )
+
+        # Assert
+        assert action.description == "Ready to proceed"
+        assert action.related_properties == []
+        assert action.action_type == ActionType.TRANSITION
+        assert action.target_stage == "next_stage"
+
+    def test_action_immutability(self):
+        """Verify Action is immutable (frozen dataclass)."""
+        # Arrange
+        action = Action(
+            description="Test action",
+            related_properties=["field"],
+            action_type=ActionType.UPDATE
+        )
+
+        # Act & Assert
+        with pytest.raises(AttributeError):
+            action.description = "Modified"  # Should raise due to frozen=True
+
+
+class TestStageEvaluationResult:
+    """Test StageEvaluationResult dataclass."""
+
+    def test_stage_evaluation_result_creation(self):
+        """Verify StageEvaluationResult can be created with all fields."""
+        # Arrange
+        actions = [
+            Action("Test action", ["field"], ActionType.UPDATE)
+        ]
+
+        # Act
+        result = StageEvaluationResult(
+            status=StageStatus.ACTION_REQUIRED,
+            gate_results={"gate1": "result1"},
+            sugested_action=actions
+        )
+
+        # Assert
+        assert result.status == StageStatus.ACTION_REQUIRED
+        assert result.gate_results == {"gate1": "result1"}
+        assert len(result.sugested_action) == 1
+        assert result.sugested_action[0].description == "Test action"
+
+    def test_stage_evaluation_result_immutability(self):
+        """Verify StageEvaluationResult is immutable."""
+        # Arrange
+        result = StageEvaluationResult(
+            status=StageStatus.INVALID_SCHEMA,
             gate_results={},
-            overall_passed=True,
-            actions=["action1"],
-            metadata={"key": "value"}
+            sugested_action=[]
         )
 
-        assert result.stage_name == "test_stage"
-        assert result.schema_valid is True
-        assert result.schema_errors == []
-        assert result.gate_results == {}
-        assert result.overall_passed is True
-        assert result.actions == ["action1"]
-        assert result.metadata == {"key": "value"}
-
-    def test_has_failures_property(self):
-        """Test has_failures property for different scenarios."""
-        # No failures
-        result = StageResult(
-            stage_name="test",
-            schema_valid=True,
-            schema_errors=[],
-            gate_results={},
-            overall_passed=True,
-            actions=[],
-            metadata={}
-        )
-        assert not result.has_failures
-
-        # Schema failure
-        result = StageResult(
-            stage_name="test",
-            schema_valid=False,
-            schema_errors=["error"],
-            gate_results={},
-            overall_passed=True,
-            actions=[],
-            metadata={}
-        )
-        assert result.has_failures
-
-        # Overall failure
-        result = StageResult(
-            stage_name="test",
-            schema_valid=True,
-            schema_errors=[],
-            gate_results={},
-            overall_passed=False,
-            actions=[],
-            metadata={}
-        )
-        assert result.has_failures
-
-    def test_passed_failed_gates_properties(self):
-        """Test passed_gates and failed_gates properties."""
-        gate_results = {
-            "gate1": GateResult(
-                passed=True,
-                failed_components=(),
-                passed_components=(),
-                messages=(),
-                actions=()
-            ),
-            "gate2": GateResult(
-                passed=False,
-                failed_components=(),
-                passed_components=(),
-                messages=(),
-                actions=()
-            ),
-            "gate3": GateResult(
-                passed=True,
-                failed_components=(),
-                passed_components=(),
-                messages=(),
-                actions=()
-            )
-        }
-
-        result = StageResult(
-            stage_name="test",
-            schema_valid=True,
-            schema_errors=[],
-            gate_results=gate_results,
-            overall_passed=True,
-            actions=[],
-            metadata={}
-        )
-
-        assert result.passed_gates == ["gate1", "gate3"]
-        assert result.failed_gates == ["gate2"]
+        # Act & Assert
+        with pytest.raises(AttributeError):
+            result.status = StageStatus.READY_FOR_TRANSITION  # Should raise
 
 
 class TestStage:
     """Test Stage class functionality."""
 
-    def test_stage_initialization_basic(self):
-        """Test basic Stage initialization."""
-        stage = Stage(name="test_stage")
+    def test_stage_creation_with_valid_definition(self):
+        """Verify Stage can be created with valid StageDefinition."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "user_registration",
+            "description": "User registration stage",
+            "gates": [
+                {
+                    "name": "basic_info",
+                    "description": "Basic user information validation",
+                    "target_stage": "email_verification",
+                    "parent_stage": "user_registration",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
+                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None}
+                    ]
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Fill in required user information",
+                    "related_properties": ["email", "password"]
+                }
+            ],
+            "expected_properties": {
+                "email": {"type": "string", "default": None},
+                "password": {"type": "string", "default": None}
+            },
+            "is_final": False
+        }
 
-        assert stage.name == "test_stage"
-        assert stage.gates == []
-        assert stage.required_properties == set()
-        assert stage.metadata == {}
-        assert stage.allow_partial is False
+        # Act
+        stage = Stage("registration_id", stage_config)
 
-    def test_stage_initialization_with_components(self):
-        """Test Stage initialization with gates and required properties."""
-        # Create gates (AND gates require at least 2 components)
-        lock1 = Lock(LockType.EXISTS, "name")
-        lock2 = Lock(LockType.EXISTS, "age")
-        gate1 = Gate.AND(lock1, lock2, name="validation_gate")
-
-        # Create stage
-        stage = Stage(
-            name="test_stage",
-            gates=[gate1],
-            required_properties={"name", "email"},
-            metadata={"version": "1.0"},
-            allow_partial=True
-        )
-
-        assert stage.name == "test_stage"
+        # Assert
+        assert stage.name == "user_registration"
+        assert stage.description == "User registration stage"
         assert len(stage.gates) == 1
-        assert stage.gates[0].name == "validation_gate"
-        assert stage.required_properties == {"name", "email"}
-        assert stage.metadata == {"version": "1.0"}
-        assert stage.allow_partial is True
+        assert stage.gates[0].name == "basic_info"
+        assert stage.gates[0].target_stage == "email_verification"
+        assert not stage.is_final
 
-    def test_stage_initialization_validation_empty_name(self):
-        """Test Stage initialization fails with empty name."""
-        with pytest.raises(ValueError, match="Stage must have a name"):
-            Stage(name="")
+    def test_stage_creation_final_stage_without_gates(self):
+        """Verify final stage can be created without gates."""
+        # Arrange
+        final_stage_config: StageDefinition = {
+            "name": "completed",
+            "description": "Final completion stage",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {},
+            "is_final": True
+        }
 
-    def test_stage_initialization_validation_duplicate_gates(self):
-        """Test Stage initialization fails with duplicate gate names."""
-        lock1 = Lock(LockType.EXISTS, "prop1")
-        lock2 = Lock(LockType.EXISTS, "prop2")
-        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
-        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
+        # Act
+        stage = Stage("final_id", final_stage_config)
 
-        gate1 = Gate.AND(lock1, dummy_lock1, name="duplicate_gate")
-        gate2 = Gate.AND(lock2, dummy_lock2, name="duplicate_gate")
+        # Assert
+        assert stage.name == "completed"
+        assert stage.is_final is True
+        assert len(stage.gates) == 0
 
-        with pytest.raises(ValueError, match="duplicate gate names"):
-            Stage(name="test_stage", gates=[gate1, gate2])
+    def test_stage_creation_non_final_without_gates_is_allowed(self):
+        """Verify non-final stage without gates is allowed (validation is at process level)."""
+        # Arrange
+        config: StageDefinition = {
+            "name": "intermediate_stage",
+            "description": "Intermediate stage without gates",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {},
+            "is_final": False
+        }
 
-    def test_evaluate_with_required_properties_only(self):
-        """Test stage evaluation with required properties only (no gates)."""
-        stage = Stage(name="property_stage", required_properties={"name", "age"})
+        # Act
+        stage = Stage("intermediate_id", config)
 
-        # Valid element
-        element = create_element({"name": "John", "age": 30})
+        # Assert
+        assert stage.name == "intermediate_stage"
+        assert stage.is_final is False
+        assert len(stage.gates) == 0
+
+    def test_stage_possible_transitions_property(self):
+        """Verify possible_transitions returns all target stages from gates."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "multi_gate_stage",
+            "description": "Stage with multiple gates",
+            "gates": [
+                {
+                    "name": "gate1",
+                    "description": "First gate",
+                    "target_stage": "stage_a",
+                    "parent_stage": "current",
+                    "locks": [{"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}]
+                },
+                {
+                    "name": "gate2",
+                    "description": "Second gate",
+                    "target_stage": "stage_b",
+                    "parent_stage": "current",
+                    "locks": [{"type": LockType.EXISTS, "property_path": "field2", "expected_value": None}]
+                },
+                {
+                    "name": "gate3",
+                    "description": "Third gate",
+                    "target_stage": "stage_c",  # Unique target
+                    "parent_stage": "current",
+                    "locks": [{"type": LockType.EXISTS, "property_path": "field3", "expected_value": None}]
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {
+                "field1": None,
+                "field2": None,
+                "field3": None
+            },
+            "is_final": False
+        }
+
+        stage = Stage("multi_id", stage_config)
+
+        # Act
+        transitions = stage.posible_transitions
+
+        # Assert
+        assert set(transitions) == {"stage_a", "stage_b", "stage_c"}  # All unique transitions
+
+    def test_stage_evaluate_with_valid_schema_and_passing_gate(self):
+        """Verify stage evaluation succeeds when schema is valid and gate passes."""
+        # Arrange
+        element_data = {
+            "email": "user@example.com",
+            "password": "securepass123",
+            "age": 25
+        }
+        element = DictElement(element_data)
+
+        stage_config: StageDefinition = {
+            "name": "validation_stage",
+            "description": "User validation",
+            "gates": [
+                {
+                    "name": "user_validation",
+                    "description": "Validate user data",
+                    "target_stage": "next_stage",
+                    "parent_stage": "current",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
+                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None},
+                        {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18}
+                    ]
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {
+                "email": {"type": "string", "default": None},
+                "password": {"type": "string", "default": None},
+                "age": {"type": "integer", "default": None}
+            },
+            "is_final": False
+        }
+
+        stage = Stage("validation_id", stage_config)
+
+        # Act
         result = stage.evaluate(element)
 
-        assert result.stage_name == "property_stage"
-        assert result.schema_valid is True
-        assert result.schema_errors == []
-        assert result.gate_results == {}
-        assert result.overall_passed is True
-        assert result.actions == []
+        # Assert
+        assert result.status == StageStatus.READY_FOR_TRANSITION
+        assert len(result.sugested_action) == 1
+        assert result.sugested_action[0].action_type == ActionType.TRANSITION
+        assert result.sugested_action[0].target_stage == "next_stage"
+        assert "user_validation" in result.gate_results
 
-    def test_evaluate_with_required_property_failure(self):
-        """Test stage evaluation with required property missing."""
-        stage = Stage(name="property_stage", required_properties={"name", "age"})
+    def test_stage_evaluate_with_invalid_schema(self):
+        """Verify stage evaluation returns INVALID_SCHEMA when required properties missing."""
+        # Arrange
+        element_data = {
+            "email": "user@example.com"
+            # Missing password and age
+        }
+        element = DictElement(element_data)
 
-        # Missing required field
-        element = create_element({"name": "John"})
+        stage_config: StageDefinition = {
+            "name": "validation_stage",
+            "description": "User validation",
+            "gates": [
+                {
+                    "name": "user_validation",
+                    "description": "Validate user data",
+                    "target_stage": "next_stage",
+                    "parent_stage": "current",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
+                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None}
+                    ]
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {
+                "email": {"type": "string", "default": None},
+                "password": {"type": "string", "default": "default_pass"},
+                "age": {"type": "integer", "default": 18}
+            },
+            "is_final": False
+        }
+
+        stage = Stage("validation_id", stage_config)
+
+        # Act
         result = stage.evaluate(element)
 
-        assert result.stage_name == "property_stage"
-        assert result.schema_valid is False
-        assert len(result.schema_errors) > 0
-        assert "Required property 'age' is missing" in result.schema_errors
-        assert result.overall_passed is False
+        # Assert
+        assert result.status == StageStatus.INVALID_SCHEMA
+        assert len(result.sugested_action) == 2  # Missing password and age
+        assert all(action.action_type == ActionType.UPDATE for action in result.sugested_action)
+        assert result.gate_results == {}  # No gates evaluated when schema invalid
 
-    def test_evaluate_with_gates_only(self):
-        """Test stage evaluation with gates only (no required properties)."""
-        lock1 = Lock(LockType.EXISTS, "name")
-        lock2 = Lock(LockType.GREATER_THAN, "age", 18)
+    def test_stage_evaluate_with_valid_schema_but_failing_gates(self):
+        """Verify stage evaluation returns ACTION_REQUIRED when gates fail."""
+        # Arrange
+        element_data = {
+            "email": "invalid-email-format",  # Will fail regex
+            "password": "securepass123",
+            "age": 25
+        }
+        element = DictElement(element_data)
 
-        gate1 = Gate.AND(lock1, lock2, name="validation_gate")
-        stage = Stage(name="gate_stage", gates=[gate1])
+        stage_config: StageDefinition = {
+            "name": "validation_stage",
+            "description": "User validation",
+            "gates": [
+                {
+                    "name": "email_validation",
+                    "description": "Validate email format",
+                    "target_stage": "next_stage",
+                    "parent_stage": "current",
+                    "locks": [
+                        {"type": LockType.REGEX, "property_path": "email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}
+                    ]
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Fix email format",
+                    "related_properties": ["email"]
+                }
+            ],
+            "expected_properties": {
+                "email": {"type": "string", "default": None},
+                "password": {"type": "string", "default": None},
+                "age": {"type": "integer", "default": None}
+            },
+            "is_final": False
+        }
 
-        # Valid element
-        element = create_element({"name": "John", "age": 25})
+        stage = Stage("validation_id", stage_config)
+
+        # Act
         result = stage.evaluate(element)
 
-        assert result.stage_name == "gate_stage"
-        assert result.schema_valid is True  # No required properties means valid
-        assert result.schema_errors == []
-        assert len(result.gate_results) == 1
-        assert result.gate_results["validation_gate"].passed is True
-        assert result.overall_passed is True
+        # Assert
+        assert result.status == StageStatus.ACTION_REQUIRED
+        assert len(result.sugested_action) >= 1  # At least one action suggested
+        assert any(action.action_type == ActionType.EXCECUTE for action in result.sugested_action)
+        assert "email_validation" in result.gate_results
+        assert not result.gate_results["email_validation"].success
 
-    def test_evaluate_with_gate_failure(self):
-        """Test stage evaluation with gate failure."""
-        lock1 = Lock(LockType.GREATER_THAN, "age", 18)
-        # Add a second lock to meet AND gate requirement
-        lock2 = Lock(LockType.EXISTS, "name")
-        gate1 = Gate.AND(lock1, lock2, name="age_gate")
-        stage = Stage(name="gate_stage", gates=[gate1])
+    def test_stage_schema_validation_with_nested_properties(self):
+        """Verify stage validates nested property schemas correctly."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "nested_validation",
+            "description": "Nested property validation",
+            "gates": [
+                {
+                    "name": "nested_gate",
+                    "description": "Validate nested properties",
+                    "target_stage": "next",
+                    "parent_stage": "current",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "user.profile.name", "expected_value": None}
+                    ]
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {
+                "user": {
+                    "profile": {
+                        "name": {"type": "string", "default": None}
+                    }
+                }
+            },
+            "is_final": False
+        }
 
-        # Invalid element (under age but has name)
-        element = create_element({"name": "John", "age": 15})
+        # Act & Assert - Should not raise exception during stage creation
+        stage = Stage("nested_id", stage_config)
+        assert stage.name == "nested_validation"
+
+    def test_stage_action_validation_fails_with_unrelated_properties(self):
+        """Verify stage creation fails when action properties aren't evaluated by gates."""
+        # Arrange
+        invalid_config: StageDefinition = {
+            "name": "invalid_action_stage",
+            "description": "Stage with invalid actions",
+            "gates": [
+                {
+                    "name": "gate1",
+                    "description": "Gate that doesn't evaluate all action properties",
+                    "target_stage": "next",
+                    "parent_stage": "current",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}
+                    ]
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Action that references unevaluated property",
+                    "related_properties": ["field1", "field2"]  # field2 not evaluated by any gate
+                }
+            ],
+            "expected_properties": {
+                "field1": {"type": "string", "default": None},
+                "field2": {"type": "string", "default": None}
+            },
+            "is_final": False
+        }
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Action property 'field2' is not evaluated by any gate"):
+            Stage("invalid_id", invalid_config)
+
+    def test_stage_serialization_to_dict(self):
+        """Verify stage can be serialized back to dictionary format."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "serialization_test",
+            "description": "Test stage serialization",
+            "gates": [
+                {
+                    "name": "test_gate",
+                    "description": "Test gate for serialization",
+                    "target_stage": "next_stage",
+                    "parent_stage": "current_stage",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "field", "expected_value": None}
+                    ]
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Test action",
+                    "related_properties": ["field"]
+                }
+            ],
+            "expected_properties": {
+                "field": {"type": "string", "default": None}
+            },
+            "is_final": False
+        }
+
+        stage = Stage("serialization_id", stage_config)
+
+        # Act
+        serialized = stage.to_dict()
+
+        # Assert
+        assert serialized["name"] == "serialization_test"
+        assert serialized["description"] == "Test stage serialization"
+        assert len(serialized["gates"]) == 1
+        assert serialized["gates"][0]["name"] == "test_gate"
+        assert len(serialized["expected_actions"]) == 1
+        assert serialized["expected_actions"][0]["description"] == "Test action"
+        assert serialized["is_final"] is False
+
+
+class TestStageIntegration:
+    """Integration tests for Stage with complex scenarios."""
+
+    def test_multi_gate_stage_evaluation_workflow(self):
+        """Test stage with multiple gates representing different validation paths."""
+        # Arrange
+        user_data = {
+            "email": "user@example.com",
+            "password": "securepass123",
+            "profile": {
+                "name": "John Doe",
+                "age": 25,
+                "verified": False
+            },
+            "preferences": {
+                "newsletter": True,
+                "notifications": True
+            }
+        }
+        element = DictElement(user_data)
+
+        stage_config: StageDefinition = {
+            "name": "user_onboarding",
+            "description": "Complete user onboarding validation",
+            "gates": [
+                {
+                    "name": "basic_requirements",
+                    "description": "Basic user requirements",
+                    "target_stage": "profile_setup",
+                    "parent_stage": "registration",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
+                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None},
+                        {"type": LockType.REGEX, "property_path": "email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}
+                    ]
+                },
+                {
+                    "name": "profile_complete",
+                    "description": "Complete profile information",
+                    "target_stage": "verification",
+                    "parent_stage": "registration",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "profile.name", "expected_value": None},
+                        {"type": LockType.GREATER_THAN, "property_path": "profile.age", "expected_value": 18},
+                        {"type": LockType.EQUALS, "property_path": "profile.verified", "expected_value": True}  # Will fail
+                    ]
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Complete profile verification",
+                    "related_properties": ["profile.verified"]
+                }
+            ],
+            "expected_properties": {
+                "email": {"type": "string", "default": None},
+                "password": {"type": "string", "default": None},
+                "profile": {
+                    "name": {"type": "string", "default": None},
+                    "age": {"type": "integer", "default": None},
+                    "verified": {"type": "boolean", "default": False}
+                }
+            },
+            "is_final": False
+        }
+
+        stage = Stage("onboarding_id", stage_config)
+
+        # Act
         result = stage.evaluate(element)
 
-        assert result.stage_name == "gate_stage"
-        assert result.schema_valid is True
-        assert result.gate_results["age_gate"].passed is False
-        assert result.overall_passed is False
+        # Assert
+        # First gate should pass, triggering READY_FOR_TRANSITION
+        assert result.status == StageStatus.READY_FOR_TRANSITION
+        assert result.sugested_action[0].action_type == ActionType.TRANSITION
+        assert result.sugested_action[0].target_stage == "profile_setup"
 
-    def test_evaluate_with_partial_fulfillment(self):
-        """Test stage evaluation with partial fulfillment allowed."""
-        lock1 = Lock(LockType.EXISTS, "name")
-        lock2 = Lock(LockType.EXISTS, "nonexistent")
+    def test_complex_nested_validation_scenario(self):
+        """Test stage evaluation with complex nested data structures."""
+        # Arrange
+        organization_data = {
+            "organization": {
+                "info": {
+                    "name": "Tech Corp",
+                    "type": "technology",
+                    "employee_count": 150
+                },
+                "departments": [
+                    {
+                        "name": "Engineering",
+                        "head": {
+                            "name": "Alice Johnson",
+                            "email": "alice@techcorp.com",
+                            "verified": True
+                        },
+                        "team_size": 50
+                    },
+                    {
+                        "name": "Marketing",
+                        "head": {
+                            "name": "Bob Smith",
+                            "email": "bob@techcorp.com",
+                            "verified": False  # Will cause failure
+                        },
+                        "team_size": 20
+                    }
+                ],
+                "policies": {
+                    "remote_work": True,
+                    "performance_reviews": True
+                }
+            }
+        }
+        element = DictElement(organization_data)
 
-        # Create dummy locks to satisfy AND gate requirements
-        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
-        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
+        stage_config: StageDefinition = {
+            "name": "organization_validation",
+            "description": "Organization structure validation",
+            "gates": [
+                {
+                    "name": "basic_info",
+                    "description": "Basic organization information",
+                    "target_stage": "department_review",
+                    "parent_stage": "setup",
+                    "locks": [
+                        {"type": LockType.EXISTS, "property_path": "organization.info.name", "expected_value": None},
+                        {"type": LockType.GREATER_THAN, "property_path": "organization.info.employee_count", "expected_value": 10}
+                    ]
+                },
+                {
+                    "name": "department_heads_verified",
+                    "description": "All department heads must be verified",
+                    "target_stage": "policy_review",
+                    "parent_stage": "setup",
+                    "locks": [
+                        {"type": LockType.EQUALS, "property_path": "organization.departments[0].head.verified", "expected_value": True},
+                        {"type": LockType.EQUALS, "property_path": "organization.departments[1].head.verified", "expected_value": True}  # Will fail
+                    ]
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Verify all department heads",
+                    "related_properties": ["organization.departments[0].head.verified", "organization.departments[1].head.verified"]
+                }
+            ],
+            "expected_properties": None,
+            "is_final": False
+        }
 
-        gate1 = Gate.AND(lock1, dummy_lock1, name="gate1")
-        gate2 = Gate.AND(lock2, dummy_lock2, name="gate2")
+        stage = Stage("org_validation_id", stage_config)
 
-        stage = Stage(name="partial_stage", gates=[gate1, gate2], allow_partial=True)
-
-        element = create_element({"name": "John", "dummy1": "exists"})
+        # Act
         result = stage.evaluate(element)
 
-        assert result.overall_passed is True  # Partial fulfillment allowed
-        assert len(result.passed_gates) == 1
-        assert len(result.failed_gates) == 1
+        # Assert
+        # First gate passes, so should be READY_FOR_TRANSITION to department_review
+        assert result.status == StageStatus.READY_FOR_TRANSITION
+        assert result.sugested_action[0].target_stage == "department_review"
 
-    def test_evaluate_without_partial_fulfillment(self):
-        """Test stage evaluation without partial fulfillment."""
-        lock1 = Lock(LockType.EXISTS, "name")
-        lock2 = Lock(LockType.EXISTS, "nonexistent")
+    def test_final_stage_evaluation(self):
+        """Test evaluation of a final stage without gates."""
+        # Arrange
+        final_data = {
+            "completion": {
+                "status": "completed",
+                "timestamp": "2024-01-20T10:00:00Z"
+            }
+        }
+        element = DictElement(final_data)
 
-        # Create dummy locks to satisfy AND gate requirements
-        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
-        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
+        final_stage_config: StageDefinition = {
+            "name": "completion",
+            "description": "Final completion stage",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {
+                "completion": {
+                    "status": {"type": "string", "default": None},
+                    "timestamp": {"type": "string", "default": None}
+                }
+            },
+            "is_final": True
+        }
 
-        gate1 = Gate.AND(lock1, dummy_lock1, name="gate1")
-        gate2 = Gate.AND(lock2, dummy_lock2, name="gate2")
+        stage = Stage("completion_id", final_stage_config)
 
-        stage = Stage(name="strict_stage", gates=[gate1, gate2], allow_partial=False)
-
-        element = create_element({"name": "John", "dummy1": "exists"})
+        # Act
         result = stage.evaluate(element)
 
-        assert result.overall_passed is False  # All gates must pass
-        assert len(result.passed_gates) == 1
-        assert len(result.failed_gates) == 1
-
-    def test_get_required_properties(self):
-        """Test getting required properties from stage."""
-        # Create gates with property requirements
-        lock1 = Lock(LockType.EXISTS, "name")
-        lock2 = Lock(LockType.EXISTS, "email")
-        gate1 = Gate.AND(lock1, lock2, name="gate1")
-
-        stage = Stage(name="test_stage", gates=[gate1], required_properties={"name", "phone"})
-
-        required_props = stage.get_required_properties()
-
-        # Should include properties from both required_properties and gates
-        assert "name" in required_props
-        assert "email" in required_props
-        assert "phone" in required_props
-
-    def test_has_gate(self):
-        """Test has_gate method."""
-        lock1 = Lock(LockType.EXISTS, "prop1")
-        dummy_lock = Lock(LockType.EXISTS, "dummy")
-        gate1 = Gate.AND(lock1, dummy_lock, name="test_gate")
-        stage = Stage(name="test_stage", gates=[gate1])
-
-        assert stage.has_gate("test_gate") is True
-        assert stage.has_gate("nonexistent_gate") is False
-
-    def test_get_gate(self):
-        """Test get_gate method."""
-        lock1 = Lock(LockType.EXISTS, "prop1")
-        dummy_lock = Lock(LockType.EXISTS, "dummy")
-        gate1 = Gate.AND(lock1, dummy_lock, name="test_gate")
-        stage = Stage(name="test_stage", gates=[gate1])
-
-        retrieved_gate = stage.get_gate("test_gate")
-        assert retrieved_gate == gate1
-
-        assert stage.get_gate("nonexistent_gate") is None
-
-    def test_is_compatible_with_element(self):
-        """Test is_compatible_with_element method."""
-        stage = Stage(name="test_stage", required_properties={"name", "age"})
-
-        # Compatible element
-        compatible_element = create_element({"name": "John", "age": 25})
-        assert stage.is_compatible_with_element(compatible_element) is True
-
-        # Incompatible element (missing required field)
-        incompatible_element = create_element({"name": "John"})
-        # The implementation checks if required fields exist via has_property
-        # This should return False since age is missing
-        assert stage.is_compatible_with_element(incompatible_element) is False
-
-    def test_get_completion_percentage_no_gates(self):
-        """Test completion percentage calculation with no gates."""
-        # Stage with required properties only
-        stage = Stage(name="test_stage", required_properties={"name"})
-
-        # Valid element
-        element = create_element({"name": "John"})
-        percentage = stage.get_completion_percentage(element)
-        assert percentage == 1.0
-
-        # Stage with no required properties and no gates
-        empty_stage = Stage(name="empty_stage")
-        percentage = empty_stage.get_completion_percentage(element)
-        assert percentage == 1.0
-
-    def test_get_completion_percentage_with_gates(self):
-        """Test completion percentage calculation with gates."""
-        lock1 = Lock(LockType.EXISTS, "name")
-        lock2 = Lock(LockType.EXISTS, "age")
-
-        # Create dummy locks to satisfy AND gate requirements
-        dummy_lock1 = Lock(LockType.EXISTS, "dummy1")
-        dummy_lock2 = Lock(LockType.EXISTS, "dummy2")
-
-        gate1 = Gate.AND(lock1, dummy_lock1, name="gate1")
-        gate2 = Gate.AND(lock2, dummy_lock2, name="gate2")
-
-        stage = Stage(name="test_stage", gates=[gate1, gate2])
-
-        # Element passes first gate only (has name and dummy1)
-        element = create_element({"name": "John", "dummy1": "exists"})
-        percentage = stage.get_completion_percentage(element)
-        # Should be 0.75 (50% gates + 100% required properties) / 2
-        assert percentage == 0.75
-
-    def test_get_summary(self):
-        """Test get_summary method."""
-        # Stage with no gates, no required properties
-        stage = Stage(name="empty_stage")
-        summary = stage.get_summary()
-        assert "empty_stage" in summary
-        assert "no gates" in summary
-
-        # Stage with gates and required properties
-        lock1 = Lock(LockType.EXISTS, "name")
-        dummy_lock = Lock(LockType.EXISTS, "dummy")
-        gate1 = Gate.AND(lock1, dummy_lock, name="gate1")
-
-        stage = Stage(
-            name="full_stage",
-            gates=[gate1],
-            required_properties={"name", "email"},
-            allow_partial=True
-        )
-
-        summary = stage.get_summary()
-        assert "full_stage" in summary
-        assert "1 gate(s)" in summary
-        assert "2 required properties" in summary
-        assert "partial fulfillment allowed" in summary
-
+        # Assert
+        # Final stages with valid schema should show ACTION_REQUIRED with no actions
+        assert result.status == StageStatus.ACTION_REQUIRED
+        assert len(result.sugested_action) == 0  # No actions for final stage
+        assert result.gate_results == {}  # No gates to evaluate
