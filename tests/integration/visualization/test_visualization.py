@@ -468,3 +468,257 @@ class TestVisualization:
         verbose_content = verbose_output.read_text()
 
         assert normal_content == json_content == verbose_content, "Diagram content should be identical across output modes"
+
+    def test_visualization_transition_accuracy(self, tmp_path: Path):
+        """
+        Test that visualizations show accurate transitions based on gate relationships,
+        not linear stage ordering. This test detects the bug where transitions were
+        generated linearly instead of following actual gate targets.
+        """
+        from stageflow.schema.loader import load_process
+
+        # Test with convergence flow that has non-linear transitions
+        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+        convergence_file = examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+
+        if not convergence_file.exists():
+            pytest.skip("Convergence flow example not found")
+
+        output_file = tmp_path / "convergence_test.md"
+
+        # Generate visualization
+        result = self.run_stageflow_cli([
+            "-p", str(convergence_file),
+            "--view", "-o", str(output_file)
+        ], expect_success=True)
+
+        assert result["exit_code"] == 0
+        assert output_file.exists()
+
+        # Parse the diagram content
+        content = output_file.read_text()
+        lines = content.split('\n')
+
+        # Extract transitions (lines with -->)
+        transitions = []
+        for line in lines:
+            if "-->" in line and line.strip().startswith("S"):
+                # Parse transition like "S0 --> S1"
+                parts = line.strip().split(" --> ")
+                if len(parts) == 2:
+                    source = parts[0].strip()
+                    target = parts[1].strip()
+                    transitions.append((source, target))
+
+        # Load the actual process to verify correct transitions
+        process = load_process(str(convergence_file))
+
+        # Verify specific expected transitions exist (convergence pattern)
+        expected_patterns = [
+            # order_received should branch to multiple validation stages
+            ("S0", ["S1", "S6", "S8"]),  # online, phone, store validation
+            # Multiple paths should converge at inventory_check
+            ("S1", "S2"),  # online_validation -> inventory_check
+            ("S7", "S2"),  # payment_processing -> inventory_check
+            ("S8", "S2"),  # store_validation -> inventory_check
+        ]
+
+        for source, expected_targets in expected_patterns:
+            if isinstance(expected_targets, list):
+                # Check that source connects to at least one of the expected targets
+                actual_targets = [target for src, target in transitions if src == source]
+                found_targets = [t for t in actual_targets if t in expected_targets]
+                assert len(found_targets) > 0, f"Stage {source} should connect to at least one of {expected_targets}, but found: {actual_targets}"
+            else:
+                # Check specific transition exists
+                assert (source, expected_targets) in transitions, f"Expected transition {source} -> {expected_targets} not found in: {transitions}"
+
+        # Verify it's NOT a simple linear progression (which was the bug)
+        # If it were linear, we'd see S0->S1->S2->S3->S4->S5->S6->S7->S8
+        linear_transitions = [("S0", "S1"), ("S1", "S2"), ("S2", "S3"), ("S3", "S4"), ("S4", "S5"), ("S5", "S6"), ("S6", "S7"), ("S7", "S8")]
+        actual_transition_set = set(transitions)
+        linear_transition_set = set(linear_transitions)
+
+        # Should not be a purely linear flow
+        assert not linear_transition_set.issubset(actual_transition_set), "Visualization should not show linear progression for convergence flow"
+
+    def test_visualization_initial_final_stage_styling(self, tmp_path: Path):
+        """
+        Test that initial and final stages are correctly identified and styled,
+        not based on array position. This detects the bug where final stage
+        styling was based on stage_order position instead of actual final_stage.
+        """
+        from stageflow.schema.loader import load_process
+
+        # Test with convergence flow where final stage is not last in stage order
+        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+        convergence_file = examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+
+        if not convergence_file.exists():
+            pytest.skip("Convergence flow example not found")
+
+        output_file = tmp_path / "styling_test.md"
+
+        # Generate visualization
+        result = self.run_stageflow_cli([
+            "-p", str(convergence_file),
+            "--view", "-o", str(output_file)
+        ], expect_success=True)
+
+        assert result["exit_code"] == 0
+        assert output_file.exists()
+
+        # Load process to get actual initial and final stages
+        process = load_process(str(convergence_file))
+        actual_initial_stage = process.initial_stage._id
+        actual_final_stage = process.final_stage._id
+
+        # Parse the diagram content
+        content = output_file.read_text()
+        lines = content.split('\n')
+
+        # Extract stage node mappings (S0[stage_name])
+        stage_mappings = {}
+        for line in lines:
+            if "[" in line and "]" in line and line.strip().startswith("S"):
+                # Parse line like "    S0[order_received]"
+                parts = line.strip().split("[", 1)
+                if len(parts) == 2:
+                    node_id = parts[0].strip()
+                    stage_name = parts[1].rstrip("]")
+                    stage_mappings[stage_name] = node_id
+
+        # Extract styling assignments
+        initial_nodes = []
+        final_nodes = []
+        for line in lines:
+            if "class" in line and "initial" in line:
+                # Parse "    class S0 initial"
+                parts = line.strip().split()
+                if len(parts) >= 3 and parts[0] == "class" and parts[2] == "initial":
+                    initial_nodes.append(parts[1])
+            elif "class" in line and "final" in line:
+                # Parse "    class S4 final"
+                parts = line.strip().split()
+                if len(parts) >= 3 and parts[0] == "class" and parts[2] == "final":
+                    final_nodes.append(parts[1])
+
+        # Verify correct initial stage styling
+        expected_initial_node = stage_mappings.get(actual_initial_stage)
+        assert expected_initial_node in initial_nodes, f"Initial stage '{actual_initial_stage}' (node {expected_initial_node}) should be styled as initial. Found initial nodes: {initial_nodes}"
+
+        # Verify correct final stage styling
+        expected_final_node = stage_mappings.get(actual_final_stage)
+        assert expected_final_node in final_nodes, f"Final stage '{actual_final_stage}' (node {expected_final_node}) should be styled as final. Found final nodes: {final_nodes}"
+
+        # Verify no other stages are incorrectly styled as final
+        assert len(final_nodes) == 1, f"Should have exactly one final stage, but found: {final_nodes}"
+
+    def test_visualization_convergence_pattern_detection(self, tmp_path: Path):
+        """
+        Test that complex convergence patterns are properly represented in visualizations.
+        This ensures multiple paths correctly converge at common stages.
+        """
+        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+
+        # Test files that should show convergence patterns
+        convergence_files = [
+            ("convergence_flow.yaml", "complex"),
+            ("parallel_paths.yaml", "complex"),
+        ]
+
+        for filename, category in convergence_files:
+            process_file = examples_dir / "case3_visualization" / category / filename
+
+            if not process_file.exists():
+                continue
+
+            output_file = tmp_path / f"convergence_{filename.replace('.yaml', '.md')}"
+
+            # Generate visualization
+            result = self.run_stageflow_cli([
+                "-p", str(process_file),
+                "--view", "-o", str(output_file)
+            ], expect_success=True)
+
+            assert result["exit_code"] == 0, f"Should generate visualization for {filename}"
+            assert output_file.exists(), f"Should create output file for {filename}"
+
+            # Parse transitions
+            content = output_file.read_text()
+            lines = content.split('\n')
+
+            transitions = []
+            for line in lines:
+                if "-->" in line and line.strip().startswith("S"):
+                    parts = line.strip().split(" --> ")
+                    if len(parts) == 2:
+                        source = parts[0].strip()
+                        target = parts[1].strip()
+                        transitions.append((source, target))
+
+            # Verify convergence patterns exist
+            # Find stages that are targets of multiple transitions (convergence points)
+            target_counts = {}
+            for source, target in transitions:
+                target_counts[target] = target_counts.get(target, 0) + 1
+
+            convergence_points = [target for target, count in target_counts.items() if count > 1]
+
+            # Should have at least one convergence point for these complex flows
+            assert len(convergence_points) > 0, f"Complex flow {filename} should have convergence points where multiple paths merge. Transitions: {transitions}"
+
+            # Verify no stage connects to itself (would indicate sorting bugs)
+            self_loops = [(s, t) for s, t in transitions if s == t]
+            assert len(self_loops) == 0, f"No stage should connect to itself in {filename}. Found self-loops: {self_loops}"
+
+    def test_visualization_handles_orphaned_stages(self, tmp_path: Path):
+        """
+        Test that visualization properly handles stages that might be orphaned
+        or unreachable due to the sorting algorithm.
+        """
+        from stageflow.schema.loader import load_process
+
+        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+
+        # Test with a complex process
+        process_file = examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+
+        if not process_file.exists():
+            pytest.skip("Test process file not found")
+
+        output_file = tmp_path / "orphaned_test.md"
+
+        # Generate visualization
+        result = self.run_stageflow_cli([
+            "-p", str(process_file),
+            "--view", "-o", str(output_file)
+        ], expect_success=True)
+
+        assert result["exit_code"] == 0
+        assert output_file.exists()
+
+        # Load process and get all stage names
+        process = load_process(str(process_file))
+        all_stage_names = {stage._id for stage in process.stages}
+
+        # Parse visualization to find represented stages
+        content = output_file.read_text()
+        lines = content.split('\n')
+
+        represented_stages = set()
+        for line in lines:
+            if "[" in line and "]" in line and line.strip().startswith("S"):
+                # Parse line like "    S0[order_received]"
+                parts = line.strip().split("[", 1)
+                if len(parts) == 2:
+                    stage_name = parts[1].rstrip("]")
+                    represented_stages.add(stage_name)
+
+        # All stages should be represented in the visualization
+        missing_stages = all_stage_names - represented_stages
+        assert len(missing_stages) == 0, f"All stages should be represented in visualization. Missing: {missing_stages}"
+
+        # All represented stages should be real stages
+        extra_stages = represented_stages - all_stage_names
+        assert len(extra_stages) == 0, f"Only real stages should be in visualization. Extra: {extra_stages}"

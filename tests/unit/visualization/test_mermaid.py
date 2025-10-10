@@ -47,7 +47,7 @@ class TestMermaidProcessDiagramGeneration:
         """Create a mock process with basic structure for testing."""
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.stage_order = ["stage1", "stage2", "stage3"]
+        process.get_sorted_stages = Mock(return_value=["stage1", "stage2", "stage3"])
 
         # Create mock stages
         stage1 = Mock()
@@ -142,7 +142,7 @@ class TestMermaidProcessDiagramGeneration:
         # Arrange
         empty_process = Mock(spec=Process)
         empty_process.name = "empty_process"
-        empty_process.stage_order = []
+        empty_process.get_sorted_stages = Mock(return_value=[])
         empty_process.get_stage = Mock(return_value=None)
 
         # Act
@@ -169,7 +169,7 @@ class TestMermaidProcessDiagramGeneration:
         # Arrange
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.stage_order = ["missing_stage1", "missing_stage2"]
+        process.get_sorted_stages = Mock(return_value=["missing_stage1", "missing_stage2"])
         process.get_stage = Mock(return_value=None)
 
         # Act
@@ -550,7 +550,7 @@ class TestMermaidStylingGeneration:
     def mock_process_for_styling(self) -> Mock:
         """Create a mock process for styling tests."""
         process = Mock(spec=Process)
-        process.stage_order = ["initial", "middle", "final"]
+        process.get_sorted_stages = Mock(return_value=["initial", "middle", "final"])
         return process
 
     def test_generate_styling_includes_all_style_classes(self, generator, mock_process_for_styling):
@@ -731,7 +731,7 @@ class TestMermaidIntegrationScenarios:
         # Arrange
         mock_process = Mock(spec=Process)
         mock_process.name = realistic_process_config["name"]
-        mock_process.stage_order = ["registration", "verification", "profile_setup", "active"]
+        mock_process.get_sorted_stages = Mock(return_value=["registration", "verification", "profile_setup", "active"])
 
         # Create mock stages based on config
         stages = {}
@@ -805,7 +805,7 @@ class TestMermaidIntegrationScenarios:
         # Arrange
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.stage_order = ["stage1", "stage2"]
+        process.get_sorted_stages = Mock(return_value=["stage1", "stage2"])
 
         # Create stages with inconsistent data
         stage1 = Mock()
@@ -843,7 +843,7 @@ class TestMermaidParametrizedStyleGeneration:
         """Create a simple process for parametrized testing."""
         process = Mock(spec=Process)
         process.name = "simple_process"
-        process.stage_order = ["stage1", "stage2"]
+        process.get_sorted_stages = Mock(return_value=["stage1", "stage2"])
 
         stage1 = Mock()
         stage1.name = "First"

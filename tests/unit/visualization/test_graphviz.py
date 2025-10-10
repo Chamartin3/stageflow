@@ -73,7 +73,7 @@ class TestGraphvizProcessDiagramGeneration:
         """Create a mock process with basic structure for testing."""
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.stage_order = ["stage1", "stage2", "stage3"]
+        process.get_sorted_stages = Mock(return_value=["stage1", "stage2", "stage3"])
 
         # Create mock stages
         stage1 = Mock()
@@ -185,7 +185,7 @@ class TestGraphvizProcessDiagramGeneration:
         # Arrange
         empty_process = Mock(spec=Process)
         empty_process.name = "empty_process"
-        empty_process.stage_order = []
+        empty_process.get_sorted_stages = Mock(return_value=[])
         empty_process.get_stage = Mock(return_value=None)
 
         # Act
@@ -224,7 +224,7 @@ class TestGraphvizProcessDiagramGeneration:
         # Arrange
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.stage_order = ["missing_stage1", "missing_stage2"]
+        process.get_sorted_stages = Mock(return_value=["missing_stage1", "missing_stage2"])
         process.get_stage = Mock(return_value=None)
 
         # Act
@@ -356,7 +356,7 @@ class TestGraphvizDotFileGeneration:
         """Create a simple mock process for DOT file testing."""
         process = Mock(spec=Process)
         process.name = "file_test_process"
-        process.stage_order = ["start", "end"]
+        process.get_sorted_stages = Mock(return_value=["start", "end"])
 
         stage1 = Mock()
         stage1.name = "Start"
@@ -912,7 +912,7 @@ class TestGraphvizIntegrationScenarios:
         # Arrange
         mock_process = Mock(spec=Process)
         mock_process.name = realistic_process_config["name"]
-        mock_process.stage_order = ["submitted", "payment", "fulfillment", "completed"]
+        mock_process.get_sorted_stages = Mock(return_value=["submitted", "payment", "fulfillment", "completed"])
 
         # Create mock stages based on config
         stages = {}
@@ -992,7 +992,7 @@ class TestGraphvizIntegrationScenarios:
         layout_engines = ["dot", "circo", "fdp", "neato"]
         mock_process = Mock(spec=Process)
         mock_process.name = "test_process"
-        mock_process.stage_order = ["start", "end"]
+        mock_process.get_sorted_stages = Mock(return_value=["start", "end"])
 
         stage1 = Mock()
         stage1.name = "Start"
@@ -1019,7 +1019,7 @@ class TestGraphvizIntegrationScenarios:
         # Arrange
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.stage_order = ["stage1", "stage2"]
+        process.get_sorted_stages = Mock(return_value=["stage1", "stage2"])
 
         # Create stages with inconsistent data
         stage1 = Mock()
@@ -1060,7 +1060,7 @@ class TestGraphvizParametrizedLayoutEngines:
         generator = GraphvizDotGenerator(layout_engine=layout_engine)
         mock_process = Mock(spec=Process)
         mock_process.name = "test"
-        mock_process.stage_order = ["stage1"]
+        mock_process.get_sorted_stages = Mock(return_value=["stage1"])
 
         stage = Mock()
         stage.name = "Test Stage"
@@ -1088,7 +1088,7 @@ class TestGraphvizParametrizedStyleGeneration:
         """Create a three-stage process for parametrized testing."""
         process = Mock(spec=Process)
         process.name = "three_stage_process"
-        process.stage_order = ["initial", "middle", "final"]
+        process.get_sorted_stages = Mock(return_value=["initial", "middle", "final"])
 
         initial = Mock()
         initial.name = "Initial"

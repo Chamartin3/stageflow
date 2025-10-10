@@ -395,3 +395,64 @@ class TestProcessCreation:
 
             # Validity should match expectation
             assert json_data["valid"] == should_be_valid, f"Process {process_file.name} validity mismatch"
+
+    def test_self_referencing_gate_detection(self, tmp_path: Path):
+        """
+        Test that self-referencing gates (gates that target their own stage) are
+        properly detected and reported as consistency issues.
+        """
+        # Create a test process with a self-referencing gate
+        test_process_content = """process:
+  name: test_self_reference
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      gates:
+        self_loop:
+          target_stage: start  # Self-referencing gate - should be detected
+          locks:
+            - exists: "revision_needed"
+        proceed:
+          target_stage: end
+          locks:
+            - exists: "ready_to_proceed"
+    end:
+      gates: []
+"""
+
+        test_file = tmp_path / "test_self_reference.yaml"
+        test_file.write_text(test_process_content)
+
+        # Act
+        result = self.run_stageflow_cli(["-p", str(test_file)], expect_success=True)
+
+        # Assert
+        assert result["exit_code"] == 0, "CLI should succeed but show invalid process"
+
+        # Should detect the self-referencing gate issue
+        output = result["stdout"]
+        assert "❌" in output, "Should show invalid process status"
+        assert "self-loop" in output.lower(), "Should mention self-loop in description"
+        assert "self_loop" in output, "Should mention the specific gate name"
+        assert "references the same stage" in output, "Should explain the issue clearly"
+
+        # Test JSON output as well
+        json_result = self.run_stageflow_cli(["-p", str(test_file), "--json"], expect_success=True)
+        assert json_result["parsed_json"] is not None, "Should return valid JSON"
+
+        json_data = json_result["parsed_json"]
+        assert json_data["valid"] is False, "Process with self-referencing gate should be invalid"
+
+        # Should have consistency issues reported
+        assert "consistency_issues" in json_data, "Should report consistency issues"
+        assert len(json_data["consistency_issues"]) > 0, "Should have at least one consistency issue"
+
+        # Check that self-referencing gate issue is specifically reported
+        self_ref_issues = [
+            issue for issue in json_data["consistency_issues"]
+            if "self-loop" in issue.get("description", "").lower() or
+               "references the same stage" in issue.get("description", "")
+        ]
+        assert len(self_ref_issues) > 0, "Should specifically report self-referencing gate issue"

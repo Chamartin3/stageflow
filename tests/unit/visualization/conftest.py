@@ -19,7 +19,7 @@ def simple_mock_process() -> Mock:
     """Create a simple mock process for basic visualization testing."""
     process = Mock(spec=Process)
     process.name = "simple_process"
-    process.stage_order = ["start", "middle", "end"]
+    process.get_sorted_stages = Mock(return_value=["start", "middle", "end"])
 
     # Create mock stages
     start_stage = Mock()
@@ -52,7 +52,7 @@ def complex_mock_process() -> Mock:
     """Create a complex mock process with gates and locks for detailed testing."""
     process = Mock(spec=Process)
     process.name = "complex_workflow"
-    process.stage_order = ["registration", "validation", "approval", "completion"]
+    process.get_sorted_stages = Mock(return_value=["registration", "validation", "approval", "completion"])
 
     # Registration stage
     registration_stage = Mock()
@@ -168,7 +168,7 @@ def empty_mock_process() -> Mock:
     """Create an empty mock process for edge case testing."""
     process = Mock(spec=Process)
     process.name = "empty_process"
-    process.stage_order = []
+    process.get_sorted_stages = Mock(return_value=[])
     process.get_stage = Mock(return_value=None)
     return process
 
@@ -303,7 +303,7 @@ def mock_user_onboarding_process() -> Mock:
     """Create a mock user onboarding process for realistic testing scenarios."""
     process = Mock(spec=Process)
     process.name = "user_onboarding"
-    process.stage_order = ["signup", "email_verification", "profile_setup", "activation"]
+    process.get_sorted_stages = Mock(return_value=["signup", "email_verification", "profile_setup", "activation"])
 
     # Signup stage
     signup_stage = Mock()
@@ -352,7 +352,7 @@ def mock_process_with_edge_cases() -> Mock:
     """Create a mock process with edge cases for error handling testing."""
     process = Mock(spec=Process)
     process.name = "edge_case_process"
-    process.stage_order = ["normal_stage", "missing_stage", "malformed_stage"]
+    process.get_sorted_stages = Mock(return_value=["normal_stage", "missing_stage", "malformed_stage"])
 
     # Normal stage
     normal_stage = Mock()
