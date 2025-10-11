@@ -1,0 +1,97 @@
+name: "document_approval"
+description: "Document approval workflow with review stages"
+stages:
+  draft:
+    name: "Draft"
+    description: "Document is in draft status"
+    expected_properties:
+      document_id: {type: "str"}
+      title: {type: "str"}
+      content: {type: "str"}
+      author: {type: "str"}
+    gates:
+      - name: "submit_for_review"
+        description: "Submit document for review"
+        target_stage: "under_review"
+        locks:
+          - exists: "document_id"
+          - exists: "title"
+          - exists: "content"
+          - exists: "author"
+          - greater_than:
+              property_path: "content"
+              expected_value: ""
+
+  under_review:
+    name: "Under Review"
+    description: "Document is being reviewed"
+    expected_properties:
+      assigned_reviewer: {type: "str"}
+      review_started_at: {type: "str"}
+    gates:
+      - name: "approve_document"
+        description: "Document approved by reviewer"
+        target_stage: "approved"
+        locks:
+          - exists: "review.decision"
+          - equals:
+              property_path: "review.decision"
+              expected_value: "approved"
+          - exists: "review.completed_at"
+      - name: "request_changes"
+        description: "Changes requested by reviewer"
+        target_stage: "needs_revision"
+        locks:
+          - exists: "review.decision"
+          - equals:
+              property_path: "review.decision"
+              expected_value: "changes_requested"
+          - exists: "review.feedback"
+
+  needs_revision:
+    name: "Needs Revision"
+    description: "Document needs changes before approval"
+    expected_properties:
+      review:
+        feedback: {type: "str"}
+        requested_changes: {type: "list"}
+    gates:
+      - name: "resubmit_after_revision"
+        description: "Resubmit document after making changes"
+        target_stage: "under_review"
+        locks:
+          - exists: "revision.completed"
+          - equals:
+              property_path: "revision.completed"
+              expected_value: true
+          - exists: "revision.changes_made"
+
+  approved:
+    name: "Approved"
+    description: "Document has been approved"
+    expected_properties:
+      approved_by: {type: "str"}
+      approved_at: {type: "str"}
+    gates:
+      - name: "publish_document"
+        description: "Publish approved document"
+        target_stage: "published"
+        locks:
+          - exists: "approved_by"
+          - exists: "approved_at"
+          - exists: "publish_ready"
+          - equals:
+              property_path: "publish_ready"
+              expected_value: true
+
+  published:
+    name: "Published"
+    description: "Document has been published"
+    expected_properties:
+      published_at: {type: "str"}
+      publication_url: {type: "str"}
+    gates: []
+    is_final: true
+
+initial_stage: "draft"
+final_stage: "published"

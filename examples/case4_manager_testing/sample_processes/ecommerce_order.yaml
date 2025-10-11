@@ -1,0 +1,141 @@
+name: "ecommerce_order"
+description: "E-commerce order processing workflow"
+stages:
+  cart:
+    name: "Shopping Cart"
+    description: "Items in shopping cart"
+    expected_properties:
+      cart_id: {type: "str"}
+      items: {type: "list"}
+      customer_id: {type: "str"}
+    gates:
+      - name: "proceed_to_checkout"
+        description: "Proceed to checkout with items"
+        target_stage: "checkout"
+        locks:
+          - exists: "cart_id"
+          - exists: "items"
+          - exists: "customer_id"
+          - greater_than:
+              property_path: "items"
+              expected_value: []
+
+  checkout:
+    name: "Checkout"
+    description: "Customer provides payment and shipping info"
+    expected_properties:
+      shipping_address: {type: "dict"}
+      payment_method: {type: "str"}
+      total_amount: {type: "float"}
+    gates:
+      - name: "place_order"
+        description: "Place order with payment"
+        target_stage: "payment_processing"
+        locks:
+          - exists: "shipping_address"
+          - exists: "payment_method"
+          - exists: "total_amount"
+          - greater_than:
+              property_path: "total_amount"
+              expected_value: 0.0
+
+  payment_processing:
+    name: "Payment Processing"
+    description: "Processing payment for the order"
+    expected_properties:
+      order_id: {type: "str"}
+      payment_status: {type: "str"}
+    gates:
+      - name: "payment_successful"
+        description: "Payment completed successfully"
+        target_stage: "confirmed"
+        locks:
+          - exists: "order_id"
+          - equals:
+              property_path: "payment_status"
+              expected_value: "completed"
+          - exists: "payment.transaction_id"
+      - name: "payment_failed"
+        description: "Payment failed or declined"
+        target_stage: "payment_failed"
+        locks:
+          - equals:
+              property_path: "payment_status"
+              expected_value: "failed"
+
+  payment_failed:
+    name: "Payment Failed"
+    description: "Payment was declined or failed"
+    expected_properties:
+      failure_reason: {type: "str"}
+      retry_available: {type: "bool"}
+    gates:
+      - name: "retry_payment"
+        description: "Customer can retry payment"
+        target_stage: "payment_processing"
+        locks:
+          - equals:
+              property_path: "retry_available"
+              expected_value: true
+          - exists: "payment_method"
+
+  confirmed:
+    name: "Order Confirmed"
+    description: "Order confirmed and ready for fulfillment"
+    expected_properties:
+      confirmed_at: {type: "str"}
+      estimated_delivery: {type: "str"}
+    gates:
+      - name: "start_fulfillment"
+        description: "Begin order fulfillment"
+        target_stage: "fulfillment"
+        locks:
+          - exists: "confirmed_at"
+          - exists: "fulfillment.assigned_warehouse"
+
+  fulfillment:
+    name: "Fulfillment"
+    description: "Order being prepared and shipped"
+    expected_properties:
+      fulfillment:
+        warehouse: {type: "str"}
+        status: {type: "str"}
+        tracking_number: {type: "str"}
+    gates:
+      - name: "order_shipped"
+        description: "Order has been shipped"
+        target_stage: "shipped"
+        locks:
+          - equals:
+              property_path: "fulfillment.status"
+              expected_value: "shipped"
+          - exists: "fulfillment.tracking_number"
+          - exists: "shipped_at"
+
+  shipped:
+    name: "Shipped"
+    description: "Order has been shipped to customer"
+    expected_properties:
+      shipped_at: {type: "str"}
+      tracking_info: {type: "dict"}
+    gates:
+      - name: "order_delivered"
+        description: "Order delivered to customer"
+        target_stage: "delivered"
+        locks:
+          - exists: "delivered_at"
+          - equals:
+              property_path: "delivery_status"
+              expected_value: "delivered"
+
+  delivered:
+    name: "Delivered"
+    description: "Order successfully delivered"
+    expected_properties:
+      delivered_at: {type: "str"}
+      delivery_confirmation: {type: "str"}
+    gates: []
+    is_final: true
+
+initial_stage: "cart"
+final_stage: "delivered"

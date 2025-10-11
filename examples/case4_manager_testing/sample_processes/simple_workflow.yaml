@@ -1,0 +1,27 @@
+name: "simple_workflow"
+description: "A simple two-stage workflow for manager testing"
+stages:
+  start:
+    name: "Start Stage"
+    description: "Initial stage of the workflow"
+    expected_properties:
+      id: {type: "str"}
+      status: {type: "str"}
+    gates:
+      - name: "proceed_to_end"
+        description: "Check if ready to proceed"
+        target_stage: "end"
+        locks:
+          - exists: "id"
+          - equals:
+              property_path: "status"
+              expected_value: "ready"
+  end:
+    name: "End Stage"
+    description: "Final stage of the workflow"
+    expected_properties:
+      completed: {type: "bool"}
+    gates: []
+    is_final: true
+initial_stage: "start"
+final_stage: "end"
