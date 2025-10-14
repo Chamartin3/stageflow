@@ -33,66 +33,42 @@ Example Usage:
 
 __version__ = "0.1.0"
 
-# Public API exports
-from .element import Element, create_element_from_config
+# Public API exports - Core functionality
+from .element import Element, DictElement, create_element, create_element_from_config
+from .process import Process, ProcessDefinition, ProcessElementEvaluationResult
+from .stage import Stage, StageDefinition, StageEvaluationResult, Action
+from .gate import Gate, GateDefinition, GateResult
+from .lock import Lock, LockDefinition, LockResult, LockType
+from .schema.loader import load_process, load_process_data, LoadError
 
-# from .models import (
-#     # Specialized data contracts
-#     ActionConfig,
-#     # System configuration
-#     ConfigurationManifest,
-#     # Core data contracts
-#     ElementConfig,
-#     ElementDataConfig,
-#     EvaluationMetricsConfig,
-#     GateConfig,
-#     GateSetConfig,
-#     LoaderConfig,
-#     # Re-exported from gates module
-#     LockConfig,
-#     ProcessConfig,
-#     ResultConfig,
-#     SchemaDefinitionConfig,
-#     StageConfig,
-#     ValidationErrorConfig,
-#     ValidatorConfig,
-# )
-# from .process import Process
-# from .process.result import StatusResult
-# from .process.schema.loaders.yaml import load_process, load_process_config
+# Optional manager functionality (imported separately)
+# from .manager import ProcessManager, ManagerConfig, ProcessRegistry, ProcessEditor
 
 __all__ = [
     # Core functionality
     "Element",
-    # "Process",
-    # "StatusResult",
-    # "load_process",
+    "Process",
+    "Stage",
+    "Gate",
+    "Lock",
+    "load_process",
     "__version__",
 
-    # Data contracts support
+    # Data types and results
+    "ProcessDefinition",
+    "ProcessElementEvaluationResult",
+    "StageDefinition",
+    "StageEvaluationResult",
+    "GateDefinition",
+    "GateResult",
+    "LockDefinition",
+    "LockResult",
+    "LockType",
+    "Action",
+
+    # Utilities
+    "create_element",
     "create_element_from_config",
-    # "load_process_config",
-
-    # Core data contracts
-    # "ElementConfig",
-    # "ElementDataConfig",
-    # "ProcessConfig",
-    # "ResultConfig",
-    # "StageConfig",
-
-    # Specialized data contracts
-    # "ActionConfig",
-    # "ValidationErrorConfig",
-    # "EvaluationMetricsConfig",
-    # "SchemaDefinitionConfig",
-    # "LoaderConfig",
-
-    # System configuration
-    # "ConfigurationManifest",
-
-    # Gate and lock contracts
-    # "LockConfig",
-    # "GateConfig",
-    # "GateSetConfig",
-    # "ValidatorConfig",
+    "load_process_data",
+    "LoadError",
 ]

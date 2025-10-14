@@ -14,10 +14,31 @@ from stageflow.cli.utils import (
 )
 from stageflow.element import DictElement
 from stageflow.schema import load_process
+from stageflow.cli.commands.manage import manage
 
 
-@click.command()
+@click.group()
 @click.version_option(version="0.1.0", prog_name="stageflow")
+def cli():
+    """
+    StageFlow: A declarative multi-stage validation framework.
+
+    Commands:
+        eval      - Evaluate elements against processes
+        manage    - Manage processes (add/remove stages, sync changes)
+
+    Examples:
+        stageflow eval -p process.yaml                          # Validate process
+        stageflow eval -p process.yaml -e element.json          # Evaluate element
+        stageflow eval -p process.yaml -e element.json -s start # Evaluate at stage
+        stageflow eval -p process.yaml --view -o diagram.md     # Create visualization
+        stageflow manage --list                                 # List all processes
+        stageflow manage --process user_flow --sync             # Save process
+    """
+    pass
+
+
+@cli.command()
 @click.option(
     "--process", "-p",
     type=click.Path(exists=True, path_type=Path),
@@ -48,16 +69,18 @@ from stageflow.schema import load_process
     help="Return response in JSON format (disables other output)"
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
-def cli(process: Path, elem: Path, stage: str, view: bool, output: Path, json_output: bool, verbose: bool):
+def eval(process: Path, elem: Path, stage: str, view: bool, output: Path, json_output: bool, verbose: bool):
     """
-    StageFlow: A declarative multi-stage validation framework.
+    Evaluate elements against processes.
+
+    This is the main evaluation command for StageFlow processes.
 
     Examples:
-        stageflow -p process.yaml                          # Validate process
-        stageflow -p process.yaml -e element.json          # Evaluate element
-        stageflow -p process.yaml -e element.json -s start # Evaluate at stage
-        stageflow -p process.yaml --view -o diagram.md     # Create visualization
-        stageflow -p process.yaml --json                   # JSON output
+        stageflow eval -p process.yaml                          # Validate process
+        stageflow eval -p process.yaml -e element.json          # Evaluate element
+        stageflow eval -p process.yaml -e element.json -s start # Evaluate at stage
+        stageflow eval -p process.yaml --view -o diagram.md     # Create visualization
+        stageflow eval -p process.yaml --json                   # JSON output
     """
 
     if not process:
@@ -96,6 +119,10 @@ def cli(process: Path, elem: Path, stage: str, view: bool, output: Path, json_ou
             handle_error(e, verbose)
         ctx = click.get_current_context()
         ctx.exit(1)
+
+
+# Register the manage command
+cli.add_command(manage)
 
 
 def _build_process_description(process):
