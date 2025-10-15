@@ -9,6 +9,7 @@ variables, which is the recommended approach for different deployment environmen
 import os
 import tempfile
 from pathlib import Path
+
 from stageflow.manager import ManagerConfig, ProcessManager
 
 
@@ -66,7 +67,7 @@ def environment_config_basic():
             print("3. Using environment config with ProcessManager:")
             manager = ProcessManager(env_config)
             processes = manager.list_processes()
-            print(f"   Manager created successfully")
+            print("   Manager created successfully")
             print(f"   Found processes: {len(processes)}")
             print()
 
@@ -206,7 +207,7 @@ def environment_validation():
         try:
             config = ManagerConfig.from_env()
             if test_case['should_pass']:
-                print(f"   ✅ Configuration created successfully")
+                print("   ✅ Configuration created successfully")
                 if 'DEFAULT_FORMAT' in test_case['env']:
                     print(f"   Format: {config.default_format}")
                 if 'MAX_BACKUPS' in test_case['env']:
@@ -217,7 +218,7 @@ def environment_validation():
                     print(f"   Strict: {config.strict_validation}")
                     print(f"   Auto fix: {config.auto_fix_permissions}")
             else:
-                print(f"   ❌ Should have failed but didn't")
+                print("   ❌ Should have failed but didn't")
 
         except Exception as e:
             if test_case['should_pass']:

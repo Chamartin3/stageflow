@@ -7,6 +7,7 @@ stages:
     expected_properties:
       email: {type: "str"}
       user_id: {type: "str"}
+      email_verified_at: {type: "str"}
     gates:
       - name: "email_verified"
         description: "Email verification completed"

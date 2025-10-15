@@ -35,9 +35,9 @@ stages:
         locks:
           - exists: "cleaned_data"
           - exists: "quality_score"
-          - greater_than_or_equal:
+          - greater_than:
               property_path: "quality_score"
-              expected_value: 0.8
+              expected_value: 0.79
       - name: "quality_check_failed"
         description: "Data quality below threshold"
         target_stage: "quality_review"
@@ -55,6 +55,7 @@ stages:
         reviewer: {type: "str"}
         issues_identified: {type: "list"}
         action_required: {type: "str"}
+        approval_reason: {type: "str"}
     gates:
       - name: "approve_for_processing"
         description: "Approve data despite quality issues"
@@ -80,6 +81,8 @@ stages:
       transformed_data: {type: "dict"}
       transformation_config: {type: "dict"}
       schema_version: {type: "str"}
+      transformation:
+        completed_at: {type: "str"}
     gates:
       - name: "transformation_complete"
         description: "Data transformation completed successfully"
@@ -124,6 +127,7 @@ stages:
         validation_reviewer: {type: "str"}
         error_analysis: {type: "dict"}
         resolution_plan: {type: "str"}
+        override_justification: {type: "str"}
     gates:
       - name: "fix_validation_issues"
         description: "Fix issues and re-transform"

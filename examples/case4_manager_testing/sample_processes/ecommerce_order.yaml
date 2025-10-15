@@ -45,6 +45,8 @@ stages:
     expected_properties:
       order_id: {type: "str"}
       payment_status: {type: "str"}
+      payment:
+        transaction_id: {type: "str"}
     gates:
       - name: "payment_successful"
         description: "Payment completed successfully"
@@ -69,6 +71,7 @@ stages:
     expected_properties:
       failure_reason: {type: "str"}
       retry_available: {type: "bool"}
+      payment_method: {type: "str"}
     gates:
       - name: "retry_payment"
         description: "Customer can retry payment"
@@ -85,6 +88,8 @@ stages:
     expected_properties:
       confirmed_at: {type: "str"}
       estimated_delivery: {type: "str"}
+      fulfillment:
+        assigned_warehouse: {type: "str"}
     gates:
       - name: "start_fulfillment"
         description: "Begin order fulfillment"
@@ -101,6 +106,7 @@ stages:
         warehouse: {type: "str"}
         status: {type: "str"}
         tracking_number: {type: "str"}
+      shipped_at: {type: "str"}
     gates:
       - name: "order_shipped"
         description: "Order has been shipped"
@@ -118,6 +124,8 @@ stages:
     expected_properties:
       shipped_at: {type: "str"}
       tracking_info: {type: "dict"}
+      delivered_at: {type: "str"}
+      delivery_status: {type: "str"}
     gates:
       - name: "order_delivered"
         description: "Order delivered to customer"

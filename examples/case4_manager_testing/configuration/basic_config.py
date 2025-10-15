@@ -8,7 +8,8 @@ including creating configurations programmatically and using them with the Proce
 
 import tempfile
 from pathlib import Path
-from stageflow.manager import ManagerConfig, ProcessManager, ProcessFileFormat
+
+from stageflow.manager import ManagerConfig, ProcessFileFormat, ProcessManager
 
 
 def basic_configuration_example():
