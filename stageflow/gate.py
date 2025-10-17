@@ -4,7 +4,7 @@ This module provides a declarative way to compose validation rules using AND log
 """
 
 from dataclasses import dataclass, field
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from stageflow.element import Element
 from stageflow.lock import Lock, LockDefinition, LockFactory, LockResult
@@ -14,7 +14,7 @@ class GateDefinition(TypedDict):
     name: str
     description: str
     target_stage: str
-    parent_stage: str
+    parent_stage: str | None
     locks: list[LockDefinition]
 
 
@@ -50,13 +50,14 @@ class Gate:
     target_stage: str
     _locks: list[Lock]
 
-    def __init__(self,gate_config: GateDefinition):
+    def __init__(self, gate_config: GateDefinition, parent_stage: str | None = None):
         name = gate_config.get('name')
         if not name:
             raise ValueError("Gate must have a name")
         self.name = name
         self.description = gate_config.get('description', '')
         self.target_stage = gate_config.get('target_stage')
+        self.parent_stage = parent_stage
         locks = [
             LockFactory.create(lock_def) for lock_def in gate_config.get('locks', [])
         ]
@@ -110,12 +111,16 @@ class Gate:
             paths.add(lock.property_path)
         return paths
 
-    def to_dict(self) -> dict[str, Any]:
+    def lock_to_dict(self) -> list[LockDefinition]:
+        """Serialize locks to a list of dictionaries."""
+        return [lock.to_dict() for lock in self._locks]
+
+    def to_dict(self) -> GateDefinition:
         """Serialize gate to a dictionary."""
         return {
             "name": self.name,
             "description": self.description,
             "target_stage": self.target_stage,
-            "locks": [lock.to_dict() for lock in self._locks],
+            "locks": self.lock_to_dict(),
         }
 

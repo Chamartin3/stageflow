@@ -5,19 +5,17 @@ from pathlib import Path
 
 import click
 
+from stageflow.cli.commands.manage import manage
 from stageflow.cli.utils import (
     handle_error,
-    load_element_data,
     safe_write_file,
     show_progress,
     show_success,
 )
-from stageflow.element import DictElement
-from stageflow.schema import load_process
-from stageflow.cli.commands.manage import manage
+from stageflow.schema import LoadError, load_element, load_process
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version="0.1.0", prog_name="stageflow")
 def cli():
     """
@@ -256,8 +254,12 @@ def _handle_evaluation(process, elem_path: Path, stage: str, json_output: bool, 
         show_progress(f"Loading element from {elem_path}", verbose=True)
 
     # Load element
-    element_data = load_element_data(elem_path, verbose)
-    element = DictElement(element_data)
+    try:
+        element = load_element(str(elem_path))
+    except LoadError as e:
+        handle_error(click.ClickException(f"Failed to load element: {e}"), verbose)
+        ctx = click.get_current_context()
+        ctx.exit(1)
 
     if not json_output and verbose:
         show_progress("Evaluating element against process...", verbose=True)

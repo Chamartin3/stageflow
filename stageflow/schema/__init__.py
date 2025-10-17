@@ -11,7 +11,13 @@ from stageflow.lock import LockDefinition
 from stageflow.process import Process, ProcessDefinition, ProcessElementEvaluationResult
 
 # Import simplified loader
-from stageflow.schema.loader import LoadError, load_process, load_process_data
+from stageflow.schema.loader import (
+    FileReader,
+    Loader,
+    LoadError,
+    load_element,
+    load_process,
+)
 from stageflow.stage import ActionDefinition, StageDefinition
 
 __all__ = [
@@ -24,8 +30,10 @@ __all__ = [
     "GateDefinition",
     "LockDefinition",
 
-    # Loader functions
+    # Loader interface
+    "Loader",           # Class-based interface for loading
     "LoadError",
+    "FileReader",       # Advanced I/O operations
     "load_process",
-    "load_process_data",
+    "load_element",     # Element loader function
 ]

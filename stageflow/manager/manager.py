@@ -83,7 +83,12 @@ class ProcessManager:
     @property
     def pending_changes(self) -> set[str]:
         """Get set of process names with pending changes."""
-        return self._pending_changes.copy()
+        result = self._pending_changes.copy()
+        # Also include processes with dirty editors
+        for process_name, editor in self._editors.items():
+            if editor.is_dirty:
+                result.add(process_name)
+        return result
 
     @property
     def last_sync_time(self) -> datetime | None:
@@ -92,7 +97,7 @@ class ProcessManager:
 
     def list_processes(self, include_metadata: bool = False) -> list[str] | dict[str, Any]:
         """
-        List all processes in the registry.
+        List all processes (both file-based and in-memory).
 
         Args:
             include_metadata: If True, return metadata for each process
@@ -100,33 +105,57 @@ class ProcessManager:
         Returns:
             List of process names or dict with metadata if include_metadata=True
         """
-        process_names = self._registry.list_processes()
+        # Get processes from files
+        file_based_processes = set()
+        try:
+            file_based_processes = set(self._registry.list_processes())
+        except Exception:
+            # If registry fails, just use empty set
+            pass
+
+        # Get processes from active editors (in-memory)
+        in_memory_processes = set(self._editors.keys())
+
+        # Combine both sets
+        all_process_names = sorted(file_based_processes | in_memory_processes)
 
         if not include_metadata:
-            return process_names
+            return all_process_names
 
         result = {}
-        for name in process_names:
+        for name in all_process_names:
             try:
-                metadata = self._registry.get_process_info(name)
-                result[name] = {
-                    **metadata,
-                    'has_pending_changes': name in self._pending_changes,
-                    'has_active_editor': name in self._editors,
-                }
+                # Try to get metadata from registry first
+                if name in file_based_processes:
+                    metadata = self._registry.get_process_info(name)
+                    result[name] = {
+                        **metadata,
+                        'has_pending_changes': name in self._pending_changes,
+                        'has_active_editor': name in self._editors,
+                        'is_file_based': True,
+                    }
+                else:
+                    # In-memory only process
+                    result[name] = {
+                        'name': name,
+                        'has_pending_changes': name in self._pending_changes,
+                        'has_active_editor': name in self._editors,
+                        'is_file_based': False,
+                    }
             except Exception:
                 # Skip processes that can't be accessed
                 result[name] = {
                     'name': name,
                     'has_pending_changes': name in self._pending_changes,
                     'has_active_editor': name in self._editors,
+                    'is_file_based': name in file_based_processes,
                 }
 
         return result
 
     def process_exists(self, process_name: str) -> bool:
-        """Check if a process exists in the registry."""
-        return self._registry.process_exists(process_name)
+        """Check if a process exists (either in registry or in-memory)."""
+        return self._registry.process_exists(process_name) or process_name in self._editors
 
     def edit_process(self, process_name: str) -> ProcessEditor:
         """Get or create a ProcessEditor for the specified process."""
@@ -137,7 +166,7 @@ class ProcessManager:
         process = self._registry.load_process(process_name)
         editor = ProcessEditor(process)
         self._editors[process_name] = editor
-        self._pending_changes.add(process_name)
+        # Don't add to pending changes until actual changes are made
         return editor
 
     def sync_all(self) -> dict[str, bool]:
@@ -154,15 +183,19 @@ class ProcessManager:
 
         editor = self._editors[process_name]
 
-        # For new processes or processes with pending changes, always sync
-        # regardless of the editor's dirty flag
-        if process_name not in self._pending_changes and not editor.is_dirty:
-            return False
+        # Check if there are actually changes to sync
+        has_pending_changes = process_name in self._pending_changes
+        has_editor_changes = editor.is_dirty
+
+        if not has_pending_changes and not has_editor_changes:
+            return False  # No changes to sync
 
         try:
             # Save the process using the registry
             self._registry.save_process(process_name, editor.process)
             self._pending_changes.discard(process_name)
+            # Mark the editor as clean
+            editor.mark_clean()
             self._last_sync = datetime.now()
             return True
         except Exception:
@@ -170,7 +203,12 @@ class ProcessManager:
 
     def get_modified_processes(self) -> set[str]:
         """Get set of process names with pending changes."""
-        return self._pending_changes.copy()
+        result = self._pending_changes.copy()
+        # Also include processes with dirty editors
+        for process_name, editor in self._editors.items():
+            if editor.is_dirty:
+                result.add(process_name)
+        return result
 
     def load_process(self, process_name: str) -> Process:
         """
@@ -313,9 +351,20 @@ class ProcessManager:
             Boolean for specific process, or dict for all processes
         """
         if process_name is not None:
-            return process_name in self._pending_changes
+            # Check both pending changes and dirty editors
+            if process_name in self._pending_changes:
+                return True
+            if process_name in self._editors and self._editors[process_name].is_dirty:
+                return True
+            return False
 
-        return {name: name in self._pending_changes for name in self._registry.list_processes()}
+        # For all processes, check both pending changes and dirty editors
+        result = {}
+        for name in self._registry.list_processes():
+            has_pending = name in self._pending_changes
+            has_dirty_editor = name in self._editors and self._editors[name].is_dirty
+            result[name] = has_pending or has_dirty_editor
+        return result
 
     def reload_process(self, process_name: str, force: bool = False) -> bool:
         """

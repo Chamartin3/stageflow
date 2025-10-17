@@ -1,8 +1,6 @@
 """CLI utilities for StageFlow."""
 
-import json
 from pathlib import Path
-from typing import Any
 
 import click
 
@@ -25,57 +23,6 @@ def handle_error(error: Exception, verbose: bool = False):
         click.echo(f"❌ Error: {str(error)}", err=True)
         click.echo("Use --verbose for detailed error information", err=True)
 
-
-def load_element_data(file_path: Path, verbose: bool = False) -> dict[str, Any]:
-    """
-    Load element data from JSON file with enhanced error handling.
-
-    Args:
-        file_path: Path to JSON file
-        verbose: Whether to show detailed error information
-
-    Returns:
-        Parsed element data
-
-    Raises:
-        click.ClickException: If file loading fails
-    """
-    if not file_path.exists():
-        raise click.ClickException(f"Element file not found: {file_path}")
-
-    if not file_path.is_file():
-        raise click.ClickException(f"Element path is not a file: {file_path}")
-
-    try:
-        if verbose:
-            click.echo(f"Loading element data from {file_path}")
-
-        with open(file_path, encoding="utf-8") as f:
-            data = json.load(f)
-
-        if not isinstance(data, dict):
-            raise click.ClickException(f"Element data must be a JSON object, got {type(data).__name__}")
-
-        return data
-
-    except json.JSONDecodeError as e:
-        error_msg = f"Invalid JSON in element file {file_path}: {e.msg}"
-        if hasattr(e, 'lineno'):
-            error_msg += f" at line {e.lineno}, column {e.colno}"
-        raise click.ClickException(error_msg)
-
-    except UnicodeDecodeError as e:
-        raise click.ClickException(f"Encoding error reading {file_path}: {e}")
-
-    except PermissionError:
-        raise click.ClickException(f"Permission denied reading {file_path}")
-
-    except Exception as e:
-        if verbose:
-            import traceback
-            click.echo(f"Unexpected error loading {file_path}:", err=True)
-            click.echo(traceback.format_exc(), err=True)
-        raise click.ClickException(f"Failed to load element file {file_path}: {e}")
 
 
 def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> None:

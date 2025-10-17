@@ -6,6 +6,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from stageflow.element import Element, create_element
 from stageflow.gate import GateDefinition
 from stageflow.lock import (
     LockDefinition,
@@ -27,11 +28,66 @@ class LoaderValidationError(Exception):
     pass
 
 
+class FileReader:
+    """Simple file reading abstraction with format detection."""
+
+    @staticmethod
+    def read_file(file_path: str | Path) -> dict:
+        """
+        Read and parse file content based on extension.
+
+        Returns:
+            Parsed file content as dictionary
+
+        Raises:
+            LoadError: For I/O or parsing errors
+        """
+        file_path = Path(file_path)
+
+        if not file_path.exists():
+            raise LoadError(f"File not found: {file_path}")
+
+        try:
+            with open(file_path, encoding='utf-8') as f:
+                suffix = file_path.suffix.lower()
+                if suffix in ['.yml', '.yaml']:
+                    try:
+                        return FileReader._parse_yaml(f)
+                    except Exception as e:
+                        raise LoadError(f"Error parsing YAML in {file_path}: {e}") from e
+                elif suffix == '.json':
+                    try:
+                        return FileReader._parse_json(f)
+                    except json.JSONDecodeError as e:
+                        raise LoadError(f"Error parsing JSON in {file_path}: {e}") from e
+                else:
+                    raise LoadError(f"Unsupported file format: {file_path.suffix}")
+
+        except PermissionError as e:
+            raise LoadError(f"Permission denied reading {file_path}") from e
+        except UnicodeDecodeError as e:
+            raise LoadError(f"Encoding error reading {file_path}: {e}") from e
+
+    @staticmethod
+    def _parse_yaml(file_handle) -> dict:
+        """Parse YAML content."""
+        yaml = YAML(typ='safe', pure=True)
+        return yaml.load(file_handle)
+
+    @staticmethod
+    def _parse_json(file_handle) -> dict:
+        """Parse JSON content."""
+        return json.load(file_handle)
+
+
 def load_process(file_path: str | Path) -> Process:
     """
     Load a Process from a YAML or JSON file.
 
-    The file should contain a 'process' key with process configuration.
+    The file can contain either:
+    1. New format: {'process': {...process definition...}}
+    2. Legacy format: {...process definition directly at root...}
+
     All validation is handled by the Process constructor.
 
     Args:
@@ -43,108 +99,113 @@ def load_process(file_path: str | Path) -> Process:
     Raises:
         LoadError: If file cannot be loaded or parsed
     """
-    file_path = Path(file_path)
-
-    if not file_path.exists():
-        raise LoadError(f"File not found: {file_path}")
-
     try:
-        with open(file_path, encoding='utf-8') as f:
-            if file_path.suffix.lower() in ['.yml', '.yaml']:
-                yaml = YAML(typ='safe', pure=True)
-                data = yaml.load(f)
-            elif file_path.suffix.lower() == '.json':
-                data = json.load(f)
-            else:
-                raise LoadError(f"Unsupported file format: {file_path.suffix}")
+        # Use FileReader for clean I/O separation
+        data = FileReader.read_file(file_path)
 
         if not isinstance(data, dict):
             raise LoadError("File must contain a dictionary")
 
-        if 'process' not in data:
-            # Check if this looks like element data instead of process data
-            if any(key in data for key in ['email', 'user_id', 'profile', 'first_name', 'last_name']):
-                raise LoaderValidationError(
-                    "This appears to be an element data file (JSON), not a process definition file. "
-                    "Use a YAML file containing a 'process' key for process definitions. "
-                    "Element files are used with the -e/--elem flag for evaluation."
-                )
+        # Handle both new format with 'process' key and legacy format without it
+        if 'process' in data:
+            # New format: {'process': {...process definition...}}
+            process_config = data['process']
+        else:
+            # Legacy format: {...process definition directly at root...}
+            # Check if this looks like a process definition by checking for required fields
+            required_process_fields = ['name', 'stages', 'initial_stage', 'final_stage']
+            if all(field in data for field in required_process_fields):
+                process_config = data
             else:
-                raise LoaderValidationError(
-                    "File must contain a 'process' key. This should be a process definition file (YAML), "
-                    "not an element data file (JSON)."
+                available_keys = list(data.keys())
+                raise LoadError(
+                    f"File must contain either a 'process' key or process definition at root level. "
+                    f"Found keys: {available_keys}. Missing required process fields: "
+                    f"{[f for f in required_process_fields if f not in data]}. "
+                    f"If this is element data, use load_element() instead."
                 )
 
         # Convert YAML format to internal format
-        # Convert YAML format to internal format
-        converted_config = _convert_process_config(data['process'])
+        converted_config = _convert_process_config(process_config)
 
-        # Let the Process constructor handle all validation
+        # Let Process handle its own validation and error reporting
         return Process(converted_config)
 
     except Exception as e:
         if isinstance(e, LoadError):
             raise
-        if isinstance(e, LoaderValidationError):
-            raise LoadError(f"Failed to load {file_path}: {e}") from e
         raise LoadError(f"Failed to load {file_path}: {e}") from e
 
 
-def load_process_data(file_path: str | Path) -> ProcessDefinition:
-    """
-    Load raw process data from a file without creating a Process object.
 
-    Useful for inspection or custom processing.
+
+
+def load_element(file_path: str | Path) -> Element:
+    """
+    Load an Element from a JSON file.
+
+    The file should contain element data as a JSON object.
+    Element validation is handled by the Element constructor.
 
     Args:
-        file_path: Path to the process definition file
+        file_path: Path to the element data file
 
     Returns:
-        Raw process data dictionary
+        Element instance
 
     Raises:
         LoadError: If file cannot be loaded or parsed
     """
-    file_path = Path(file_path)
-
-    if not file_path.exists():
-        raise LoadError(f"File not found: {file_path}")
-
     try:
-        with open(file_path, encoding='utf-8') as f:
-            if file_path.suffix.lower() in ['.yml', '.yaml']:
-                yaml = YAML(typ='safe', pure=True)
-                data = yaml.load(f)
-            elif file_path.suffix.lower() == '.json':
-                data = json.load(f)
-            else:
-                raise LoadError(f"Unsupported file format: {file_path.suffix}")
+        # Use FileReader for clean I/O separation
+        data = FileReader.read_file(file_path)
 
         if not isinstance(data, dict):
-            raise LoadError("File must contain a dictionary")
+            raise LoadError("Element data must be a dictionary")
 
-        if 'process' not in data:
-            # Check if this looks like element data instead of process data
-            if any(key in data for key in ['email', 'user_id', 'profile', 'first_name', 'last_name']):
-                raise LoaderValidationError(
-                    "This appears to be an element data file (JSON), not a process definition file. "
-                    "Use a YAML file containing a 'process' key for process definitions. "
-                    "Element files are used with the -e/--elem flag for evaluation."
-                )
-            else:
-                raise LoaderValidationError(
-                    "File must contain a 'process' key. This should be a process definition file (YAML), "
-                    "not an element data file (JSON)."
-                )
-
-        return data['process']
+        # Let Element handle its own validation and error reporting
+        return create_element(data)
 
     except Exception as e:
         if isinstance(e, LoadError):
             raise
-        if isinstance(e, LoaderValidationError):
-            raise LoadError(f"Failed to load {file_path}: {e}") from e
-        raise LoadError(f"Failed to load {file_path}: {e}") from e
+        raise LoadError(f"Element validation failed: {e}") from e
+
+
+class Loader:
+    """Central loader class for StageFlow data types."""
+
+    @classmethod
+    def process(cls, file_path: str | Path) -> Process:
+        """
+        Load process definition from YAML/JSON file.
+
+        Args:
+            file_path: Path to the process definition file
+
+        Returns:
+            Process instance
+
+        Raises:
+            LoadError: If file cannot be loaded or parsed
+        """
+        return load_process(file_path)
+
+    @classmethod
+    def element(cls, file_path: str | Path) -> Element:
+        """
+        Load element data from JSON file.
+
+        Args:
+            file_path: Path to the element data file
+
+        Returns:
+            Element instance
+
+        Raises:
+            LoadError: If file cannot be loaded or parsed
+        """
+        return load_element(file_path)
 
 
 def _convert_process_config(config: dict[str, Any]) -> ProcessDefinition:
@@ -325,16 +386,25 @@ def _validate_lock_definition(lock_config: dict[str, Any], lock_index: int, gate
     """Validate a single lock definition."""
     location = f"lock {lock_index} in gate '{gate_name}' (stage '{stage_id}')"
 
+    # Define all possible shorthand keys (lock type names from LockType enum)
+    # Must match exactly with LockType enum values
+    shorthand_keys = {
+        'exists', 'equals', 'greater_than', 'less_than', 'contains', 'regex',
+        'type_check', 'range', 'length', 'not_empty', 'in_list', 'not_in_list',
+        'is_true', 'is_false'  # These are special shorthand forms
+    }
+
     # Check for shorthand format
-    if 'exists' in lock_config or 'is_true' in lock_config or 'is_false' in lock_config:
+    provided_shorthand_keys = set(lock_config.keys()) & shorthand_keys
+
+    if provided_shorthand_keys:
         # Validate shorthand format
-        shorthand_keys = {'exists', 'is_true', 'is_false'}
-        provided_keys = set(lock_config.keys()) & shorthand_keys
+        if len(provided_shorthand_keys) != 1:
+            raise LoaderValidationError(f"Shorthand lock at {location} must have exactly one shorthand key. Found: {provided_shorthand_keys}")
 
-        if len(provided_keys) != 1:
-            raise LoaderValidationError(f"Shorthand lock at {location} must have exactly one of: {shorthand_keys}")
-
-        return lock_config  # type: ignore
+        # Convert shorthand to full format
+        shorthand_key = next(iter(provided_shorthand_keys))
+        return _convert_shorthand_lock(lock_config, shorthand_key, location)
 
     # Validate full format
     if 'type' not in lock_config:
@@ -360,6 +430,44 @@ def _validate_lock_definition(lock_config: dict[str, Any], lock_index: int, gate
         raise LoaderValidationError(f"Lock property_path at {location} must be a non-empty string")
 
     return lock_config  # type: ignore
+
+
+def _convert_shorthand_lock(lock_config: dict[str, Any], shorthand_key: str, location: str) -> LockDefinition:
+    """Convert shorthand lock format to full format."""
+
+    # Handle simple shorthand formats where the value is the property path
+    if shorthand_key in ('exists', 'is_true', 'is_false'):
+        # These are handled by LockFactory directly, pass them through
+        return lock_config  # type: ignore
+
+    # Handle complex shorthand formats
+    shorthand_value = lock_config[shorthand_key]
+
+    if isinstance(shorthand_value, str):
+        # Simple format: key: "property_path"
+        converted_lock = {
+            'type': shorthand_key,
+            'property_path': shorthand_value
+        }
+    elif isinstance(shorthand_value, dict):
+        # Complex format: key: {property_path: "path", expected_value: value}
+        if 'property_path' not in shorthand_value:
+            raise LoaderValidationError(f"Shorthand lock at {location} missing 'property_path'")
+
+        converted_lock = {
+            'type': shorthand_key,
+            'property_path': shorthand_value['property_path']
+        }
+
+        if 'expected_value' in shorthand_value:
+            converted_lock['expected_value'] = shorthand_value['expected_value']
+    else:
+        raise LoaderValidationError(
+            f"Shorthand lock at {location} has invalid value type. "
+            f"Expected string or dict, got {type(shorthand_value)}"
+        )
+
+    return converted_lock  # type: ignore
 
 
 def _validate_gate_definition(gate_def: dict[str, Any], stage_id: str) -> None:

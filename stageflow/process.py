@@ -160,12 +160,15 @@ class ProcessConsistencyChecker:
         for stage in self.stages:
             path = self._find_route(self.initial_stage._id, stage._id)
             if not path:
-                issue = ConsistencyIssue(
-                    issue_type=ProcessIssueTypes.UNREACHABLE_STAGE,
-                    description=f"Stage '{stage.name}' is unreachable from initial stage '{self.initial_stage.name}'",
-                    stages=[stage.name]
-                )
-                self.issues.append(issue)
+                # Allow unreachable stages if they can reach the final stage
+                can_reach_final = bool(self._get_path_to_final(stage))
+                if not can_reach_final:
+                    issue = ConsistencyIssue(
+                        issue_type=ProcessIssueTypes.UNREACHABLE_STAGE,
+                        description=f"Stage '{stage.name}' is unreachable from initial stage '{self.initial_stage.name}'",
+                        stages=[stage.name]
+                    )
+                    self.issues.append(issue)
 
     def _check_invalid_transitions(self) -> None:
         """Identify transitions to non-existent stages."""

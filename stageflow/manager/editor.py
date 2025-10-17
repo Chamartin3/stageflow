@@ -46,11 +46,9 @@ class ProcessEditor:
         Raises:
             ProcessEditorError: If the initial process has consistency issues
         """
-        if not process.checker.valid:
-            raise ProcessEditorError(
-                f"Cannot edit process with consistency issues: "
-                f"{[issue.description for issue in process.consistensy_issues]}"
-            )
+        # Allow editing processes with consistency issues (for fixing them)
+        # The editor is designed to enable fixing inconsistent processes
+        # Validation occurs during save operations instead
 
         self._process = process
         self._backup: ProcessDefinition | None = None
@@ -103,6 +101,10 @@ class ProcessEditor:
     def is_dirty(self) -> bool:
         """Check if the process has unsaved changes."""
         return self._dirty
+
+    def mark_clean(self) -> None:
+        """Mark the editor as clean (no unsaved changes)."""
+        self._dirty = False
 
     @property
     def consistency_issues(self) -> list[ConsistencyIssue]:

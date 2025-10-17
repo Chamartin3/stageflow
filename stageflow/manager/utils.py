@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from stageflow.process import Process
 
@@ -328,17 +328,20 @@ def add_stage_to_process(manager, process_name: str, stage_config_json: str) -> 
 
         # Get editor and add stage (manager loads via registry)
         editor = manager.edit_process(process_name)
-        if editor.add_stage(stage_id, config):
-            return ManageOperationResult(
-                result_type=OperationResultType.SUCCESS,
-                data={"stage_id": stage_id, "process_name": process_name},
-                custom_message=f"Stage '{stage_id}' added to '{process_name}' (not saved)"
-            )
-        else:
+        add_result = editor.add_stage(stage_id, config)
+
+        # Check if editor operation failed
+        if add_result is False:
             return ManageOperationResult(
                 result_type=OperationResultType.CONSISTENCY_FAILED,
-                custom_message=f"Failed to add stage '{stage_id}'"
+                custom_message=f"Failed to add stage '{stage_id}' to '{process_name}'"
             )
+
+        return ManageOperationResult(
+            result_type=OperationResultType.SUCCESS,
+            data={"stage_id": stage_id, "process_name": process_name},
+            custom_message=f"Stage '{stage_id}' added to '{process_name}' (not saved)"
+        )
 
     except Exception as e:
         return ManageOperationResult(
@@ -359,17 +362,20 @@ def remove_stage_from_process(manager, process_name: str, stage_name: str) -> Ma
 
         # Get editor (manager loads via registry)
         editor = manager.edit_process(process_name)
-        if editor.remove_stage(stage_name):
-            return ManageOperationResult(
-                result_type=OperationResultType.SUCCESS,
-                data={"stage_name": stage_name, "process_name": process_name},
-                custom_message=f"Stage '{stage_name}' removed from '{process_name}' (not saved)"
-            )
-        else:
+        remove_result = editor.remove_stage(stage_name)
+
+        # Check if editor operation failed
+        if remove_result is False:
             return ManageOperationResult(
                 result_type=OperationResultType.CONSISTENCY_FAILED,
-                custom_message=f"Failed to remove stage '{stage_name}'"
+                custom_message=f"Failed to remove stage '{stage_name}' from '{process_name}'"
             )
+
+        return ManageOperationResult(
+            result_type=OperationResultType.SUCCESS,
+            data={"stage_name": stage_name, "process_name": process_name},
+            custom_message=f"Stage '{stage_name}' removed from '{process_name}' (not saved)"
+        )
     except Exception as e:
         return ManageOperationResult(
             result_type=OperationResultType.OPERATION_FAILED,
@@ -391,20 +397,22 @@ def sync_process(manager, process_name: str) -> ManageOperationResult:
         modified_processes = manager.get_modified_processes()
         has_changes = process_name in modified_processes
 
+        # If no changes, return NO_CHANGES immediately
+        if not has_changes:
+            return ManageOperationResult(
+                result_type=OperationResultType.NO_CHANGES,
+                data={"process_name": process_name},
+                custom_message=f"No changes to save for '{process_name}'"
+            )
+
         # Manager handles sync via registry
-        if manager.sync(process_name):
-            if has_changes:
-                return ManageOperationResult(
-                    result_type=OperationResultType.SUCCESS,
-                    data={"process_name": process_name},
-                    custom_message=f"Process '{process_name}' saved"
-                )
-            else:
-                return ManageOperationResult(
-                    result_type=OperationResultType.NO_CHANGES,
-                    data={"process_name": process_name},
-                    custom_message=f"No changes to save for '{process_name}'"
-                )
+        sync_result = manager.sync(process_name)
+        if sync_result:
+            return ManageOperationResult(
+                result_type=OperationResultType.SUCCESS,
+                data={"process_name": process_name},
+                custom_message=f"Process '{process_name}' saved"
+            )
         else:
             return ManageOperationResult(
                 result_type=OperationResultType.OPERATION_FAILED,

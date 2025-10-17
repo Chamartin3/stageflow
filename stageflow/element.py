@@ -2,7 +2,17 @@
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Union
+from typing import Any, TypedDict, Union
+
+
+class ElementConfig(TypedDict):
+    """TypedDict for element configuration with data and options."""
+    data: dict[str, Any]
+
+
+class ElementDataConfig(TypedDict, total=False):
+    """TypedDict for element data configuration."""
+    data: dict[str, Any]
 
 
 class Element(ABC):
@@ -60,7 +70,7 @@ class DictElement(Element):
     remains completely immutable.
     """
 
-    def __init__(self, data: Union[dict[str, Any], "ElementConfig", "ElementDataConfig"]):
+    def __init__(self, data: Union[dict[str, Any], ElementConfig, ElementDataConfig]):
         """
         Initialize with dictionary data or ElementConfig.
 
@@ -86,7 +96,7 @@ class DictElement(Element):
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         import copy
-        return copy.deepcopy(self._data)
+        return copy.deepcopy(self._data)  # type: ignore
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -399,7 +409,7 @@ class DictElement(Element):
 
 
 # Factory function for creating elements
-def create_element(data: Union[dict[str, Any], Element, "ElementConfig", "ElementDataConfig"]) -> Element:
+def create_element(data: Union[dict[str, Any], Element, ElementConfig, ElementDataConfig]) -> Element:
     """
     Create an Element instance from various data sources.
 
@@ -416,7 +426,7 @@ def create_element(data: Union[dict[str, Any], Element, "ElementConfig", "Elemen
     else:
         raise TypeError(f"Cannot create Element from type {type(data)}")
 
-def create_element_from_config(config: "ElementConfig") -> Element:
+def create_element_from_config(config: ElementConfig) -> Element:
     """
     Create an Element instance from ElementConfig TypedDict.
 
@@ -426,4 +436,4 @@ def create_element_from_config(config: "ElementConfig") -> Element:
     Returns:
         Element instance
     """
-    return DictElement.from_config(config)
+    return DictElement(config)

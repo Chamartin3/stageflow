@@ -34,12 +34,17 @@ Example Usage:
 __version__ = "0.1.0"
 
 # Public API exports - Core functionality
-from .element import Element, DictElement, create_element, create_element_from_config
-from .process import Process, ProcessDefinition, ProcessElementEvaluationResult
-from .stage import Stage, StageDefinition, StageEvaluationResult, Action
+from .element import DictElement, Element, create_element, create_element_from_config
 from .gate import Gate, GateDefinition, GateResult
 from .lock import Lock, LockDefinition, LockResult, LockType
-from .schema.loader import load_process, load_process_data, LoadError
+from .process import Process, ProcessDefinition, ProcessElementEvaluationResult
+from .schema.loader import (
+    Loader,
+    LoadError,
+    load_element,
+    load_process,
+)
+from .stage import Action, Stage, StageDefinition, StageEvaluationResult
 
 # Optional manager functionality (imported separately)
 # from .manager import ProcessManager, ManagerConfig, ProcessRegistry, ProcessEditor
@@ -47,10 +52,12 @@ from .schema.loader import load_process, load_process_data, LoadError
 __all__ = [
     # Core functionality
     "Element",
+    "DictElement",
     "Process",
     "Stage",
     "Gate",
     "Lock",
+    "Loader",
     "load_process",
     "__version__",
 
@@ -69,6 +76,6 @@ __all__ = [
     # Utilities
     "create_element",
     "create_element_from_config",
-    "load_process_data",
+    "load_element",
     "LoadError",
 ]

@@ -9,15 +9,15 @@ import click
 
 from stageflow.manager import ProcessManager
 from stageflow.manager.utils import (
-    list_all_processes,
-    sync_all_processes,
     add_stage_to_process,
-    remove_stage_from_process,
-    sync_process,
     create_new_process,
-    create_process_with_default_schema,
     create_process_with_default,
+    create_process_with_default_schema,
     edit_process_file,
+    list_all_processes,
+    remove_stage_from_process,
+    sync_all_processes,
+    sync_process,
     validate_process_operations,
 )
 
@@ -130,7 +130,7 @@ def manage(list_processes, process_name, add_stage_config, remove_stage_name,
     # Handle global operations first (don't require --process)
     if list_processes:
         result = list_all_processes(manager)
-        if result.success and result.data:
+        if result.success:
             if result.data:
                 click.echo("Available processes:")
                 for name in sorted(result.data):

@@ -13,7 +13,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from stageflow.process import Process, ProcessDefinition
-from stageflow.schema import LoadError, load_process, load_process_data
+from stageflow.schema import LoadError, load_process
 
 from .config import ManagerConfig, ProcessFileFormat
 
@@ -159,7 +159,17 @@ class ProcessRegistry:
             )
 
         try:
-            return load_process_data(file_path)
+            # Load the process and extract its configuration
+            process = load_process(file_path)
+            # For now, return a basic dict - this method may need to be updated
+            # based on how ProcessDefinition is used
+            return {
+                'name': process.name,
+                'description': process.description,
+                'stages': {},  # This would need proper extraction
+                'initial_stage': process.initial_stage._id if process.initial_stage else None,
+                'final_stage': process.final_stage._id if process.final_stage else None
+            }
         except LoadError as e:
             raise ProcessRegistryError(f"Failed to load process data '{process_name}': {e}") from e
 
@@ -311,7 +321,7 @@ class ProcessRegistry:
         if not source_path or not source_path.exists():
             return
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         backup_path = self.config.get_backup_path(process_name, timestamp)
 
         try:
@@ -392,14 +402,14 @@ class ProcessRegistry:
 
                     stage_data['gates'].append(gate_data)
 
-                stages_def[stage.name] = stage_data
+                stages_def[stage._id] = stage_data
 
             process_def = {
                 'name': process.name,
                 'description': process.description or '',
                 'stages': stages_def,
-                'initial_stage': process.initial_stage.name,
-                'final_stage': process.final_stage.name
+                'initial_stage': process.initial_stage._id,
+                'final_stage': process.final_stage._id
             }
 
             return {'process': process_def}
