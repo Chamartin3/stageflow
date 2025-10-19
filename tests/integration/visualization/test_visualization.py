@@ -14,7 +14,7 @@ Test Categories:
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 import pytest
 
@@ -28,18 +28,18 @@ class TestVisualization:
         return Path(__file__).parent / "data"
 
     @pytest.fixture(scope="class")
-    def simple_process_files(self, test_data_dir: Path) -> List[Path]:
+    def simple_process_files(self, test_data_dir: Path) -> list[Path]:
         """Get simple process files for basic visualization testing."""
         simple_dir = test_data_dir / "simple"
         return list(simple_dir.glob("*.yaml"))
 
     @pytest.fixture(scope="class")
-    def complex_process_files(self, test_data_dir: Path) -> List[Path]:
+    def complex_process_files(self, test_data_dir: Path) -> list[Path]:
         """Get complex process files for advanced visualization testing."""
         complex_dir = test_data_dir / "complex"
         return list(complex_dir.glob("*.yaml"))
 
-    def run_stageflow_cli(self, args: List[str], expect_success: bool = True) -> Dict[str, Any]:
+    def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
         """
         Run the StageFlow CLI with given arguments and return structured result.
 
@@ -50,7 +50,7 @@ class TestVisualization:
         Returns:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
-        full_cmd = ["uv", "run", "stageflow"] + args
+        full_cmd = ["uv", "run", "stageflow", "eval"] + args
 
         try:
             result = subprocess.run(

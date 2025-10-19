@@ -10,16 +10,13 @@ This test suite covers all functionality in the manage CLI command including:
 """
 
 import json
-import pytest
 from unittest.mock import Mock, patch
+
 from click.testing import CliRunner
 
 from stageflow.cli.commands.manage import manage
 from stageflow.manager.manager import ProcessManager
-from stageflow.manager.utils import (
-    ManageOperationResult,
-    OperationResultType
-)
+from stageflow.manager.utils import ManageOperationResult, OperationResultType
 
 
 class TestManageCommandBasics:
@@ -28,7 +25,7 @@ class TestManageCommandBasics:
     def test_manage_command_is_click_command(self):
         """Verify manage is a properly configured Click command."""
         # Arrange & Act & Assert
-        assert hasattr(manage, '__click_params__')
+        assert hasattr(manage, 'params')  # Click commands have params attribute
         assert manage.name == 'manage'
 
     def test_manage_command_has_required_options(self):

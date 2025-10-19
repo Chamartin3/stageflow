@@ -5,9 +5,9 @@ in the visualization system. These tests ensure the bugs don't regress.
 """
 
 import subprocess
-from pathlib import Path
-from typing import Dict, List, Any
 import tempfile
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,9 +15,9 @@ import pytest
 class TestVisualizationRegression:
     """Regression test suite for previously fixed visualization bugs."""
 
-    def run_stageflow_cli(self, args: List[str], expect_success: bool = True) -> Dict[str, Any]:
+    def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
         """Run StageFlow CLI and return structured result."""
-        cmd = ["uv", "run", "stageflow"] + args
+        cmd = ["uv", "run", "stageflow", "eval"] + args
 
         try:
             result = subprocess.run(

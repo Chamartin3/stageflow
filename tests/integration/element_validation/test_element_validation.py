@@ -14,7 +14,7 @@ Test Categories:
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Any
 
 import pytest
 
@@ -28,7 +28,7 @@ class TestElementValidation:
         return Path(__file__).parent / "data"
 
     @pytest.fixture(scope="class")
-    def normal_flow_test_cases(self, test_data_dir: Path) -> List[Tuple[Path, List[Path]]]:
+    def normal_flow_test_cases(self, test_data_dir: Path) -> list[tuple[Path, list[Path]]]:
         """
         Get normal flow test cases with process files and their associated element files.
 
@@ -50,7 +50,7 @@ class TestElementValidation:
         return test_cases
 
     @pytest.fixture(scope="class")
-    def regression_test_cases(self, test_data_dir: Path) -> List[Tuple[Path, List[Path]]]:
+    def regression_test_cases(self, test_data_dir: Path) -> list[tuple[Path, list[Path]]]:
         """Get regression detection test cases with process and element files."""
         regression_dir = test_data_dir / "regression"
         test_cases = []
@@ -66,7 +66,7 @@ class TestElementValidation:
         return test_cases
 
     @pytest.fixture(scope="class")
-    def edge_case_elements(self, test_data_dir: Path) -> Tuple[Path, List[Path]]:
+    def edge_case_elements(self, test_data_dir: Path) -> tuple[Path, list[Path]]:
         """Get edge case test elements with their process file."""
         edge_cases_dir = test_data_dir / "edge_cases"
         process_file = edge_cases_dir / "process.yaml"
@@ -74,7 +74,7 @@ class TestElementValidation:
         return process_file, element_files
 
     @pytest.fixture(scope="class")
-    def default_properties_test_case(self, test_data_dir: Path) -> Tuple[Path, List[Path]]:
+    def default_properties_test_case(self, test_data_dir: Path) -> tuple[Path, list[Path]]:
         """Get default properties test case with process and element files."""
         defaults_dir = test_data_dir / "default_properties"
         # Look for the main process file for defaults testing
@@ -84,7 +84,7 @@ class TestElementValidation:
         element_files = list(defaults_dir.glob("*.json"))
         return process_file, element_files
 
-    def run_stageflow_cli(self, args: List[str], expect_success: bool = True) -> Dict[str, Any]:
+    def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
         """
         Run the StageFlow CLI with given arguments and return structured result.
 
@@ -95,7 +95,7 @@ class TestElementValidation:
         Returns:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
-        full_cmd = ["uv", "run", "stageflow"] + args
+        full_cmd = ["uv", "run", "stageflow", "eval"] + args
 
         try:
             result = subprocess.run(

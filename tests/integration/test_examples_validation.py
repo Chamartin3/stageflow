@@ -8,7 +8,6 @@ the provided examples.
 
 import subprocess
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -22,7 +21,7 @@ class TestExamplesValidation:
         return Path(__file__).parent.parent.parent / "examples"
 
     @pytest.fixture(scope="class")
-    def valid_example_files(self, examples_dir: Path) -> List[Path]:
+    def valid_example_files(self, examples_dir: Path) -> list[Path]:
         """Get all valid example YAML files that should load successfully."""
         # Exclude intentionally invalid files
         invalid_patterns = [
@@ -46,7 +45,7 @@ class TestExamplesValidation:
         return valid_files
 
     @pytest.fixture(scope="class")
-    def invalid_example_files(self, examples_dir: Path) -> List[Path]:
+    def invalid_example_files(self, examples_dir: Path) -> list[Path]:
         """Get example files that should fail validation (for testing error handling)."""
         invalid_dirs = [
             "invalid_structure",
@@ -63,7 +62,7 @@ class TestExamplesValidation:
 
     def run_stageflow_cli(self, process_file: Path, expect_success: bool = True) -> dict:
         """Run StageFlow CLI on a process file and return result."""
-        cmd = ["uv", "run", "stageflow", "-p", str(process_file)]
+        cmd = ["uv", "run", "stageflow", "eval", "-p", str(process_file)]
 
         try:
             result = subprocess.run(
@@ -108,14 +107,14 @@ class TestExamplesValidation:
         assert result["success"], f"Process {process_file.name} should load successfully"
         assert "✅" in result["stdout"] or "❌" in result["stdout"], "Should show status indicator"
 
-    def test_all_valid_examples_batch(self, valid_example_files: List[Path]):
+    def test_all_valid_examples_batch(self, valid_example_files: list[Path]):
         """Test all valid examples in a batch to ensure comprehensive coverage."""
         failed_files = []
 
         for process_file in valid_example_files:
             try:
                 # Run without expect_success assertion, handle results manually
-                cmd = ["uv", "run", "stageflow", "-p", str(process_file)]
+                cmd = ["uv", "run", "stageflow", "eval", "-p", str(process_file)]
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -143,7 +142,7 @@ class TestExamplesValidation:
                 error_msg += f"  - {failure['file'].name}: {failure['error'][:100]}...\n"
             pytest.fail(error_msg)
 
-    def test_invalid_examples_fail_appropriately(self, invalid_example_files: List[Path]):
+    def test_invalid_examples_fail_appropriately(self, invalid_example_files: list[Path]):
         """Test that intentionally invalid examples fail with appropriate error messages."""
         if not invalid_example_files:
             pytest.skip("No invalid example files found to test")
@@ -188,7 +187,7 @@ class TestExamplesValidation:
 
             try:
                 # Test visualization generation
-                cmd = ["uv", "run", "stageflow", "-p", str(viz_file), "--view", "-o", "/tmp/test_viz.md"]
+                cmd = ["uv", "run", "stageflow", "eval", "-p", str(viz_file), "--view", "-o", "/tmp/test_viz.md"]
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -222,7 +221,7 @@ class TestExamplesValidation:
 
         for yaml_file in yaml_files:
             try:
-                with open(yaml_file, 'r') as f:
+                with open(yaml_file) as f:
                     content = f.read()
 
                 # Check for uppercase lock types (excluding INVALID_TYPE which is intentional)
@@ -267,7 +266,7 @@ class TestExamplesValidation:
             yaml_files = list(case_dir.glob("**/*.yaml"))
             assert len(yaml_files) > 0, f"Case {case} should contain at least one YAML file"
 
-    def test_examples_are_loadable_by_process_api(self, valid_example_files: List[Path]):
+    def test_examples_are_loadable_by_process_api(self, valid_example_files: list[Path]):
         """Test that examples can be loaded using the Python API, not just CLI."""
         # This test ensures examples work with the core StageFlow API
         try:

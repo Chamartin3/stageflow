@@ -1,6 +1,7 @@
 """Tests for ProcessEditor functionality."""
 
 import pytest
+
 from stageflow.manager import ProcessEditor, ProcessEditorError, ValidationFailedError
 from stageflow.process import Process
 
@@ -95,7 +96,7 @@ class TestProcessEditorInitialization:
         assert len(editor.consistency_issues) == 0
 
     def test_editor_initialization_with_inconsistent_process(self):
-        """Test that initialization fails with inconsistent process."""
+        """Test that editor allows initialization with inconsistent process for fixing."""
         # Create a process with invalid transitions
         invalid_config = {
             'name': 'invalid_process',
@@ -128,10 +129,15 @@ class TestProcessEditorInitialization:
 
         invalid_process = Process(invalid_config)
 
-        with pytest.raises(ProcessEditorError) as exc_info:
-            ProcessEditor(invalid_process)
+        # Act & Assert - Editor should allow editing inconsistent processes
+        # to enable fixing them
+        editor = ProcessEditor(invalid_process)
 
-        assert "consistency issues" in str(exc_info.value)
+        # Verify consistency issues are detected
+        issues = editor.consistency_issues
+        assert len(issues) > 0
+        # The specific issue detected is that Start cannot reach End stage
+        assert any("cannot reach final stage" in issue.description for issue in issues)
 
 
 class TestProcessEditorAddStage:

@@ -13,7 +13,7 @@ Test Categories:
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 import pytest
 
@@ -27,24 +27,24 @@ class TestProcessCreation:
         return Path(__file__).parent / "data"
 
     @pytest.fixture(scope="class")
-    def valid_process_files(self, test_data_dir: Path) -> List[Path]:
+    def valid_process_files(self, test_data_dir: Path) -> list[Path]:
         """Get all valid process files for testing."""
         valid_dir = test_data_dir / "valid_processes"
         return list(valid_dir.glob("*.yaml"))
 
     @pytest.fixture(scope="class")
-    def invalid_structure_files(self, test_data_dir: Path) -> List[Path]:
+    def invalid_structure_files(self, test_data_dir: Path) -> list[Path]:
         """Get all invalid structure files for testing."""
         invalid_dir = test_data_dir / "invalid_structure"
         return list(invalid_dir.glob("*.yaml"))
 
     @pytest.fixture(scope="class")
-    def consistency_error_files(self, test_data_dir: Path) -> List[Path]:
+    def consistency_error_files(self, test_data_dir: Path) -> list[Path]:
         """Get all consistency error files for testing."""
         consistency_dir = test_data_dir / "consistency_errors"
         return list(consistency_dir.glob("*.yaml"))
 
-    def run_stageflow_cli(self, args: List[str], expect_success: bool = True) -> Dict[str, Any]:
+    def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
         """
         Run the StageFlow CLI with given arguments and return structured result.
 
@@ -56,7 +56,7 @@ class TestProcessCreation:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
         # Prepend the base command
-        full_cmd = ["uv", "run", "stageflow"] + args
+        full_cmd = ["uv", "run", "stageflow", "eval"] + args
 
         try:
             result = subprocess.run(

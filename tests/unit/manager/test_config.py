@@ -10,17 +10,18 @@ This test suite covers all functionality in the ManagerConfig class including:
 """
 
 import os
-import pytest
 import tempfile
 from dataclasses import FrozenInstanceError
 from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch
+
+import pytest
 
 from stageflow.manager.config import (
-    ManagerConfig,
     ConfigValidationError,
+    ManagerConfig,
+    ManagerConfigDict,
     ProcessFileFormat,
-    ManagerConfigDict
 )
 
 
@@ -153,7 +154,7 @@ class TestManagerConfigFromEnv:
                     config = ManagerConfig.from_env()
 
         # Assert
-        assert config.processes_dir == Path('./processes').resolve()
+        assert config.processes_dir == Path.home() / '.stageflow'
         assert config.default_format == ProcessFileFormat.YAML
         assert config.create_dir_if_missing is True
         assert config.backup_enabled is False
