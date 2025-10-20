@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# StageFlow CLI Wrapper
+# Get the directory where this script is located
+SCRIPT_DIR="$(builtin cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Project root is one level up from bin/
+PROJECT_ROOT="$(builtin cd "$SCRIPT_DIR/.." && pwd)"
+
+exec uv run --project "$PROJECT_ROOT" stageflow "$@"
