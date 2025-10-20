@@ -9,24 +9,20 @@ This test suite covers all functionality in the Lock validation system, includin
 - Integration with Element objects for property access
 """
 
-import pytest
-import re
 from dataclasses import FrozenInstanceError
-from typing import Any, Dict, List, Union
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
+import pytest
+
+from stageflow.element import DictElement
 from stageflow.lock import (
     Lock,
     LockFactory,
-    LockType,
-    LockResult,
     LockMetaData,
-    LockDefinitionDict,
-    LockShorthandDict,
-    LockDefinition,
-    LockShorhands
+    LockResult,
+    LockShorhands,
+    LockType,
 )
-from stageflow.element import DictElement
 
 
 class TestLockType:
@@ -1307,7 +1303,7 @@ class TestLockIntegration:
         """Test performance characteristics with multiple validations."""
         # Arrange
         locks = [
-            Lock({"type": LockType.EXISTS, "property_path": f"user.profile.skills", "expected_value": None})
+            Lock({"type": LockType.EXISTS, "property_path": "user.profile.skills", "expected_value": None})
             for _ in range(100)
         ]
 

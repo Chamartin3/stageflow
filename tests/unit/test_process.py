@@ -10,23 +10,20 @@ This test suite covers all functionality in the Process class including:
 - Process consistency validation and structural checks
 """
 
+
 import pytest
-from typing import Any, Dict, List
-from unittest.mock import Mock, patch
 
 from stageflow.element import DictElement, Element
+from stageflow.lock import LockType
 from stageflow.process import (
-    Process,
-    ProcessDefinition,
-    ProcessElementEvaluationResult,
-    ProcessConsistencyChecker,
     ConsistencyIssue,
+    PathSearch,
+    Process,
+    ProcessConsistencyChecker,
+    ProcessDefinition,
     ProcessIssueTypes,
-    PathSearch
 )
 from stageflow.stage import StageDefinition, StageStatus
-from stageflow.gate import GateDefinition
-from stageflow.lock import LockType
 
 
 class TestPathSearch:

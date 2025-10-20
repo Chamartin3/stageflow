@@ -5,13 +5,13 @@ including gate initialization, lock composition, AND logic evaluation, error han
 and integration with Lock objects and Element evaluation.
 """
 
+from unittest.mock import Mock
+
 import pytest
-from typing import Any, Dict, List
-from unittest.mock import Mock, patch
 
 from stageflow.element import DictElement, Element
 from stageflow.gate import Gate, GateDefinition, GateResult
-from stageflow.lock import Lock, LockDefinition, LockFactory, LockResult, LockType
+from stageflow.lock import Lock, LockResult, LockType
 
 
 class TestGateDefinition:

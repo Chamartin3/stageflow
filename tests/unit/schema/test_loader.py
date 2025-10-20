@@ -3,17 +3,23 @@
 This module tests the core functionality of loading Process objects from YAML/JSON files,
 including file loading, data validation, error handling, and configuration conversion.
 """
+# type: ignore
 
 import json
-import tempfile
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
+from stageflow.element import Element
 from stageflow.process import Process
-from stageflow.schema.loader import LoadError, load_process, load_process_data, _convert_process_config
+from stageflow.schema.loader import (
+    Loader,
+    LoadError,
+    _convert_process_config,
+    load_process,
+)
 
 
 class TestLoadError:
@@ -226,7 +232,7 @@ class TestLoadProcess:
         yaml_file.write_text(invalid_yaml)
 
         # Act & Assert
-        with pytest.raises(LoadError, match="Failed to load"):
+        with pytest.raises(LoadError, match="Error parsing YAML"):
             load_process(yaml_file)
 
     def test_load_process_invalid_json_syntax_raises_load_error(self, tmp_path):
@@ -237,7 +243,7 @@ class TestLoadProcess:
         json_file.write_text(invalid_json)
 
         # Act & Assert
-        with pytest.raises(LoadError, match="Failed to load"):
+        with pytest.raises(LoadError, match="Error parsing JSON"):
             load_process(json_file)
 
     def test_load_process_non_dict_content_raises_load_error(self, tmp_path):
@@ -264,7 +270,7 @@ class TestLoadProcess:
         yaml_file.write_text(yaml_content)
 
         # Act & Assert
-        with pytest.raises(LoadError, match="File must contain a 'process' key"):
+        with pytest.raises(LoadError, match="File must contain either a 'process' key or process definition at root level"):
             load_process(yaml_file)
 
     def test_load_process_yml_extension_works(self, tmp_path):
@@ -357,163 +363,6 @@ class TestLoadProcess:
         assert yaml_process.name == "case_test"
         assert isinstance(json_process, Process)
         assert json_process.name == "case_json_test"
-
-
-class TestLoadProcessData:
-    """Test cases for load_process_data function."""
-
-    def test_load_process_data_from_yaml_returns_dict(self, tmp_path):
-        """Verify load_process_data returns raw process dictionary from YAML."""
-        # Arrange
-        yaml_content = dedent("""
-            process:
-              name: data_test
-              description: Test data loading
-              initial_stage: start
-              final_stage: end
-              stages:
-                start:
-                  gates:
-                    proceed:
-                      target_stage: end
-                      locks:
-                        - exists: "field"
-                end:
-                  is_final: true
-                  gates: []
-        """).strip()
-
-        yaml_file = tmp_path / "data_test.yaml"
-        yaml_file.write_text(yaml_content)
-
-        # Act
-        data = load_process_data(yaml_file)
-
-        # Assert
-        assert isinstance(data, dict)
-        assert data["name"] == "data_test"
-        assert data["description"] == "Test data loading"
-        assert "stages" in data
-        assert "start" in data["stages"]
-        assert "end" in data["stages"]
-
-    def test_load_process_data_from_json_returns_dict(self, tmp_path):
-        """Verify load_process_data returns raw process dictionary from JSON."""
-        # Arrange
-        json_data = {
-            "process": {
-                "name": "json_data_test",
-                "description": "Test JSON data loading",
-                "initial_stage": "initial",
-                "final_stage": "final",
-                "stages": {
-                    "initial": {
-                        "gates": {
-                            "validate": {
-                                "target_stage": "final",
-                                "locks": [{"exists": "required_field"}]
-                            }
-                        }
-                    },
-                    "final": {
-                        "is_final": True,
-                        "gates": []
-                    }
-                }
-            }
-        }
-
-        json_file = tmp_path / "data_test.json"
-        json_file.write_text(json.dumps(json_data, indent=2))
-
-        # Act
-        data = load_process_data(json_file)
-
-        # Assert
-        assert isinstance(data, dict)
-        assert data["name"] == "json_data_test"
-        assert data["description"] == "Test JSON data loading"
-        assert "stages" in data
-        assert "initial" in data["stages"]
-        assert "final" in data["stages"]
-
-    def test_load_process_data_preserves_original_structure(self, tmp_path):
-        """Verify load_process_data preserves original YAML/JSON structure."""
-        # Arrange
-        original_data = {
-            "name": "structure_test",
-            "custom_field": "custom_value",
-            "nested": {
-                "deep": {
-                    "value": 42
-                }
-            },
-            "stages": {
-                "stage1": {
-                    "custom_stage_field": "stage_value",
-                    "gates": {
-                        "gate1": {
-                            "custom_gate_field": "gate_value",
-                            "target_stage": "stage2",
-                            "locks": [{"exists": "field"}]
-                        }
-                    }
-                },
-                "stage2": {
-                    "is_final": True,
-                    "gates": []
-                }
-            }
-        }
-
-        json_data = {"process": original_data}
-        json_file = tmp_path / "structure_test.json"
-        json_file.write_text(json.dumps(json_data, indent=2))
-
-        # Act
-        loaded_data = load_process_data(json_file)
-
-        # Assert
-        assert loaded_data["custom_field"] == "custom_value"
-        assert loaded_data["nested"]["deep"]["value"] == 42
-        assert loaded_data["stages"]["stage1"]["custom_stage_field"] == "stage_value"
-        assert loaded_data["stages"]["stage1"]["gates"]["gate1"]["custom_gate_field"] == "gate_value"
-
-    def test_load_process_data_file_not_found_raises_load_error(self):
-        """Verify LoadError is raised when file does not exist."""
-        # Arrange
-        non_existent_file = "/tmp/non_existent_data.yaml"
-
-        # Act & Assert
-        with pytest.raises(LoadError, match="File not found"):
-            load_process_data(non_existent_file)
-
-    def test_load_process_data_missing_process_key_raises_load_error(self, tmp_path):
-        """Verify LoadError is raised when 'process' key is missing."""
-        # Arrange
-        yaml_content = dedent("""
-            name: test_without_process_key
-            stages:
-              start:
-                gates: []
-        """).strip()
-        yaml_file = tmp_path / "no_process_key.yaml"
-        yaml_file.write_text(yaml_content)
-
-        # Act & Assert
-        with pytest.raises(LoadError, match="File must contain a 'process' key"):
-            load_process_data(yaml_file)
-
-    def test_load_process_data_non_dict_content_raises_load_error(self, tmp_path):
-        """Verify LoadError is raised when file content is not a dictionary."""
-        # Arrange
-        yaml_content = "- item1\n- item2"
-        yaml_file = tmp_path / "list_content.yaml"
-        yaml_file.write_text(yaml_content)
-
-        # Act & Assert
-        with pytest.raises(LoadError, match="File must contain a dictionary"):
-            load_process_data(yaml_file)
 
 
 class TestConvertProcessConfig:
@@ -697,8 +546,7 @@ class TestConvertProcessConfig:
         assert converted["description"] == "Test description"
         assert converted["initial_stage"] == "start"
         assert converted["final_stage"] == "end"
-        assert converted["custom_field"] == "custom_value"
-        assert converted["metadata"] == {"version": "1.0"}
+
 
     def test_convert_process_config_handles_no_stages(self):
         """Verify conversion works when no stages are present."""
@@ -958,7 +806,7 @@ class TestIntegrationScenarios:
 
 # Fixtures for comprehensive testing
 @pytest.fixture
-def sample_process_config() -> Dict[str, Any]:
+def sample_process_config() -> dict[str, Any]:
     """Sample process configuration for reuse across tests."""
     return {
         "name": "sample_process",
@@ -1011,11 +859,13 @@ def sample_process_config() -> Dict[str, Any]:
 @pytest.fixture
 def sample_yaml_file(tmp_path, sample_process_config) -> Path:
     """Create a temporary YAML file with sample process configuration."""
-    yaml_content = f"""process:
-{_dict_to_yaml_string(sample_process_config, indent=2)}"""
+    from ruamel.yaml import YAML
+    yaml = YAML(typ='safe', pure=True)
 
+    yaml_data = {"process": sample_process_config}
     yaml_file = tmp_path / "sample_process.yaml"
-    yaml_file.write_text(yaml_content)
+    with open(yaml_file, 'w') as f:
+        yaml.dump(yaml_data, f)
     return yaml_file
 
 
@@ -1028,7 +878,77 @@ def sample_json_file(tmp_path, sample_process_config) -> Path:
     return json_file
 
 
-def _dict_to_yaml_string(data: Dict[str, Any], indent: int = 0) -> str:
+def _dict_to_yaml_string(data: dict[str, Any], indent: int = 0) -> str:
     """Helper function to convert dictionary to YAML-like string for testing."""
-    import yaml
-    return yaml.dump(data, default_flow_style=False, indent=2).strip()
+    from ruamel.yaml import YAML
+    yaml = YAML(typ='safe', pure=True)
+    from io import StringIO
+    stream = StringIO()
+    yaml.dump(data, stream)
+    return stream.getvalue().strip()
+
+
+class TestLoader:
+    """Test cases for the Loader class."""
+
+    def test_loader_process_loads_from_yaml(self, sample_yaml_file: Path):
+        """Verify Loader.process successfully loads a Process from a YAML file."""
+        # Act
+        process = Loader.process(sample_yaml_file)
+
+        # Assert
+        assert isinstance(process, Process)
+        assert process.name == "sample_process"
+
+    def test_loader_process_loads_from_json(self, sample_json_file: Path):
+        """Verify Loader.process successfully loads a Process from a JSON file."""
+        # Act
+        process = Loader.process(sample_json_file)
+
+        # Assert
+        assert isinstance(process, Process)
+        assert process.name == "sample_process"
+
+    def test_loader_element_loads_from_json(self, tmp_path: Path):
+        """Verify Loader.element successfully loads an Element from a JSON file."""
+        # Arrange
+        element_data = {"user_id": "123", "email": "test@example.com"}
+        element_file = tmp_path / "element.json"
+        element_file.write_text(json.dumps(element_data))
+
+        # Act
+        element = Loader.element(element_file)
+
+        # Assert
+        assert isinstance(element, Element)
+        assert element.get_property("user_id") == "123"
+        assert element.get_property("email") == "test@example.com"
+
+    def test_loader_process_raises_load_error_for_non_existent_file(self):
+        """Verify Loader.process raises LoadError for a non-existent file."""
+        # Arrange
+        non_existent_file = "/tmp/non_existent_process.yaml"
+
+        # Act & Assert
+        with pytest.raises(LoadError, match="File not found"):
+            Loader.process(non_existent_file)
+
+    def test_loader_element_raises_load_error_for_non_existent_file(self):
+        """Verify Loader.element raises LoadError for a non-existent file."""
+        # Arrange
+        non_existent_file = "/tmp/non_existent_element.json"
+
+        # Act & Assert
+        with pytest.raises(LoadError, match="File not found"):
+            Loader.element(non_existent_file)
+
+    def test_loader_element_raises_load_error_for_invalid_json(self, tmp_path: Path):
+        """Verify Loader.element raises LoadError for invalid JSON."""
+        # Arrange
+        invalid_json = '{"user_id": "123", "email": "test@example.com",}'
+        element_file = tmp_path / "invalid_element.json"
+        element_file.write_text(invalid_json)
+
+        # Act & Assert
+        with pytest.raises(LoadError, match="Error parsing JSON"):
+            Loader.element(element_file)

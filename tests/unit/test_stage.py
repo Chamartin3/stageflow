@@ -1,20 +1,18 @@
 """Comprehensive unit tests for Stage class and stage evaluation logic."""
 
+
 import pytest
-from typing import Any, Dict
 
 from stageflow.element import DictElement
+from stageflow.lock import LockType
 from stageflow.stage import (
+    Action,
+    ActionType,
     Stage,
     StageDefinition,
     StageEvaluationResult,
     StageStatus,
-    Action,
-    ActionType,
-    ActionDefinition
 )
-from stageflow.gate import GateDefinition
-from stageflow.lock import LockType
 
 
 class TestStageStatus:

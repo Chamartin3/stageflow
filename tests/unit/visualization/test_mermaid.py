@@ -5,15 +5,13 @@ including process diagram generation, stage detail visualization, gate flowchart
 and error handling scenarios.
 """
 
-import pytest
-from typing import Any, Dict, List
-from unittest.mock import Mock, MagicMock, patch
+from typing import Any
+from unittest.mock import Mock
 
-from stageflow.visualization.mermaid import MermaidDiagramGenerator, MermaidGenerator
+import pytest
+
 from stageflow.process import Process
-from stageflow.stage import Stage
-from stageflow.gate import Gate
-from stageflow.lock import Lock, LockType
+from stageflow.visualization.mermaid import MermaidDiagramGenerator, MermaidGenerator
 
 
 class TestMermaidDiagramGeneratorCreation:
@@ -49,19 +47,35 @@ class TestMermaidProcessDiagramGeneration:
         process.name = "test_process"
         process.get_sorted_stages = Mock(return_value=["stage1", "stage2", "stage3"])
 
+        # Create mock initial and final stages
+        initial_stage = Mock()
+        initial_stage._id = "stage1"
+        initial_stage.name = "First Stage"
+        process.initial_stage = initial_stage
+
+        final_stage = Mock()
+        final_stage._id = "stage3"
+        final_stage.name = "Final Stage"
+        process.final_stage = final_stage
+
         # Create mock stages
         stage1 = Mock()
         stage1.name = "First Stage"
-        stage1.gates = {"gate1": Mock()}
-        stage1.gates["gate1"].name = "gate1"
+        gate1 = Mock()
+        gate1.name = "gate1"
+        gate1.target_stage = "stage2"
+        stage1.gates = [gate1]  # List of gate objects
 
         stage2 = Mock()
         stage2.name = "Second Stage"
-        stage2.gates = {}
+        gate2 = Mock()
+        gate2.name = "gate2"
+        gate2.target_stage = "stage3"
+        stage2.gates = [gate2]  # List of gate objects
 
         stage3 = Mock()
         stage3.name = "Final Stage"
-        stage3.gates = {}
+        stage3.gates = []  # No gates for final stage
 
         # Configure process.get_stage behavior
         def get_stage_side_effect(stage_name):
@@ -290,7 +304,7 @@ class TestMermaidGateFlowchartGeneration:
     """Test suite for gate flowchart generation."""
 
     @pytest.fixture
-    def mock_gates(self) -> List[Mock]:
+    def mock_gates(self) -> list[Mock]:
         """Create mock gates for testing."""
         gate1 = Mock()
         gate1.name = "input_validation"
@@ -550,7 +564,20 @@ class TestMermaidStylingGeneration:
     def mock_process_for_styling(self) -> Mock:
         """Create a mock process for styling tests."""
         process = Mock(spec=Process)
+        process.name = "styling_process"
         process.get_sorted_stages = Mock(return_value=["initial", "middle", "final"])
+
+        # Create mock initial and final stages
+        initial_stage = Mock()
+        initial_stage._id = "initial"
+        initial_stage.name = "Initial Stage"
+        process.initial_stage = initial_stage
+
+        final_stage = Mock()
+        final_stage._id = "final"
+        final_stage.name = "Final Stage"
+        process.final_stage = final_stage
+
         return process
 
     def test_generate_styling_includes_all_style_classes(self, generator, mock_process_for_styling):
@@ -672,7 +699,7 @@ class TestMermaidIntegrationScenarios:
     """Integration tests for Mermaid generator with realistic scenarios."""
 
     @pytest.fixture
-    def realistic_process_config(self) -> Dict[str, Any]:
+    def realistic_process_config(self) -> dict[str, Any]:
         """Create a realistic process configuration for integration testing."""
         return {
             "name": "user_onboarding",
@@ -732,6 +759,17 @@ class TestMermaidIntegrationScenarios:
         mock_process = Mock(spec=Process)
         mock_process.name = realistic_process_config["name"]
         mock_process.get_sorted_stages = Mock(return_value=["registration", "verification", "profile_setup", "active"])
+
+        # Create mock initial and final stages
+        initial_stage = Mock()
+        initial_stage._id = "registration"
+        initial_stage.name = "User Registration"
+        mock_process.initial_stage = initial_stage
+
+        final_stage = Mock()
+        final_stage._id = "active"
+        final_stage.name = "Active User"
+        mock_process.final_stage = final_stage
 
         # Create mock stages based on config
         stages = {}
@@ -807,6 +845,17 @@ class TestMermaidIntegrationScenarios:
         process.name = "test_process"
         process.get_sorted_stages = Mock(return_value=["stage1", "stage2"])
 
+        # Create mock initial and final stages
+        initial_stage = Mock()
+        initial_stage._id = "stage1"
+        initial_stage.name = "Valid Stage"
+        process.initial_stage = initial_stage
+
+        final_stage = Mock()
+        final_stage._id = "stage2"
+        final_stage.name = "Final Stage"
+        process.final_stage = final_stage
+
         # Create stages with inconsistent data
         stage1 = Mock()
         stage1.name = "Valid Stage"
@@ -845,10 +894,22 @@ class TestMermaidParametrizedStyleGeneration:
         process.name = "simple_process"
         process.get_sorted_stages = Mock(return_value=["stage1", "stage2"])
 
+        # Create mock initial and final stages
+        initial_stage = Mock()
+        initial_stage._id = "stage1"
+        initial_stage.name = "First"
+        process.initial_stage = initial_stage
+
+        final_stage = Mock()
+        final_stage._id = "stage2"
+        final_stage.name = "Second"
+        process.final_stage = final_stage
+
         stage1 = Mock()
         stage1.name = "First"
         gate_mock = Mock()
         gate_mock.name = "gate1"
+        gate_mock.target_stage = "stage2"  # Add target stage for transitions
         stage1.gates = [gate_mock]  # Properly iterable list
 
         stage2 = Mock()

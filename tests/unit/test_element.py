@@ -5,11 +5,15 @@ DictElement implementation, including property resolution, path parsing,
 error handling, and edge cases.
 """
 
-import pytest
-from typing import Any, Dict, List, Union
-from unittest.mock import Mock, patch
 
-from stageflow.element import Element, DictElement, create_element, create_element_from_config
+import pytest
+
+from stageflow.element import (
+    DictElement,
+    Element,
+    create_element,
+    create_element_from_config,
+)
 
 
 class TestElement:
@@ -587,7 +591,7 @@ class TestDictElementAbstractMethodImplementation:
         assert hasattr(sample_element, 'get_property')
 
         # If method exists, test basic functionality
-        if hasattr(sample_element, 'get_property') and callable(getattr(sample_element, 'get_property')):
+        if hasattr(sample_element, 'get_property') and callable(sample_element.get_property):
             result = sample_element.get_property("name")
             assert result == "test_user"
 
@@ -600,7 +604,7 @@ class TestDictElementAbstractMethodImplementation:
         assert hasattr(sample_element, 'has_property')
 
         # If method exists, test basic functionality
-        if hasattr(sample_element, 'has_property') and callable(getattr(sample_element, 'has_property')):
+        if hasattr(sample_element, 'has_property') and callable(sample_element.has_property):
             assert sample_element.has_property("name") is True
             assert sample_element.has_property("nonexistent") is False
 
@@ -730,16 +734,20 @@ class TestCreateElementFromConfig:
         # Arrange & Act & Assert
         assert callable(create_element_from_config)
 
-    def test_create_element_from_config_calls_dict_element_from_config(self):
-        """Verify create_element_from_config delegates to DictElement.from_config."""
+    def test_create_element_from_config_creates_dict_element(self):
+        """Verify create_element_from_config creates a DictElement instance."""
         # Arrange
-        mock_config = {"data": {"test": "value"}}
+        mock_config = {"data": {"test": "value", "nested": {"key": "nested_value"}}}
 
-        # Act & Assert
-        # NOTE: This test will fail if DictElement.from_config doesn't exist
-        # This documents the expected behavior
-        with pytest.raises(AttributeError, match="type object 'DictElement' has no attribute 'from_config'"):
-            create_element_from_config(mock_config)
+        # Act
+        result = create_element_from_config(mock_config)
+
+        # Assert
+        assert isinstance(result, DictElement)
+        assert result.has_property("test")
+        assert result.get_property("test") == "value"
+        assert result.has_property("nested.key")
+        assert result.get_property("nested.key") == "nested_value"
 
 
 class TestDictElementMissingMethods:

@@ -4,14 +4,12 @@ This module provides shared fixtures for testing the stageflow visualization
 components, including mock processes, stages, gates, and realistic test scenarios.
 """
 
-import pytest
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock
 
+import pytest
+
 from stageflow.process import Process
-from stageflow.stage import Stage
-from stageflow.gate import Gate
-from stageflow.lock import Lock, LockType
 
 
 @pytest.fixture
@@ -149,7 +147,7 @@ def mock_stage_without_gates() -> Mock:
 
 
 @pytest.fixture
-def mock_gates_list() -> List[Mock]:
+def mock_gates_list() -> list[Mock]:
     """Create a list of mock gates for flowchart testing."""
     gate1 = Mock()
     gate1.name = "first_gate"
@@ -174,7 +172,7 @@ def empty_mock_process() -> Mock:
 
 
 @pytest.fixture
-def realistic_ecommerce_process_config() -> Dict[str, Any]:
+def realistic_ecommerce_process_config() -> dict[str, Any]:
     """Create a realistic e-commerce process configuration for integration testing."""
     return {
         "name": "ecommerce_order_processing",
@@ -391,7 +389,7 @@ def layout_engine(request) -> str:
 
 
 @pytest.fixture
-def sample_lock_configurations() -> List[Dict[str, Any]]:
+def sample_lock_configurations() -> list[dict[str, Any]]:
     """Provide sample lock configurations for testing."""
     return [
         {
@@ -423,7 +421,7 @@ def sample_lock_configurations() -> List[Dict[str, Any]]:
 
 
 @pytest.fixture
-def expected_mermaid_elements() -> Dict[str, List[str]]:
+def expected_mermaid_elements() -> dict[str, list[str]]:
     """Provide expected elements for Mermaid diagram validation."""
     return {
         "overview": [
@@ -454,7 +452,7 @@ def expected_mermaid_elements() -> Dict[str, List[str]]:
 
 
 @pytest.fixture
-def expected_graphviz_elements() -> Dict[str, List[str]]:
+def expected_graphviz_elements() -> dict[str, list[str]]:
     """Provide expected elements for Graphviz DOT validation."""
     return {
         "overview": [

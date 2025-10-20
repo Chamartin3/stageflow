@@ -6,24 +6,21 @@ the loader functions and integration with the core Process class.
 """
 
 import json
-import tempfile
-from pathlib import Path
 from textwrap import dedent
 
 import pytest
 
 from stageflow.element import DictElement
 from stageflow.schema import (
+    ActionDefinition,
+    GateDefinition,
+    LoadError,
+    LockDefinition,
     Process,
     ProcessDefinition,
     ProcessElementEvaluationResult,
     StageDefinition,
-    ActionDefinition,
-    GateDefinition,
-    LockDefinition,
-    LoadError,
     load_process,
-    load_process_data,
 )
 
 
@@ -34,16 +31,9 @@ class TestSchemaModuleImports:
         """Verify all expected schema module imports are available."""
         # Arrange & Act
         from stageflow.schema import (
-            Process,
-            ProcessDefinition,
-            ProcessElementEvaluationResult,
-            StageDefinition,
-            ActionDefinition,
-            GateDefinition,
-            LockDefinition,
             LoadError,
+            Process,
             load_process,
-            load_process_data,
         )
 
         # Assert
@@ -56,7 +46,6 @@ class TestSchemaModuleImports:
         assert LockDefinition is not None
         assert LoadError is not None
         assert load_process is not None
-        assert load_process_data is not None
 
     def test_load_error_exception_class(self):
         """Verify LoadError is a proper exception class."""
@@ -219,7 +208,7 @@ class TestLoadProcessFunction:
         yaml_file.write_text(yaml_content)
 
         # Act & Assert
-        with pytest.raises(LoadError, match="must contain a 'process' key"):
+        with pytest.raises(LoadError, match="File must contain either a 'process' key or process definition at root level"):
             load_process(yaml_file)
 
     def test_load_process_with_non_dict_content(self, tmp_path):
@@ -322,88 +311,6 @@ class TestLoadProcessFunction:
         # Assert
         assert isinstance(process, Process)
         assert process.name == "string_path_test"
-
-
-class TestLoadProcessDataFunction:
-    """Test suite for load_process_data function."""
-
-    def test_load_process_data_with_valid_yaml_file(self, tmp_path):
-        """Verify load_process_data returns raw process data from YAML."""
-        # Arrange
-        yaml_content = dedent("""
-            process:
-              name: data_test_process
-              description: Test process for data loading
-              initial_stage: start
-              final_stage: end
-              stages:
-                start:
-                  gates: []
-                end:
-                  gates: []
-        """).strip()
-
-        yaml_file = tmp_path / "data_test.yaml"
-        yaml_file.write_text(yaml_content)
-
-        # Act
-        data = load_process_data(yaml_file)
-
-        # Assert
-        assert isinstance(data, dict)
-        assert data["name"] == "data_test_process"
-        assert data["description"] == "Test process for data loading"
-        assert "stages" in data
-        assert data["initial_stage"] == "start"
-        assert data["final_stage"] == "end"
-
-    def test_load_process_data_with_valid_json_file(self, tmp_path):
-        """Verify load_process_data returns raw process data from JSON."""
-        # Arrange
-        process_data = {
-            "process": {
-                "name": "json_data_test",
-                "version": "1.0",
-                "metadata": {"author": "test_user"},
-                "stages": {
-                    "stage1": {"gates": []},
-                    "stage2": {"gates": []}
-                }
-            }
-        }
-
-        json_file = tmp_path / "data_test.json"
-        with open(json_file, 'w') as f:
-            json.dump(process_data, f)
-
-        # Act
-        data = load_process_data(json_file)
-
-        # Assert
-        assert isinstance(data, dict)
-        assert data["name"] == "json_data_test"
-        assert data["version"] == "1.0"
-        assert data["metadata"]["author"] == "test_user"
-        assert "stages" in data
-
-    def test_load_process_data_error_conditions(self, tmp_path):
-        """Verify load_process_data handles error conditions appropriately."""
-        # Test nonexistent file
-        with pytest.raises(LoadError, match="File not found"):
-            load_process_data(tmp_path / "nonexistent.yaml")
-
-        # Test unsupported format
-        txt_file = tmp_path / "unsupported.txt"
-        txt_file.write_text("text content")
-        with pytest.raises(LoadError, match="Unsupported file format"):
-            load_process_data(txt_file)
-
-        # Test missing process key
-        yaml_content = "name: missing_process"
-        yaml_file = tmp_path / "missing_process.yaml"
-        yaml_file.write_text(yaml_content)
-        with pytest.raises(LoadError, match="must contain a 'process' key"):
-            load_process_data(yaml_file)
 
 
 class TestSchemaIntegrationWithProcess:
@@ -532,7 +439,7 @@ class TestSchemaErrorHandling:
         yaml_content = "name: test"
         yaml_file = tmp_path / "missing_process_key.yaml"
         yaml_file.write_text(yaml_content)
-        with pytest.raises(LoadError, match="must contain a 'process' key"):
+        with pytest.raises(LoadError, match="File must contain either a 'process' key or process definition at root level"):
             load_process(yaml_file)
 
     def test_exception_chaining_preserves_stack_trace(self, tmp_path):

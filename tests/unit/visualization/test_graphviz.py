@@ -5,19 +5,17 @@ including DOT diagram generation, stage detail visualization, layout engines,
 and error handling scenarios.
 """
 
-import pytest
-from typing import Any, Dict, List, Tuple
-from unittest.mock import Mock, MagicMock, patch
+from typing import Any
+from unittest.mock import Mock
 
+import pytest
+
+from stageflow.process import Process
 from stageflow.visualization.graphviz import (
     GraphvizDotGenerator,
+    GraphVizGenerator,
     GraphvizGenerator,
-    GraphVizGenerator
 )
-from stageflow.process import Process
-from stageflow.stage import Stage
-from stageflow.gate import Gate
-from stageflow.lock import Lock, LockType
 
 
 class TestGraphvizDotGeneratorCreation:
@@ -859,7 +857,7 @@ class TestGraphvizIntegrationScenarios:
     """Integration tests for Graphviz generator with realistic scenarios."""
 
     @pytest.fixture
-    def realistic_process_config(self) -> Dict[str, Any]:
+    def realistic_process_config(self) -> dict[str, Any]:
         """Create a realistic process configuration for integration testing."""
         return {
             "name": "order_processing",

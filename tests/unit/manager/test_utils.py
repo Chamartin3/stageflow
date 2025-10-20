@@ -9,21 +9,20 @@ This test suite covers all functionality in the manager utils module including:
 """
 
 import json
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-from stageflow.manager.utils import (
-    OperationResultType,
-    ManageOperationResult,
-    list_all_processes,
-    sync_all_processes,
-    add_stage_to_process,
-    remove_stage_from_process,
-    sync_process,
-    validate_process_operations
-)
-from stageflow.manager.manager import ProcessManager
 from stageflow.manager.editor import ProcessEditor
+from stageflow.manager.manager import ProcessManager
+from stageflow.manager.utils import (
+    ManageOperationResult,
+    OperationResultType,
+    add_stage_to_process,
+    list_all_processes,
+    remove_stage_from_process,
+    sync_all_processes,
+    sync_process,
+    validate_process_operations,
+)
 
 
 class TestOperationResultType:
