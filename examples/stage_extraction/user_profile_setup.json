@@ -1,0 +1,11 @@
+{
+  "email": "jane.smith@example.com",
+  "status": "profile_setup",
+  "verification": {
+    "email_verified_at": "2024-01-01T10:15:00Z"
+  },
+  "profile": {
+    "first_name": "Jane"
+  },
+  "created_at": "2024-01-01T10:00:00Z"
+}

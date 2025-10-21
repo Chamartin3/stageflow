@@ -1,0 +1,35 @@
+# Simple Example: Automatic Stage Extraction
+# Demonstrates stage_prop with minimal schema validation
+
+process:
+  name: simple_auto_stage_workflow
+  description: "Simple workflow demonstrating automatic stage detection"
+
+  # Auto-extract current stage from element.status property
+  stage_prop: "status"
+
+  initial_stage: start
+  final_stage: complete
+
+  stages:
+    start:
+      name: "Start"
+      description: "Initial stage"
+      gates:
+        ready_to_process:
+          target_stage: processing
+          locks:
+            - exists: "ready"
+
+    processing:
+      name: "Processing"
+      description: "Processing stage"
+      gates:
+        processing_complete:
+          target_stage: complete
+          locks:
+            - exists: "processed"
+
+    complete:
+      name: "Complete"
+      description: "Final stage"

@@ -1,0 +1,58 @@
+# Example: Automatic Stage Extraction from Element Property
+# This process demonstrates the stage_prop feature which auto-extracts
+# the current stage from an element property path.
+
+process:
+  name: user_workflow_with_auto_stage
+  description: "User onboarding workflow with automatic stage detection from element status field"
+
+  # NEW FEATURE: Auto-extract current stage from element property
+  # This eliminates the need to manually specify the stage with -s flag
+  stage_prop: "status"
+
+  initial_stage: registration
+  final_stage: active
+
+  stages:
+    registration:
+      name: "Registration"
+      description: "User has signed up but not verified email"
+      gates:
+        email_verified:
+          target_stage: profile_setup
+          locks:
+            - exists: "verification.email_verified_at"
+            - type: regex
+              property_path: "email"
+              expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+    profile_setup:
+      name: "Profile Setup"
+      description: "User needs to complete their profile information"
+      gates:
+        profile_complete:
+          target_stage: verification
+          locks:
+            - exists: "profile.first_name"
+            - exists: "profile.last_name"
+            - type: not_empty
+              property_path: "profile.first_name"
+            - type: not_empty
+              property_path: "profile.last_name"
+
+    verification:
+      name: "Verification"
+      description: "User needs identity verification"
+      gates:
+        identity_verified:
+          target_stage: active
+          locks:
+            - exists: "verification.identity_verified_at"
+            - exists: "verification.phone_verified_at"
+            - type: equals
+              property_path: "verification.status"
+              expected_value: "verified"
+
+    active:
+      name: "Active User"
+      description: "User is fully verified and active"
