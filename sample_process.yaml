@@ -1,0 +1,27 @@
+process:
+  name: sample_process
+  description: Basic sample_process workflow
+  stages:
+    start:
+      name: Start
+      description: Initial stage
+      schema:
+        required_fields:
+          - id
+      gates:
+        - name: to_end
+          description: Proceed to end
+          target_stage: end
+          locks:
+            - exists: id
+
+    end:
+      name: End
+      description: Final stage
+      schema:
+        required_fields: []
+      gates: []
+      is_final: true
+
+  initial_stage: start
+  final_stage: end

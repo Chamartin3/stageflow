@@ -1,0 +1,102 @@
+name: task_status_workflow
+description: Task status progression workflow for todo management
+initial_stage: open
+final_stage: done
+stage_prop: status
+stages:
+  open:
+    name: "Open"
+    expected_properties:
+      status:
+        type: str
+        required: true
+      title:
+        type: str
+        required: true
+    gates:
+      - name: "start_work"
+        target_stage: "in-progress"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "in-progress"
+      - name: "block_immediately"
+        target_stage: "blocked"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "blocked"
+      - name: "complete_without_work"
+        target_stage: "done"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "done"
+  in-progress:
+    name: "In Progress"
+    expected_properties:
+      status:
+        type: str
+        required: true
+    gates:
+      - name: "request_review"
+        target_stage: "review"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "review"
+      - name: "block_during_work"
+        target_stage: "blocked"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "blocked"
+      - name: "complete_directly"
+        target_stage: "done"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "done"
+  blocked:
+    name: "Blocked"
+    expected_properties:
+      status:
+        type: str
+        required: true
+      blockers:
+        type: list
+        required: false
+    gates:
+      - name: "unblock_for_review"
+        target_stage: "review"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "review"
+      - name: "close_blocked_task"
+        target_stage: "done"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "done"
+  review:
+    name: "Under Review"
+    expected_properties:
+      status:
+        type: str
+        required: true
+    gates:
+      - name: "approve_and_complete"
+        target_stage: "done"
+        locks:
+          - type: "equals"
+            property_path: "status"
+            expected_value: "done"
+  done:
+    name: "Done"
+    is_final: true
+    expected_properties:
+      status:
+        type: str
+        required: true
+    gates: []
