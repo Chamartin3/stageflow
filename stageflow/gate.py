@@ -40,6 +40,30 @@ class GateResult:
                 msgs.append(lock_result.error_message)
         return msgs
 
+    def get_contextualized_messages(self, gate_name: str, target_stage: str) -> list[str]:
+        """Get failure messages with gate context included.
+
+        Args:
+            gate_name: Name of the gate that failed
+            target_stage: Target stage this gate would transition to
+
+        Returns:
+            List of error messages with transition context
+        """
+        if not self.failed:
+            return []
+
+        # Create header describing the transition
+        header = f"To transition via '{gate_name}' to stage '{target_stage}':"
+
+        # Add individual lock failures with indentation
+        msgs = [header]
+        for lock_result in self.failed:
+            if lock_result.error_message:
+                msgs.append(f"  → {lock_result.error_message}")
+
+        return msgs
+
 
 class Gate:
     """

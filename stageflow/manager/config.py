@@ -5,8 +5,35 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TypedDict
 
-EVV_VARS_PREFIX = 'STAGEFLOW_'
-CONFIG_FALLBACK_DIR = '~/.stageflow/'
+from stageflow.manager.constants import (
+    BACKUP_SUBDIR_NAME,
+    DEFAULT_AUTO_FIX_PERMISSIONS,
+    DEFAULT_BACKUP_ENABLED,
+    DEFAULT_CREATE_DIR,
+    # Directory constants
+    DEFAULT_DIR_PERMISSIONS,
+    DEFAULT_FORMAT,
+    DEFAULT_MAX_BACKUPS,
+    # Default values
+    DEFAULT_PROCESSES_DIR,
+    DEFAULT_STRICT_VALIDATION,
+    # Environment variable names
+    ENV_VAR_PREFIX,
+    FILE_EXT_JSON,
+    FILE_EXT_YAML,
+    # File format constants
+    SUPPORTED_EXTENSIONS,
+    get_auto_fix_permissions,
+    get_backup_dir,
+    get_backup_enabled,
+    get_create_dir,
+    get_default_format,
+    get_max_backups,
+    # Helper functions
+    get_processes_dir,
+    get_strict_validation,
+)
+
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails"""
@@ -54,34 +81,34 @@ class ManagerConfig:
 
     @classmethod
     def from_env(cls,
-                 env_prefix: str = EVV_VARS_PREFIX,
-                 fallback_dir: str = CONFIG_FALLBACK_DIR ) -> 'ManagerConfig':
-        """Create configuration from environment variables"""
+                 env_prefix: str = ENV_VAR_PREFIX,
+                 fallback_dir: str = DEFAULT_PROCESSES_DIR) -> 'ManagerConfig':
+        """Create configuration from environment variables using constants module"""
 
         # Get processes directory
-        processes_dir_str = os.getenv(f'{env_prefix}PROCESSES_DIR', fallback_dir)
+        processes_dir_str = get_processes_dir() if env_prefix == ENV_VAR_PREFIX else fallback_dir
         processes_dir = Path(processes_dir_str).expanduser().resolve()
 
         # Get default format
-        format_str = os.getenv(f'{env_prefix}DEFAULT_FORMAT', 'yaml').lower()
+        format_str = get_default_format()
         try:
             default_format = ProcessFileFormat(format_str)
         except ValueError:
             default_format = ProcessFileFormat.YAML
 
-        # Get boolean settings
-        create_dir = os.getenv(f'{env_prefix}CREATE_DIR', 'true').lower() in ('true', '1', 'yes')
-        backup_enabled = os.getenv(f'{env_prefix}BACKUP_ENABLED', 'false').lower() in ('true', '1', 'yes')
-        strict_validation = os.getenv(f'{env_prefix}STRICT_VALIDATION', 'true').lower() in ('true', '1', 'yes')
-        auto_fix_permissions = os.getenv(f'{env_prefix}AUTO_FIX_PERMISSIONS', 'true').lower() in ('true', '1', 'yes')
+        # Get boolean settings using helper functions
+        create_dir = get_create_dir()
+        backup_enabled = get_backup_enabled()
+        strict_validation = get_strict_validation()
+        auto_fix_permissions = get_auto_fix_permissions()
 
         # Get backup settings
         backup_dir = None
-        backup_dir_str = os.getenv(f'{env_prefix}BACKUP_DIR')
+        backup_dir_str = get_backup_dir()
         if backup_dir_str:
             backup_dir = Path(backup_dir_str).expanduser().resolve()
 
-        max_backups = int(os.getenv(f'{env_prefix}MAX_BACKUPS', '5'))
+        max_backups = get_max_backups()
 
         return cls(
             processes_dir=processes_dir,
@@ -96,13 +123,13 @@ class ManagerConfig:
 
     @classmethod
     def from_dict(cls, config_dict: ManagerConfigDict) -> 'ManagerConfig':
-        """Create configuration from typed dictionary"""
+        """Create configuration from typed dictionary using constants module"""
         # Get processes directory with type safety
-        processes_dir_str = config_dict.get('processes_dir', './processes')
+        processes_dir_str = config_dict.get('processes_dir', DEFAULT_PROCESSES_DIR)
         processes_dir = Path(processes_dir_str).expanduser().resolve()
 
         # Handle format with validation
-        format_str = config_dict.get('default_format', 'yaml')
+        format_str = config_dict.get('default_format', DEFAULT_FORMAT)
         try:
             default_format = ProcessFileFormat(format_str.lower())
         except ValueError as e:
@@ -115,19 +142,19 @@ class ManagerConfig:
             backup_dir = Path(backup_dir_val).expanduser().resolve()
 
         # Validate max_backups
-        max_backups = config_dict.get('max_backups', 5)
+        max_backups = config_dict.get('max_backups', DEFAULT_MAX_BACKUPS)
         if max_backups < 0:
             raise ConfigValidationError("max_backups must be non-negative")
 
         return cls(
             processes_dir=processes_dir,
             default_format=default_format,
-            create_dir_if_missing=config_dict.get('create_dir_if_missing', True),
-            backup_enabled=config_dict.get('backup_enabled', False),
+            create_dir_if_missing=config_dict.get('create_dir_if_missing', DEFAULT_CREATE_DIR),
+            backup_enabled=config_dict.get('backup_enabled', DEFAULT_BACKUP_ENABLED),
             backup_dir=backup_dir,
             max_backups=max_backups,
-            strict_validation=config_dict.get('strict_validation', True),
-            auto_fix_permissions=config_dict.get('auto_fix_permissions', True)
+            strict_validation=config_dict.get('strict_validation', DEFAULT_STRICT_VALIDATION),
+            auto_fix_permissions=config_dict.get('auto_fix_permissions', DEFAULT_AUTO_FIX_PERMISSIONS)
         )
 
     def _validate_config(self) -> None:
@@ -139,7 +166,7 @@ class ManagerConfig:
         # Validate backup settings
         if self.backup_enabled and not self.backup_dir:
             # Default backup dir to processes_dir/.backups
-            object.__setattr__(self, 'backup_dir', self.processes_dir / '.backups')
+            object.__setattr__(self, 'backup_dir', self.processes_dir / BACKUP_SUBDIR_NAME)
 
         if self.max_backups < 0:
             raise ConfigValidationError("max_backups must be non-negative")
@@ -157,7 +184,7 @@ class ManagerConfig:
                 # Fix permissions if needed
                 if self.auto_fix_permissions and not os.access(self.processes_dir, os.R_OK | os.W_OK):
                     try:
-                        os.chmod(self.processes_dir, 0o755)
+                        os.chmod(self.processes_dir, DEFAULT_DIR_PERMISSIONS)
                     except PermissionError:
                         pass  # Ignore permission errors
 
@@ -174,14 +201,14 @@ class ManagerConfig:
 
         if file_format == ProcessFileFormat.AUTO:
             # Try to find existing file with any extension
-            for ext in ['yaml', 'yml', 'json']:
+            for ext in SUPPORTED_EXTENSIONS:
                 file_path = self.processes_dir / f"{process_name}.{ext}"
                 if file_path.exists():
                     return file_path
             # If not found, default to YAML
             file_format = ProcessFileFormat.YAML
 
-        extension = 'yaml' if file_format == ProcessFileFormat.YAML else 'json'
+        extension = FILE_EXT_YAML if file_format == ProcessFileFormat.YAML else FILE_EXT_JSON
         return self.processes_dir / f"{process_name}.{extension}"
 
     def get_backup_path(self, process_name: str, timestamp: str) -> Path:
@@ -189,7 +216,7 @@ class ManagerConfig:
         if not self.backup_enabled or not self.backup_dir:
             raise ConfigValidationError("Backup not enabled")
 
-        return self.backup_dir / f"{process_name}_{timestamp}.yaml"
+        return self.backup_dir / f"{process_name}_{timestamp}.{FILE_EXT_YAML}"
 
     def is_valid_processes_dir(self) -> bool:
         """Check if processes directory is valid and accessible"""

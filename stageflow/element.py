@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, TypedDict, Union
+from typing import Any, TypedDict
 
 
 class ElementConfig(TypedDict):
@@ -70,7 +70,7 @@ class DictElement(Element):
     remains completely immutable.
     """
 
-    def __init__(self, data: Union[dict[str, Any], ElementConfig, ElementDataConfig]):
+    def __init__(self, data: dict[str, Any] | ElementConfig | ElementDataConfig):
         """
         Initialize with dictionary data or ElementConfig.
 
@@ -409,7 +409,7 @@ class DictElement(Element):
 
 
 # Factory function for creating elements
-def create_element(data: Union[dict[str, Any], Element, ElementConfig, ElementDataConfig]) -> Element:
+def create_element(data: dict[str, Any] | Element | ElementConfig | ElementDataConfig) -> Element:
     """
     Create an Element instance from various data sources.
 

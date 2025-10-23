@@ -9,8 +9,11 @@ This module contains:
 - ProcessRegistry: Registry for managing multiple processes
 - ProcessEditor: Interactive editing capabilities for processes
 - ProcessManager: Main interface for process management operations
+- constants: Configuration constants and environment variable settings
 """
 
+# Export constants module for direct access
+from . import constants
 from .config import (
     ConfigValidationError,
     ManagerConfig,
@@ -28,18 +31,24 @@ from .manager import (
 from .registry import ProcessRegistry, ProcessRegistryError
 
 __all__ = [
+    # Configuration
     "ManagerConfig",
     "ConfigValidationError",
     "ProcessFileFormat",
     "ManagerConfigDict",
+    # Editor
     "ProcessEditor",
     "ProcessEditorError",
     "ValidationFailedError",
+    # Registry
     "ProcessRegistry",
     "ProcessRegistryError",
+    # Manager
     "ProcessManager",
     "ProcessManagerError",
     "ProcessNotFoundError",
     "ProcessValidationError",
     "ProcessSyncError",
+    # Constants module
+    "constants",
 ]

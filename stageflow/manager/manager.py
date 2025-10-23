@@ -339,6 +339,107 @@ class ProcessManager:
             logger.error(f"Failed to remove process '{process_name}': {e}")
             raise ProcessManagerError(f"Process removal failed: {e}") from e
 
+    def export_process(self, process_name: str, export_path: Path,
+                      format_override: str | None = None) -> Path:
+        """
+        Export a process to an external file.
+
+        Args:
+            process_name: Name of the process to export
+            export_path: Target file path for export
+            format_override: Optional format override ('yaml' or 'json')
+
+        Returns:
+            Path to the exported file
+
+        Raises:
+            ProcessNotFoundError: If process not found
+            ProcessManagerError: If export fails
+        """
+        if not self._registry.process_exists(process_name):
+            raise ProcessNotFoundError(f"Process '{process_name}' not found")
+
+        try:
+            # Load the process
+            process = self._registry.load_process(process_name)
+
+            # Determine target format
+            if format_override:
+                target_format = format_override.lower()
+            else:
+                # Infer from file extension
+                ext = export_path.suffix.lower()
+                target_format = 'yaml' if ext in ['.yaml', '.yml'] else 'json'
+
+            # Extract process data
+            data_dict = self._registry._extract_process_data(process)
+
+            # Ensure parent directory exists
+            export_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write to file
+            import json
+
+            from ruamel.yaml import YAML
+
+            with open(export_path, 'w', encoding='utf-8') as f:
+                if target_format == 'yaml':
+                    yaml = YAML(typ='safe', pure=True)
+                    yaml.preserve_quotes = True
+                    yaml.indent(mapping=2, sequence=4, offset=2)
+                    yaml.dump(data_dict, f)
+                else:
+                    json.dump(data_dict, f, indent=2, ensure_ascii=False)
+
+            logger.info(f"Exported process '{process_name}' to {export_path}")
+            return export_path
+
+        except Exception as e:
+            logger.error(f"Failed to export process '{process_name}': {e}")
+            raise ProcessManagerError(f"Export failed: {e}") from e
+
+    def import_process(self, import_path: Path, process_name: str | None = None,
+                      overwrite: bool = False) -> str:
+        """
+        Import a process from an external file into the registry.
+
+        Args:
+            import_path: Path to the process file to import
+            process_name: Optional name for the imported process (defaults to filename stem)
+            overwrite: If True, overwrite existing process with same name
+
+        Returns:
+            Name of the imported process
+
+        Raises:
+            ProcessManagerError: If import fails or process already exists
+        """
+        if not import_path.exists():
+            raise ProcessManagerError(f"Import file not found: {import_path}")
+
+        try:
+            # Determine process name
+            target_name = process_name if process_name else import_path.stem
+
+            # Check if process already exists
+            if self._registry.process_exists(target_name) and not overwrite:
+                raise ProcessManagerError(
+                    f"Process '{target_name}' already exists. Use overwrite=True to replace it."
+                )
+
+            # Load process from external file
+            from stageflow.schema import load_process
+            process = load_process(import_path)
+
+            # Save to registry
+            self._registry.save_process(target_name, process)
+
+            logger.info(f"Imported process '{target_name}' from {import_path}")
+            return target_name
+
+        except Exception as e:
+            logger.error(f"Failed to import process from {import_path}: {e}")
+            raise ProcessManagerError(f"Import failed: {e}") from e
 
     def has_pending_changes(self, process_name: str | None = None) -> bool | dict[str, bool]:
         """

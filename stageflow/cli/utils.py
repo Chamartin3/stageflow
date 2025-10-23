@@ -50,18 +50,18 @@ def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> Non
         if verbose:
             click.echo(f"Successfully wrote {len(content)} characters to {file_path}")
 
-    except PermissionError:
-        raise click.ClickException(f"Permission denied writing to {file_path}")
+    except PermissionError as e:
+        raise click.ClickException(f"Permission denied writing to {file_path}") from e
 
     except OSError as e:
-        raise click.ClickException(f"Failed to write to {file_path}: {e}")
+        raise click.ClickException(f"Failed to write to {file_path}: {e}") from e
 
     except Exception as e:
         if verbose:
             import traceback
             click.echo(f"Unexpected error writing to {file_path}:", err=True)
             click.echo(traceback.format_exc(), err=True)
-        raise click.ClickException(f"Failed to write file {file_path}: {e}")
+        raise click.ClickException(f"Failed to write file {file_path}: {e}") from e
 
 
 def show_progress(message: str, verbose: bool = False) -> None:
