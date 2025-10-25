@@ -699,3 +699,211 @@ class TestStageIntegration:
         assert result.status == StageStatus.ACTION_REQUIRED
         assert len(result.sugested_action) == 0  # No actions for final stage
         assert result.gate_results == {}  # No gates to evaluate
+
+
+class TestStageSchema:
+    """Test Stage schema extraction functionality."""
+
+    def test_get_schema_returns_expected_properties(self):
+        """Verify get_schema returns the stage's expected properties."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "user_registration",
+            "description": "User registration stage",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {
+                "email": {"type": "string", "default": None},
+                "password": {"type": "string", "default": None},
+                "user.profile.name": {"type": "string", "default": "Anonymous"}
+            },
+            "is_final": False
+        }
+
+        stage = Stage("registration_id", stage_config)
+
+        # Act
+        schema = stage.get_schema()
+
+        # Assert
+        assert schema is not None
+        assert "email" in schema
+        assert "password" in schema
+        assert "user.profile.name" in schema
+        assert schema["email"]["type"] == "string"
+        assert schema["password"]["type"] == "string"
+        assert schema["user.profile.name"]["default"] == "Anonymous"
+
+    def test_get_schema_returns_none_for_empty_properties(self):
+        """Verify get_schema returns None when no expected properties defined."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "simple_stage",
+            "description": "Stage without properties",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": None,
+            "is_final": True
+        }
+
+        stage = Stage("simple_id", stage_config)
+
+        # Act
+        schema = stage.get_schema()
+
+        # Assert
+        assert schema is None
+
+    def test_get_schema_returns_empty_dict_for_empty_properties_dict(self):
+        """Verify get_schema returns empty dict when properties dict is empty."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "empty_props_stage",
+            "description": "Stage with empty properties dict",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {},
+            "is_final": False
+        }
+
+        stage = Stage("empty_id", stage_config)
+
+        # Act
+        schema = stage.get_schema()
+
+        # Assert
+        assert schema == {}
+
+    def test_get_schema_with_complex_nested_properties(self):
+        """Verify get_schema handles complex nested property structures."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "complex_stage",
+            "description": "Stage with complex nested properties",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {
+                "user": {
+                    "personal": {
+                        "name": {"type": "string", "default": None},
+                        "age": {"type": "integer", "default": 18}
+                    },
+                    "contact": {
+                        "email": {"type": "string", "default": None},
+                        "phone": {"type": "string", "default": None}
+                    }
+                },
+                "preferences": {
+                    "notifications": {"type": "boolean", "default": True},
+                    "theme": {"type": "string", "default": "light"}
+                }
+            },
+            "is_final": False
+        }
+
+        stage = Stage("complex_id", stage_config)
+
+        # Act
+        schema = stage.get_schema()
+
+        # Assert
+        assert schema is not None
+        assert "user" in schema
+        assert "preferences" in schema
+        assert schema["user"]["personal"]["name"]["type"] == "string"
+        assert schema["user"]["personal"]["age"]["default"] == 18
+        assert schema["preferences"]["theme"]["default"] == "light"
+
+    def test_get_schema_is_non_mutating(self):
+        """Verify get_schema does not modify the stage's internal state."""
+        # Arrange
+        original_properties = {
+            "field1": {"type": "string", "default": "value1"},
+            "field2": {"type": "integer", "default": 42}
+        }
+
+        stage_config: StageDefinition = {
+            "name": "immutable_stage",
+            "description": "Stage for testing immutability",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": original_properties,
+            "is_final": False
+        }
+
+        stage = Stage("immutable_id", stage_config)
+
+        # Act
+        schema1 = stage.get_schema()
+        schema2 = stage.get_schema()
+
+        # Modify the returned schema
+        if schema1:
+            schema1["new_field"] = {"type": "string", "default": "added"}
+
+        # Assert
+        # The original stage properties should remain unchanged
+        original_schema = stage.get_schema()
+        assert "new_field" not in original_schema
+        assert schema2 == original_schema
+        assert schema1 != schema2  # schema1 was modified but shouldn't affect stage
+
+    def test_get_schema_with_property_definitions_none_values(self):
+        """Verify get_schema handles property definitions with None values."""
+        # Arrange
+        stage_config: StageDefinition = {
+            "name": "nullable_stage",
+            "description": "Stage with None property definitions",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {
+                "optional_field": None,
+                "required_field": {"type": "string", "default": None}
+            },
+            "is_final": False
+        }
+
+        stage = Stage("nullable_id", stage_config)
+
+        # Act
+        schema = stage.get_schema()
+
+        # Assert
+        assert schema is not None
+        assert "optional_field" in schema
+        assert "required_field" in schema
+        assert schema["optional_field"] is None
+        assert schema["required_field"]["type"] == "string"
+
+    def test_get_schema_performance_with_large_properties(self):
+        """Verify get_schema performs well with a large number of properties."""
+        import time
+
+        # Arrange - Create a stage with many properties
+        large_properties = {}
+        for i in range(1000):
+            large_properties[f"field_{i}"] = {"type": "string", "default": f"value_{i}"}
+
+        stage_config: StageDefinition = {
+            "name": "large_stage",
+            "description": "Stage with many properties",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": large_properties,
+            "is_final": False
+        }
+
+        stage = Stage("large_id", stage_config)
+
+        # Act
+        start_time = time.time()
+        schema = stage.get_schema()
+        end_time = time.time()
+
+        # Assert
+        execution_time = (end_time - start_time) * 1000  # Convert to milliseconds
+        assert execution_time < 100  # Should complete in less than 100ms
+        assert schema is not None
+        assert len(schema) == 1000
+        assert "field_500" in schema
+        assert schema["field_500"]["default"] == "value_500"
