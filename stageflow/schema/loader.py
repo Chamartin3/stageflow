@@ -1,6 +1,8 @@
 """Simple file loader for StageFlow that creates Process objects directly."""
 
 import json
+import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +30,29 @@ class LoaderValidationError(Exception):
     pass
 
 
+@dataclass
+class ProcessWithErrors:
+    """Container for processes that failed validation but still need to be workable."""
+    name: str
+    description: str
+    file_path: str | Path
+    raw_config: dict
+    validation_errors: list[str]
+    partial_process: "Process | None" = None
+
+    @property
+    def valid(self) -> bool:
+        return len(self.validation_errors) == 0
+
+    def get_error_summary(self) -> str:
+        """Get a human-readable summary of validation errors."""
+        if not self.validation_errors:
+            return "No errors"
+        return f"{len(self.validation_errors)} validation error(s):\n" + "\n".join(
+            f"     • {error}" for error in self.validation_errors
+        )
+
+
 class FileReader:
     """Simple file reading abstraction with format detection."""
 
@@ -43,6 +68,15 @@ class FileReader:
             LoadError: For I/O or parsing errors
         """
         file_path = Path(file_path)
+
+        # Handle relative paths: use STAGEFLOW_ACTUAL_CWD if set (for CLI wrapper),
+        # otherwise resolve relative to current working directory
+        if not file_path.is_absolute():
+            actual_cwd = os.environ.get('STAGEFLOW_ACTUAL_CWD')
+            if actual_cwd:
+                file_path = Path(actual_cwd) / file_path
+            else:
+                file_path = file_path.resolve()
 
         if not file_path.exists():
             raise LoadError(f"File not found: {file_path}")
@@ -135,6 +169,89 @@ def load_process(file_path: str | Path) -> Process:
         if isinstance(e, LoadError):
             raise
         raise LoadError(f"Failed to load {file_path}: {e}") from e
+
+
+def load_process_graceful(file_path: str | Path) -> Process | ProcessWithErrors:
+    """
+    Load a Process with graceful error handling.
+
+    Unlike load_process(), this function will return a ProcessWithErrors object
+    for processes that have validation issues, allowing users to see what's wrong
+    and potentially edit the file to fix issues.
+
+    Args:
+        file_path: Path to the process definition file
+
+    Returns:
+        Process object if valid, ProcessWithErrors if invalid but parseable
+
+    Raises:
+        LoadError: Only for file I/O or severe parsing errors
+    """
+    try:
+        # First try normal loading
+        return load_process(file_path)
+    except LoadError as e:
+        # Check if this is a validation error we can handle gracefully
+        if "not found in stages definition" in str(e) or "must have" in str(e):
+            try:
+                # Try to load the raw config for analysis
+                data = FileReader.read_file(file_path)
+
+                if not isinstance(data, dict):
+                    raise  # Re-raise original error for parsing issues
+
+                # Handle both new format with 'process' key and legacy format without it
+                if 'process' in data:
+                    process_config = data['process']
+                else:
+                    required_process_fields = ['name', 'stages', 'initial_stage', 'final_stage']
+                    if all(field in data for field in required_process_fields):
+                        process_config = data
+                    else:
+                        raise  # Re-raise original error
+
+                # Extract basic info
+                name = process_config.get('name', 'Unknown Process')
+                description = process_config.get('description', '')
+
+                # Collect validation errors
+                errors = []
+
+                # Check stages structure
+                stages = process_config.get('stages', {})
+                initial_stage = process_config.get('initial_stage', '')
+                final_stage = process_config.get('final_stage', '')
+
+                if not stages:
+                    errors.append("No stages defined")
+                elif len(stages) < 2:
+                    errors.append("Process must have at least two stages")
+                else:
+                    stage_names = set(stages.keys())
+
+                    if initial_stage and initial_stage not in stage_names:
+                        available = ', '.join(sorted(stage_names))
+                        errors.append(f"initial_stage '{initial_stage}' not found. Available stages: {available}")
+
+                    if final_stage and final_stage not in stage_names:
+                        available = ', '.join(sorted(stage_names))
+                        errors.append(f"final_stage '{final_stage}' not found. Available stages: {available}")
+
+                return ProcessWithErrors(
+                    name=name,
+                    description=description,
+                    file_path=file_path,
+                    raw_config=process_config,
+                    validation_errors=errors
+                )
+
+            except Exception:
+                # If graceful handling fails, re-raise original error
+                raise e from None
+        else:
+            # Re-raise for non-validation errors
+            raise
 
 
 
@@ -233,6 +350,10 @@ def _convert_process_config(config: dict[str, Any]) -> ProcessDefinition:
 
     converted: dict[str, Any] = dict(config)
 
+    # Pass through stage_prop if present
+    if 'stage_prop' in config:
+        converted['stage_prop'] = config['stage_prop']
+
     if 'stages' in config:
         if not isinstance(config['stages'], dict):
             raise LoaderValidationError("'stages' must be a dictionary with stage IDs as keys")
@@ -254,6 +375,126 @@ def _convert_process_config(config: dict[str, Any]) -> ProcessDefinition:
     return converted  # type: ignore
 
 
+# Schema Integration Functions
+
+def add_schema_to_yaml_output(process_dict: dict[str, Any], schema_url: str = "https://stageflow.dev/schemas/process.json") -> dict[str, Any]:
+    """
+    Add JSON Schema reference to process dictionary for YAML output.
+
+    This enables IDE validation and auto-completion support in YAML editors.
+
+    Args:
+        process_dict: Process definition dictionary
+        schema_url: URL to the JSON schema (defaults to official StageFlow schema)
+
+    Returns:
+        Process dictionary with $schema property added
+    """
+    result = {"$schema": schema_url}
+    result.update(process_dict)
+    return result
+
+
+def save_process_with_schema(process: Process, file_path: str | Path,
+                           include_schema: bool = True,
+                           schema_url: str = "https://stageflow.dev/schemas/process.json") -> None:
+    """
+    Save a Process object to YAML file with optional schema reference.
+
+    Args:
+        process: Process object to save
+        file_path: Output file path
+        include_schema: Whether to include $schema reference (default: True)
+        schema_url: URL to the JSON schema
+
+    Raises:
+        IOError: If file cannot be written
+    """
+    file_path = Path(file_path)
+
+    # Convert Process to dictionary format
+    process_dict = process.to_dict()
+
+    # Convert enum values to strings for YAML serialization
+    process_dict = _sanitize_for_yaml(process_dict)
+
+    # Wrap in 'process' key for new format
+    output_dict = {"process": process_dict}
+
+    # Add schema reference if requested
+    if include_schema:
+        output_dict = add_schema_to_yaml_output(output_dict, schema_url)
+
+    # Save to YAML file
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.default_flow_style = False
+    yaml.width = 120
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        yaml.dump(output_dict, f)
+
+
+def _sanitize_for_yaml(data: Any) -> Any:
+    """
+    Recursively convert enum values and other non-serializable types to strings.
+
+    Args:
+        data: Data structure to sanitize
+
+    Returns:
+        Sanitized data structure safe for YAML serialization
+    """
+    from enum import Enum
+
+    if isinstance(data, Enum):
+        return data.value
+    elif isinstance(data, dict):
+        return {key: _sanitize_for_yaml(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_for_yaml(item) for item in data]
+    elif isinstance(data, tuple):
+        return tuple(_sanitize_for_yaml(item) for item in data)
+    else:
+        return data
+
+
+def get_local_schema_path() -> Path:
+    """
+    Get the path to the local schema file.
+
+    Returns:
+        Path to the stageflow-process-schema.yaml file
+    """
+    # Schema is in the repository root
+    current_dir = Path(__file__).parent
+    repo_root = current_dir.parent.parent
+    return repo_root / "stageflow-process-schema.yaml"
+
+
+def save_process_with_local_schema(process: Process, file_path: str | Path) -> None:
+    """
+    Save a Process object to YAML file with reference to local schema file.
+
+    This is useful for development when working with the local schema file.
+
+    Args:
+        process: Process object to save
+        file_path: Output file path
+
+    Raises:
+        IOError: If file cannot be written
+    """
+    local_schema = get_local_schema_path()
+    if local_schema.exists():
+        schema_url = f"file://{local_schema.absolute()}"
+        save_process_with_schema(process, file_path, include_schema=True, schema_url=schema_url)
+    else:
+        # Fallback to no schema if local file doesn't exist
+        save_process_with_schema(process, file_path, include_schema=False)
+
+
 def _validate_process_structure(config: dict[str, Any]) -> None:
     """Validate basic process structure requirements."""
     required_fields = ['name', 'stages', 'initial_stage', 'final_stage']
@@ -270,6 +511,11 @@ def _validate_process_structure(config: dict[str, Any]) -> None:
 
     if not isinstance(config['final_stage'], str) or not config['final_stage'].strip():
         raise LoaderValidationError("Process 'final_stage' must be a non-empty string")
+
+    # Validate stage_prop if present
+    if 'stage_prop' in config:
+        if not isinstance(config['stage_prop'], str) or not config['stage_prop'].strip():
+            raise LoaderValidationError("Process 'stage_prop' must be a non-empty string")
 
 
 def _convert_stage_config(stage_id: str, stage_data: dict[str, Any]) -> StageDefinition:

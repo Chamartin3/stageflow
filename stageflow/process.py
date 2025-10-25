@@ -2,12 +2,19 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from .element import Element
 from .gate import Gate
 from .lock import Lock
-from .stage import Stage, StageDefinition, StageEvaluationResult, StageStatus
+from .stage import (
+    ExpectedObjectSchmema,
+    Stage,
+    StageDefinition,
+    StageEvaluationResult,
+    StageObjectPropertyDefinition,
+    StageStatus,
+)
 
 
 class ProcessDefinition(TypedDict):
@@ -18,6 +25,7 @@ class ProcessDefinition(TypedDict):
     stages: dict[str,StageDefinition]
     initial_stage: str
     final_stage: str
+    stage_prop: NotRequired[str]  # Optional: property path to extract current stage from element
 
 
 class ProcessElementEvaluationResult(TypedDict):
@@ -369,6 +377,7 @@ class Process:
         """
         self.name = config["name"]
         self.description = config.get("description", "")
+        self.stage_prop = config.get("stage_prop", None)
 
         stages_definition = config.get("stages", {})
         initial_stage = config.get("initial_stage", "")
@@ -522,15 +531,141 @@ class Process:
         self._transition_map.append((from_stage, to_stage))
         self.checker = self._get_consistency_checker()
 
+    def get_schema(self, stage_name: str, partial: bool = True) -> ExpectedObjectSchmema:
+        """Get schema definition for specified stage.
+
+        Args:
+            stage_name: Name of the stage to get schema for
+            partial: True for stage-only schema, False for cumulative schema
+
+        Returns:
+            Dictionary containing property schema definitions
+
+        Raises:
+            ValueError: If stage_name is not found in process
+        """
+        stage = self.get_stage(stage_name)
+        if not stage:
+            raise ValueError(f"Stage '{stage_name}' not found in process '{self.name}'")
+
+        if partial:
+            return stage.get_schema()
+
+        # Full mode: accumulate properties from all previous stages
+        accumulated_properties: dict[str, StageObjectPropertyDefinition | None] = {}
+        previous_stages = self._get_previous_stages(stage)
+
+        # Include properties from all previous stages and the current stage
+        for prev_stage in previous_stages:
+            stage_schema = prev_stage.get_schema()
+            if stage_schema:
+                accumulated_properties.update(stage_schema)
+
+        # Include current stage properties
+        current_schema = stage.get_schema()
+        if current_schema:
+            accumulated_properties.update(current_schema)
+
+        return accumulated_properties
+
     # Element evaluation methods
+    def _extract_current_stage(
+        self,
+        element: Element,
+        stage_override: str | None = None
+    ) -> str:
+        """
+        Determine the current stage for evaluation.
+
+        Precedence order:
+        1. Explicit override (stage_override parameter)
+        2. Auto-extraction from element (if stage_prop configured)
+        3. Default to initial_stage
+
+        Args:
+            element: Element being evaluated
+            stage_override: Explicit stage override (from CLI -s flag or API call)
+
+        Returns:
+            Stage name to use for evaluation
+
+        Raises:
+            ValueError: If extracted stage is invalid or doesn't exist
+        """
+        # Priority 1: Explicit override
+        if stage_override is not None:
+            return stage_override
+
+        # Priority 2: Auto-extraction from element
+        if self.stage_prop:
+            try:
+                # Use Element's get_property method (same logic as locks)
+                extracted_value = element.get_property(self.stage_prop)
+
+                # Validate extracted value
+                if extracted_value is None:
+                    raise ValueError(
+                        f"Stage property '{self.stage_prop}' not found in element"
+                    )
+
+                if not isinstance(extracted_value, str):
+                    raise ValueError(
+                        f"Stage property '{self.stage_prop}' must be a string, "
+                        f"got {type(extracted_value).__name__}: {extracted_value}"
+                    )
+
+                # Validate stage exists in process
+                if not self.get_stage(extracted_value):
+                    available_stages = ', '.join(sorted(self._stage_index))
+                    raise ValueError(
+                        f"Stage '{extracted_value}' extracted from property "
+                        f"'{self.stage_prop}' is not a valid stage. "
+                        f"Available stages: {available_stages}"
+                    )
+
+                return extracted_value
+
+            except Exception as e:
+                # Enhance error message with context
+                if isinstance(e, ValueError):
+                    raise
+                raise ValueError(
+                    f"Failed to extract stage from property '{self.stage_prop}': {e}"
+                ) from e
+
+        # Priority 3: Default to initial_stage
+        return self.initial_stage._id
+
     def evaluate(self, element: Element, current_stage_name: str | None = None) -> ProcessElementEvaluationResult:
         """
-         Determine the if the element is ready to transition from the current stage.
+        Determine if the element is ready to transition from the current stage.
+
+        The current stage is determined by precedence:
+        1. Explicit current_stage_name parameter (highest priority)
+        2. Auto-extraction from element using stage_prop configuration
+        3. Default to initial_stage (lowest priority)
+
+        Args:
+            element: Element to evaluate
+            current_stage_name: Optional explicit stage name (overrides auto-extraction)
+
+        Returns:
+            ProcessElementEvaluationResult with evaluation details
+
+        Raises:
+            ValueError: If process is inconsistent or stage extraction fails
         """
         if self.checker.valid is False:
             raise ValueError("Cannot evaluate element in an inconsistent process configuration")
 
-        current_stage = self.get_stage(current_stage_name or "") or self.initial_stage
+        # Determine current stage using precedence order
+        stage_name = self._extract_current_stage(element, current_stage_name)
+        current_stage = self.get_stage(stage_name)
+
+        # This should never happen due to validation in _extract_current_stage
+        if not current_stage:
+            raise ValueError(f"Stage '{stage_name}' not found in process")
+
         previous_stages = self._get_previous_stages(current_stage)
 
         current_stage_result = current_stage.evaluate(element)
@@ -556,10 +691,16 @@ class Process:
     # Serialization methods
     def to_dict(self) -> ProcessDefinition:
         """Serialize process to dictionary."""
-        return {
+        result: dict = {
             "name": self.name,
             "description": self.description,
             "stages": {stage._id: stage.to_dict() for stage in self.stages},
             "initial_stage": self.initial_stage._id,
             "final_stage": self.final_stage._id,
         }
+
+        # Include stage_prop if configured
+        if self.stage_prop:
+            result["stage_prop"] = self.stage_prop
+
+        return result  # type: ignore

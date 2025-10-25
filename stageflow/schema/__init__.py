@@ -15,8 +15,14 @@ from stageflow.schema.loader import (
     FileReader,
     Loader,
     LoadError,
+    ProcessWithErrors,
+    add_schema_to_yaml_output,
+    get_local_schema_path,
     load_element,
     load_process,
+    load_process_graceful,
+    save_process_with_local_schema,
+    save_process_with_schema,
 )
 from stageflow.stage import ActionDefinition, StageDefinition
 
@@ -33,7 +39,15 @@ __all__ = [
     # Loader interface
     "Loader",           # Class-based interface for loading
     "LoadError",
+    "ProcessWithErrors", # Graceful error handling
     "FileReader",       # Advanced I/O operations
     "load_process",
+    "load_process_graceful", # Graceful loading
     "load_element",     # Element loader function
+
+    # Schema integration functions
+    "add_schema_to_yaml_output",      # Add $schema to process dictionaries
+    "save_process_with_schema",       # Save process with schema reference
+    "save_process_with_local_schema", # Save with local schema file reference
+    "get_local_schema_path",          # Get path to local schema file
 ]

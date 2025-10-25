@@ -221,17 +221,38 @@ class Stage:
                 action_type=ActionType.EXCECUTE,
             )
             gate_actions.append(action)
-        for message in (msg for result in gate_evaluation_results.values() for msg in result.messages):
-            gate_actions.append(Action(
-                description=message,
-                related_properties=[],
-                action_type=ActionType.EXCECUTE,
-            ))
+
+        # Add contextualized gate failure messages grouped by gate
+        for gate in self.gates:
+            gate_result = gate_evaluation_results.get(gate.name)
+            if gate_result and not gate_result.success:
+                # Get contextualized messages for this gate
+                contextualized_msgs = gate_result.get_contextualized_messages(
+                    gate_name=gate.name,
+                    target_stage=gate.target_stage
+                )
+                # Add each message as an action
+                for message in contextualized_msgs:
+                    gate_actions.append(Action(
+                        description=message,
+                        related_properties=[],
+                        action_type=ActionType.EXCECUTE,
+                    ))
         return StageEvaluationResult(
             status=StageStatus.ACTION_REQUIRED,
             gate_results=gate_evaluation_results,
             sugested_action=gate_actions
         )
+
+    def get_schema(self) -> ExpectedObjectSchmema:
+        """Extract schema definition for this stage.
+
+        Returns:
+            ExpectedObjectSchmema with existing StageFlow type definitions.
+            Schema includes type information from expected_properties.
+        """
+        import copy
+        return copy.deepcopy(self._base_schema)
 
     # Serialization
     def to_dict(self) -> StageDefinition:
