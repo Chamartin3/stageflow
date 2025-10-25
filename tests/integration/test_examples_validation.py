@@ -62,7 +62,7 @@ class TestExamplesValidation:
 
     def run_stageflow_cli(self, process_file: Path, expect_success: bool = True) -> dict:
         """Run StageFlow CLI on a process file and return result."""
-        cmd = ["uv", "run", "stageflow", "eval", "-p", str(process_file)]
+        cmd = ["uv", "run", "stageflow", str(process_file)]
 
         try:
             result = subprocess.run(
@@ -114,7 +114,7 @@ class TestExamplesValidation:
         for process_file in valid_example_files:
             try:
                 # Run without expect_success assertion, handle results manually
-                cmd = ["uv", "run", "stageflow", "eval", "-p", str(process_file)]
+                cmd = ["uv", "run", "stageflow", str(process_file)]
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -149,7 +149,8 @@ class TestExamplesValidation:
 
         for process_file in invalid_example_files:
             # Check if this is a consistency error file or a structural error file
-            is_consistency_error = "consistency_errors" in str(process_file)
+            is_consistency_error = ("consistency_errors" in str(process_file) or
+                                  process_file.name == "invalid_references.yaml")
 
             if is_consistency_error:
                 # Consistency error files should load but show as invalid
@@ -187,7 +188,7 @@ class TestExamplesValidation:
 
             try:
                 # Test visualization generation
-                cmd = ["uv", "run", "stageflow", "eval", "-p", str(viz_file), "--view", "-o", "/tmp/test_viz.md"]
+                cmd = ["uv", "run", "stageflow", str(viz_file), "--diagram", "/tmp/test_viz.md"]
                 result = subprocess.run(
                     cmd,
                     capture_output=True,

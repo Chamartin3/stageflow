@@ -1181,3 +1181,432 @@ class TestProcessIntegration:
         assert result["stage"] == "start"
         # With no locks, gate should pass immediately
         assert result["stage_result"].status == StageStatus.READY_FOR_TRANSITION
+
+
+class TestProcessSchema:
+    """Test Process schema extraction functionality."""
+
+    def test_get_schema_partial_mode_returns_stage_schema(self):
+        """Verify get_schema with partial=True returns only the specified stage's schema."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "user_workflow",
+            "description": "User workflow process",
+            "stages": {
+                "registration": {
+                    "name": "Registration",
+                    "description": "User registration stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "email": {"type": "string", "default": None},
+                        "password": {"type": "string", "default": None}
+                    },
+                    "is_final": False
+                },
+                "profile": {
+                    "name": "Profile Setup",
+                    "description": "Profile setup stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "name": {"type": "string", "default": None},
+                        "age": {"type": "integer", "default": 18}
+                    },
+                    "is_final": True
+                }
+            },
+            "initial_stage": "registration",
+            "final_stage": "profile"
+        }
+
+        process = Process(process_config)
+
+        # Act
+        schema = process.get_schema("registration", partial=True)
+
+        # Assert
+        assert schema is not None
+        assert "email" in schema
+        assert "password" in schema
+        assert "name" not in schema  # Should not include profile stage properties
+        assert "age" not in schema
+        assert schema["email"]["type"] == "string"
+        assert schema["password"]["type"] == "string"
+
+    def test_get_schema_full_mode_returns_cumulative_schema(self):
+        """Verify get_schema with partial=False returns cumulative schema from all previous stages."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "multi_stage_workflow",
+            "description": "Multi-stage workflow process",
+            "stages": {
+                "stage1": {
+                    "name": "Stage 1",
+                    "description": "First stage",
+                    "gates": [{
+                        "name": "to_stage2",
+                        "description": "Transition to stage 2",
+                        "target_stage": "stage2",
+                        "parent_stage": "stage1",
+                        "locks": [{"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}]
+                    }],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "field1": {"type": "string", "default": None},
+                        "field2": {"type": "integer", "default": 0}
+                    },
+                    "is_final": False
+                },
+                "stage2": {
+                    "name": "Stage 2",
+                    "description": "Second stage",
+                    "gates": [{
+                        "name": "to_stage3",
+                        "description": "Transition to stage 3",
+                        "target_stage": "stage3",
+                        "parent_stage": "stage2",
+                        "locks": [{"type": LockType.EXISTS, "property_path": "field3", "expected_value": None}]
+                    }],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "field3": {"type": "string", "default": None},
+                        "field4": {"type": "boolean", "default": False}
+                    },
+                    "is_final": False
+                },
+                "stage3": {
+                    "name": "Stage 3",
+                    "description": "Final stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "field5": {"type": "string", "default": None}
+                    },
+                    "is_final": True
+                }
+            },
+            "initial_stage": "stage1",
+            "final_stage": "stage3"
+        }
+
+        process = Process(process_config)
+
+        # Act
+        schema = process.get_schema("stage3", partial=False)
+
+        # Assert
+        assert schema is not None
+        # Should include properties from all previous stages and current stage
+        assert "field1" in schema  # From stage1
+        assert "field2" in schema  # From stage1
+        assert "field3" in schema  # From stage2
+        assert "field4" in schema  # From stage2
+        assert "field5" in schema  # From stage3
+        assert schema["field1"]["type"] == "string"
+        assert schema["field2"]["default"] == 0
+        assert schema["field3"]["type"] == "string"
+        assert schema["field4"]["default"] is False
+        assert schema["field5"]["type"] == "string"
+
+    def test_get_schema_raises_error_for_invalid_stage_name(self):
+        """Verify get_schema raises ValueError for non-existent stage name."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "simple_process",
+            "description": "Simple process",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "description": "Start stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": False
+                },
+                "end": {
+                    "name": "End",
+                    "description": "End stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": True
+                }
+            },
+            "initial_stage": "start",
+            "final_stage": "end"
+        }
+
+        process = Process(process_config)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Stage 'nonexistent' not found in process 'simple_process'"):
+            process.get_schema("nonexistent")
+
+    def test_get_schema_handles_empty_properties(self):
+        """Verify get_schema handles stages with empty or None properties."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "empty_props_process",
+            "description": "Process with empty properties",
+            "stages": {
+                "empty_stage": {
+                    "name": "Empty Stage",
+                    "description": "Stage with empty properties",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": False
+                },
+                "none_stage": {
+                    "name": "None Stage",
+                    "description": "Stage with None properties",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": None,
+                    "is_final": True
+                }
+            },
+            "initial_stage": "empty_stage",
+            "final_stage": "none_stage"
+        }
+
+        process = Process(process_config)
+
+        # Act
+        empty_schema = process.get_schema("empty_stage", partial=True)
+        none_schema = process.get_schema("none_stage", partial=True)
+
+        # Assert
+        assert empty_schema == {}
+        assert none_schema is None
+
+    def test_get_schema_full_mode_with_mixed_property_types(self):
+        """Verify get_schema full mode handles mixed property types correctly."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "mixed_props_process",
+            "description": "Process with mixed property types",
+            "stages": {
+                "stage1": {
+                    "name": "Stage 1",
+                    "description": "Stage with normal properties",
+                    "gates": [{
+                        "name": "to_stage2",
+                        "description": "Transition to stage 2",
+                        "target_stage": "stage2",
+                        "parent_stage": "stage1",
+                        "locks": [{"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}]
+                    }],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "field1": {"type": "string", "default": "value1"},
+                        "field2": {"type": "integer", "default": 42}
+                    },
+                    "is_final": False
+                },
+                "stage2": {
+                    "name": "Stage 2",
+                    "description": "Stage with empty properties",
+                    "gates": [{
+                        "name": "to_stage3",
+                        "description": "Transition to stage 3",
+                        "target_stage": "stage3",
+                        "parent_stage": "stage2",
+                        "locks": [{"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}]
+                    }],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": False
+                },
+                "stage3": {
+                    "name": "Stage 3",
+                    "description": "Stage with None properties",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": None,
+                    "is_final": True
+                }
+            },
+            "initial_stage": "stage1",
+            "final_stage": "stage3"
+        }
+
+        process = Process(process_config)
+
+        # Act
+        schema = process.get_schema("stage3", partial=False)
+
+        # Assert
+        # Should only include properties from stage1 (stage2 has empty, stage3 has None)
+        assert "field1" in schema
+        assert "field2" in schema
+        assert schema["field1"]["default"] == "value1"
+        assert schema["field2"]["default"] == 42
+
+    def test_get_schema_performance_with_large_process(self):
+        """Verify get_schema performs well with large process and many stages."""
+        import time
+
+        # Arrange - Create a process with many stages
+        stages = {}
+        stage_names = []
+
+        for i in range(50):  # 50 stages
+            stage_name = f"stage_{i}"
+            stage_names.append(stage_name)
+
+            # Each stage has some properties
+            properties = {}
+            for j in range(20):  # 20 properties per stage
+                properties[f"field_{i}_{j}"] = {"type": "string", "default": f"value_{i}_{j}"}
+
+            gates = []
+            if i < 49:  # Not the final stage
+                gates.append({
+                    "name": f"to_stage_{i+1}",
+                    "description": f"Transition to stage {i+1}",
+                    "target_stage": f"stage_{i+1}",
+                    "parent_stage": stage_name,
+                    "locks": [{"type": LockType.EXISTS, "property_path": f"field_{i}_0", "expected_value": None}]
+                })
+
+            stages[stage_name] = {
+                "name": f"Stage {i}",
+                "description": f"Stage {i} description",
+                "gates": gates,
+                "expected_actions": [],
+                "expected_properties": properties,
+                "is_final": i == 49
+            }
+
+        process_config: ProcessDefinition = {
+            "name": "large_process",
+            "description": "Large process for performance testing",
+            "stages": stages,
+            "initial_stage": "stage_0",
+            "final_stage": "stage_49"
+        }
+
+        process = Process(process_config)
+
+        # Act - Test cumulative schema for the final stage
+        start_time = time.time()
+        schema = process.get_schema("stage_49", partial=False)
+        end_time = time.time()
+
+        # Assert
+        execution_time = (end_time - start_time) * 1000  # Convert to milliseconds
+        assert execution_time < 100  # Should complete in less than 100ms
+        assert schema is not None
+        assert len(schema) == 50 * 20  # 50 stages × 20 properties each
+
+        # Verify some sample properties exist
+        assert "field_0_0" in schema  # From first stage
+        assert "field_25_10" in schema  # From middle stage
+        assert "field_49_19" in schema  # From final stage
+
+    def test_get_schema_with_overlapping_property_names(self):
+        """Verify get_schema handles overlapping property names correctly in full mode."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "overlap_process",
+            "description": "Process with overlapping property names",
+            "stages": {
+                "stage1": {
+                    "name": "Stage 1",
+                    "description": "First stage",
+                    "gates": [{
+                        "name": "to_stage2",
+                        "description": "Transition to stage 2",
+                        "target_stage": "stage2",
+                        "parent_stage": "stage1",
+                        "locks": [{"type": LockType.EXISTS, "property_path": "common_field", "expected_value": None}]
+                    }],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "common_field": {"type": "string", "default": "stage1_value"},
+                        "unique_field1": {"type": "integer", "default": 1}
+                    },
+                    "is_final": False
+                },
+                "stage2": {
+                    "name": "Stage 2",
+                    "description": "Second stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "common_field": {"type": "string", "default": "stage2_value"},  # Overlaps with stage1
+                        "unique_field2": {"type": "boolean", "default": True}
+                    },
+                    "is_final": True
+                }
+            },
+            "initial_stage": "stage1",
+            "final_stage": "stage2"
+        }
+
+        process = Process(process_config)
+
+        # Act
+        schema = process.get_schema("stage2", partial=False)
+
+        # Assert
+        assert schema is not None
+        assert "common_field" in schema
+        assert "unique_field1" in schema
+        assert "unique_field2" in schema
+
+        # The later stage (stage2) should override the common field
+        assert schema["common_field"]["default"] == "stage2_value"
+        assert schema["unique_field1"]["default"] == 1
+        assert schema["unique_field2"]["default"] is True
+
+    def test_get_schema_default_partial_parameter(self):
+        """Verify get_schema defaults to partial=True when not specified."""
+        # Arrange
+        process_config: ProcessDefinition = {
+            "name": "default_test_process",
+            "description": "Process for testing default parameter",
+            "stages": {
+                "stage1": {
+                    "name": "Stage 1",
+                    "description": "First stage",
+                    "gates": [{
+                        "name": "to_stage2",
+                        "description": "Transition to stage 2",
+                        "target_stage": "stage2",
+                        "parent_stage": "stage1",
+                        "locks": [{"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}]
+                    }],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "field1": {"type": "string", "default": None}
+                    },
+                    "is_final": False
+                },
+                "stage2": {
+                    "name": "Stage 2",
+                    "description": "Second stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "field2": {"type": "string", "default": None}
+                    },
+                    "is_final": True
+                }
+            },
+            "initial_stage": "stage1",
+            "final_stage": "stage2"
+        }
+
+        process = Process(process_config)
+
+        # Act - Call without specifying partial parameter
+        schema_default = process.get_schema("stage2")
+        schema_explicit_true = process.get_schema("stage2", partial=True)
+
+        # Assert
+        assert schema_default == schema_explicit_true
+        assert "field2" in schema_default
+        assert "field1" not in schema_default  # Should not include previous stage properties

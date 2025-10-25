@@ -13,12 +13,12 @@ This test suite covers all functionality in the ProcessRegistry class including:
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from ruamel.yaml import YAML
 
-from stageflow.manager.config import ManagerConfig, ProcessFileFormat
+from stageflow.manager.config import ManagerConfig
 from stageflow.manager.registry import ProcessRegistry, ProcessRegistryError
 from stageflow.process import Process
 

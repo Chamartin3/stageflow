@@ -370,7 +370,7 @@ class TestManagerConfigValidation:
 
         # Act & Assert - Should not raise any exceptions
         with patch.object(ManagerConfig, '_setup_directories'):
-            config = ManagerConfig(processes_dir=processes_dir)
+            ManagerConfig(processes_dir=processes_dir)
         # Validation is called in __post_init__
 
     def test_validate_config_with_empty_processes_dir_raises_error(self):
@@ -435,7 +435,7 @@ class TestManagerConfigDirectorySetup:
 
             # Act
             with patch.object(ManagerConfig, '_validate_config'):
-                config = ManagerConfig(
+                ManagerConfig(
                     processes_dir=processes_dir,
                     create_dir_if_missing=True
                 )
@@ -452,7 +452,7 @@ class TestManagerConfigDirectorySetup:
 
             # Act
             with patch.object(ManagerConfig, '_validate_config'):
-                config = ManagerConfig(
+                ManagerConfig(
                     processes_dir=processes_dir,
                     create_dir_if_missing=False
                 )
@@ -469,7 +469,7 @@ class TestManagerConfigDirectorySetup:
 
             # Act
             with patch.object(ManagerConfig, '_validate_config'):
-                config = ManagerConfig(
+                ManagerConfig(
                     processes_dir=processes_dir,
                     backup_enabled=True,
                     backup_dir=backup_dir,
@@ -490,7 +490,7 @@ class TestManagerConfigDirectorySetup:
             with patch.object(ManagerConfig, '_validate_config'):
                 with patch('os.access', return_value=False):
                     with patch('os.chmod') as mock_chmod:
-                        config = ManagerConfig(
+                        ManagerConfig(
                             processes_dir=processes_dir,
                             auto_fix_permissions=True,
                             create_dir_if_missing=True
@@ -509,7 +509,7 @@ class TestManagerConfigDirectorySetup:
             with patch.object(ManagerConfig, '_validate_config'):
                 with patch('os.access', return_value=False):
                     with patch('os.chmod', side_effect=PermissionError("Permission denied")):
-                        config = ManagerConfig(
+                        ManagerConfig(
                             processes_dir=processes_dir,
                             auto_fix_permissions=True,
                             create_dir_if_missing=True
@@ -524,7 +524,7 @@ class TestManagerConfigDirectorySetup:
         with pytest.raises(ConfigValidationError, match="Failed to create processes directory"):
             with patch.object(ManagerConfig, '_validate_config'):
                 with patch.object(Path, 'mkdir', side_effect=OSError("Cannot create directory")):
-                    config = ManagerConfig(
+                    ManagerConfig(
                         processes_dir=processes_dir,
                         create_dir_if_missing=True
                     )

@@ -999,9 +999,7 @@ class TestGateEdgeCases:
             "locks": [{"exists": "field"}]
         }
         gate = Gate(gate_config)
-        original_name = gate.name
-        original_target = gate.target_stage
-        original_locks_count = len(gate._locks)
+        len(gate._locks)
 
         # Act
         gate.name = "modified_name"

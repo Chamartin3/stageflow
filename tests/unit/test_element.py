@@ -660,8 +660,8 @@ class TestDictElementErrorHandling:
 
         # Act & Assert
         # Test that various key types are handled gracefully
-        result1 = element[123]  # Integer key
-        result2 = element[None]  # None key
+        element[123]  # Integer key
+        element[None]  # None key
         # Results may be None for nonexistent keys
 
     def test_path_resolution_with_empty_data(self):

@@ -17,7 +17,7 @@ class TestVisualizationRegression:
 
     def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
         """Run StageFlow CLI and return structured result."""
-        cmd = ["uv", "run", "stageflow", "eval"] + args
+        cmd = ["uv", "run", "stageflow"] + args
 
         try:
             result = subprocess.run(
@@ -63,8 +63,8 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli([
-                "-p", str(convergence_file),
-                "--view", "-o", str(output_file)
+                str(convergence_file),
+                "--diagram", str(output_file)
             ], expect_success=True)
 
             assert result["exit_code"] == 0
@@ -126,8 +126,8 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli([
-                "-p", str(convergence_file),
-                "--view", "-o", str(output_file)
+                str(convergence_file),
+                "--diagram", str(output_file)
             ], expect_success=True)
 
             assert result["exit_code"] == 0
@@ -203,8 +203,8 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli([
-                "-p", str(branching_file),
-                "--view", "-o", str(output_file)
+                str(branching_file),
+                "--diagram", str(output_file)
             ], expect_success=True)
 
             assert result["exit_code"] == 0
@@ -275,9 +275,9 @@ class TestVisualizationRegression:
             output_file = Path(tmp.name)
 
         try:
-            result = self.run_stageflow_cli([
-                "-p", str(convergence_file),
-                "--view", "-o", str(output_file)
+            self.run_stageflow_cli([
+                str(convergence_file),
+                "--diagram", str(output_file)
             ], expect_success=True)
 
             content = output_file.read_text()

@@ -148,7 +148,7 @@ class TestCLIIntegration:
 
         # Test CLI process validation
         result = subprocess.run(
-            ["uv", "run", "stageflow", "eval", "-p", str(process_file)],
+            ["uv", "run", "stageflow", str(process_file)],
             capture_output=True,
             text=True,
             cwd=Path.cwd()
@@ -197,7 +197,7 @@ class TestCLIIntegration:
 
         # Test CLI element evaluation
         result = subprocess.run(
-            ["uv", "run", "stageflow", "eval", "-p", str(process_file), "-e", str(element_file)],
+            ["uv", "run", "stageflow", str(process_file), "-e", str(element_file)],
             capture_output=True,
             text=True,
             cwd=Path.cwd()

@@ -860,6 +860,146 @@ class TestProcessManagerStringRepresentation:
         assert repr_str == expected
 
 
+class TestProcessManagerImportExport:
+    """Test suite for ProcessManager import and export operations."""
+
+    def create_test_manager(self):
+        """Create a test manager for import/export operations."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = ManagerConfig(processes_dir=Path(tmp_dir))
+            manager = ProcessManager(config)
+            manager._registry = Mock(spec=ProcessRegistry)
+            return manager
+
+    def test_export_process_with_existing_process(self):
+        """Verify export_process successfully exports an existing process."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = True
+
+        mock_process = Mock(spec=Process)
+        manager._registry.load_process.return_value = mock_process
+        manager._registry._extract_process_data.return_value = {'process': {'name': 'test'}}
+
+        export_path = Path('/tmp/exported.yaml')
+
+        # Act
+        with patch('builtins.open', create=True):
+            with patch('ruamel.yaml.YAML'):
+                result = manager.export_process('test_process', export_path)
+
+        # Assert
+        assert result == export_path
+        manager._registry.process_exists.assert_called_once_with('test_process')
+        manager._registry.load_process.assert_called_once_with('test_process')
+
+    def test_export_process_with_nonexistent_process_raises_error(self):
+        """Verify export_process raises error when process doesn't exist."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = False
+
+        # Act & Assert
+        with pytest.raises(ProcessNotFoundError, match="Process 'nonexistent' not found"):
+            manager.export_process('nonexistent', Path('/tmp/export.yaml'))
+
+    def test_export_process_with_json_format(self):
+        """Verify export_process correctly exports to JSON format."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = True
+
+        mock_process = Mock(spec=Process)
+        manager._registry.load_process.return_value = mock_process
+        manager._registry._extract_process_data.return_value = {'process': {'name': 'test'}}
+
+        export_path = Path('/tmp/exported.json')
+
+        # Act
+        with patch('builtins.open', create=True):
+            with patch('json.dump') as mock_json_dump:
+                manager.export_process('test_process', export_path)
+
+        # Assert
+        mock_json_dump.assert_called_once()
+
+    def test_import_process_with_new_process(self):
+        """Verify import_process successfully imports a new process."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = False
+
+        import_path = Path('/tmp/import.yaml')
+        mock_process = Mock(spec=Process)
+
+        # Act
+        with patch('stageflow.schema.load_process', return_value=mock_process):
+            with patch.object(Path, 'exists', return_value=True):
+                result = manager.import_process(import_path, 'new_process')
+
+        # Assert
+        assert result == 'new_process'
+        manager._registry.save_process.assert_called_once_with('new_process', mock_process)
+
+    def test_import_process_with_existing_process_and_overwrite_false_raises_error(self):
+        """Verify import_process raises error when process exists and overwrite=False."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = True
+
+        import_path = Path('/tmp/import.yaml')
+
+        # Act & Assert
+        with patch.object(Path, 'exists', return_value=True):
+            with pytest.raises(ProcessManagerError, match="already exists"):
+                manager.import_process(import_path, 'existing_process', overwrite=False)
+
+    def test_import_process_with_existing_process_and_overwrite_true_succeeds(self):
+        """Verify import_process overwrites existing process when overwrite=True."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = True
+
+        import_path = Path('/tmp/import.yaml')
+        mock_process = Mock(spec=Process)
+
+        # Act
+        with patch('stageflow.schema.load_process', return_value=mock_process):
+            with patch.object(Path, 'exists', return_value=True):
+                result = manager.import_process(import_path, 'existing_process', overwrite=True)
+
+        # Assert
+        assert result == 'existing_process'
+        manager._registry.save_process.assert_called_once_with('existing_process', mock_process)
+
+    def test_import_process_with_nonexistent_file_raises_error(self):
+        """Verify import_process raises error when import file doesn't exist."""
+        # Arrange
+        manager = self.create_test_manager()
+        import_path = Path('/tmp/nonexistent.yaml')
+
+        # Act & Assert
+        with pytest.raises(ProcessManagerError, match="Import file not found"):
+            manager.import_process(import_path)
+
+    def test_import_process_uses_filename_as_default_name(self):
+        """Verify import_process uses filename stem as default process name."""
+        # Arrange
+        manager = self.create_test_manager()
+        manager._registry.process_exists.return_value = False
+
+        import_path = Path('/tmp/my_process.yaml')
+        mock_process = Mock(spec=Process)
+
+        # Act
+        with patch('stageflow.schema.load_process', return_value=mock_process):
+            with patch.object(Path, 'exists', return_value=True):
+                result = manager.import_process(import_path)
+
+        # Assert
+        assert result == 'my_process'
+
+
 class TestProcessManagerIntegration:
     """Integration tests for ProcessManager with real dependencies."""
 
@@ -932,7 +1072,7 @@ class TestProcessManagerIntegration:
                     mock_editor = Mock(spec=ProcessEditor)
                     mock_editor_class.return_value = mock_editor
 
-                    editor = manager.edit_process(process_name)
+                    manager.edit_process(process_name)
 
                 # Assert
                 assert process_name in manager._editors

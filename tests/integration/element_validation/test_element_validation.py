@@ -84,18 +84,42 @@ class TestElementValidation:
         element_files = list(defaults_dir.glob("*.json"))
         return process_file, element_files
 
-    def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
+    def run_stageflow_cli(self, process_file: str, element_file: str | None = None, stage: str | None = None,
+                         expect_success: bool = True, json_output: bool = False, verbose: bool = False) -> dict[str, Any]:
         """
         Run the StageFlow CLI with given arguments and return structured result.
 
         Args:
-            args: CLI arguments to pass to stageflow command
+            process_file: Path to the process definition file
+            element_file: Path to the element file for evaluation (optional)
+            stage: Stage for element evaluation (optional)
             expect_success: Whether to expect successful exit code (0)
+            json_output: Whether to request JSON output
+            verbose: Whether to enable verbose output
 
         Returns:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
-        full_cmd = ["uv", "run", "stageflow", "eval"] + args
+        # Build command: stageflow evaluate process_file [-e element_file] [-s stage] [--json] [--verbose]
+        # If element_file is provided, use evaluate command; otherwise use view command
+        if element_file:
+            full_cmd = ["uv", "run", "stageflow", "evaluate", process_file]
+            full_cmd.extend(["-e", element_file])
+
+            # Add stage if specified
+            if stage:
+                full_cmd.extend(["-s", stage])
+        else:
+            # No element file, use view command
+            full_cmd = ["uv", "run", "stageflow", "view", process_file]
+
+        # Add JSON flag if requested
+        if json_output:
+            full_cmd.append("--json")
+
+        # Add verbose flag if requested
+        if verbose:
+            full_cmd.append("--verbose")
 
         try:
             result = subprocess.run(
@@ -106,9 +130,9 @@ class TestElementValidation:
                 cwd="/home/omidev/Code/tools/stageflow"
             )
 
-            # Parse JSON output if --json flag was used
+            # Parse JSON output if JSON flag was used
             parsed_json = None
-            if "--json" in args and result.stdout.strip():
+            if json_output and result.stdout.strip():
                 try:
                     parsed_json = json.loads(result.stdout.strip())
                 except json.JSONDecodeError:
@@ -151,7 +175,7 @@ class TestElementValidation:
         element_path = test_data_dir / "normal_flow" / "ready_elements" / element_file
 
         # Act
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path)], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0
@@ -181,7 +205,7 @@ class TestElementValidation:
 
         # Act - Use appropriate stage based on element type
         stage = "verification" if "verification" in element_file else "profile_completion"
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path), "-s", stage], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_path), stage=stage, expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0
@@ -208,7 +232,7 @@ class TestElementValidation:
         element_path = test_data_dir / "normal_flow" / "invalid_schema" / element_file
 
         # Act - Test at data_validation stage to trigger type validation failures
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path), "-s", "data_validation"], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_path), stage="data_validation", expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0
@@ -232,7 +256,7 @@ class TestElementValidation:
         element_file = test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"
 
         # Act
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_file), "--json"], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_file), json_output=True, expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0
@@ -274,8 +298,8 @@ class TestElementValidation:
 
         # Act - Test both human and JSON output at appropriate stage to detect regression
         stage = "review" if "intermediate" in element_file else "draft"
-        human_result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path), "-s", stage], expect_success=True)
-        json_result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path), "-s", stage, "--json"], expect_success=True)
+        human_result = self.run_stageflow_cli(str(process_file), str(element_path), stage=stage, expect_success=True)
+        json_result = self.run_stageflow_cli(str(process_file), str(element_path), stage=stage, json_output=True, expect_success=True)
 
         # Assert human output
         assert human_result["exit_code"] == 0
@@ -306,7 +330,7 @@ class TestElementValidation:
         element_path = test_data_dir / "regression" / "property_loss" / element_file
 
         # Act
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path), "--json"], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_path), json_output=True, expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0
@@ -333,7 +357,7 @@ class TestElementValidation:
         element_path = test_data_dir / "regression" / "value_change" / element_file
 
         # Act - Test at application_approved stage to detect value change regression
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path), "-s", "application_approved", "--json"], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_path), stage="application_approved", json_output=True, expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0
@@ -362,7 +386,7 @@ class TestElementValidation:
         element_path = test_data_dir / "edge_cases" / element_file
 
         # Act
-        result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path)], expect_success=True)
+        result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
 
         # Assert
         assert result["exit_code"] == 0, f"Edge case {element_file} should not cause CLI failure"
@@ -383,12 +407,13 @@ class TestElementValidation:
         element_file = test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"
 
         # Act - Test evaluation at specific stage
-        result = self.run_stageflow_cli([
-            "-p", str(process_file),
-            "-e", str(element_file),
-            "-s", "profile_setup",
-            "--json"
-        ], expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file),
+            str(element_file),
+            stage="profile_setup",
+            json_output=True,
+            expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -423,7 +448,7 @@ class TestElementValidation:
             element_path = defaults_dir / element_file
             if element_path.exists():
                 # Act
-                result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path)], expect_success=True)
+                result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
 
                 # Assert
                 assert result["exit_code"] == 0, f"Default properties test should succeed for {element_file}"
@@ -450,7 +475,7 @@ class TestElementValidation:
         # Act & Assert
         for element_path, expectation in test_scenarios:
             if element_path.exists():
-                result = self.run_stageflow_cli(["-p", str(process_file), "-e", str(element_path)], expect_success=True)
+                result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
 
                 assert result["exit_code"] == 0, f"Element evaluation {expectation}"
                 assert "Evaluation Result" in result["stdout"], f"Should show results for {element_path.name}"
@@ -470,11 +495,12 @@ class TestElementValidation:
         element_file = test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"
 
         # Act
-        result = self.run_stageflow_cli([
-            "-p", str(process_file),
-            "-e", str(element_file),
-            "--verbose"
-        ], expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file),
+            str(element_file),
+            verbose=True,
+            expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -506,11 +532,12 @@ class TestElementValidation:
         # Act & Assert
         for process_file, element_file in test_cases:
             if process_file.exists() and element_file.exists():
-                result = self.run_stageflow_cli([
-                    "-p", str(process_file),
-                    "-e", str(element_file),
-                    "--json"
-                ], expect_success=True)
+                result = self.run_stageflow_cli(
+                    str(process_file),
+                    str(element_file),
+                    json_output=True,
+                    expect_success=True
+                )
 
                 assert result["parsed_json"] is not None, f"Should return valid JSON for {element_file.name}"
                 json_data = result["parsed_json"]
