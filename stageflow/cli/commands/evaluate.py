@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 from rich.console import Console
@@ -15,6 +15,7 @@ from stageflow.cli.commands.helpers import (
 )
 from stageflow.cli.utils import show_progress
 from stageflow.element import create_element
+from stageflow.process import Process
 from stageflow.schema import LoadError, ProcessWithErrors, load_element
 
 console = Console()
@@ -46,21 +47,24 @@ def evaluate_command(
     - If omitted, reads JSON from stdin (useful for piping data)
     """
     try:
-        process = load_process_from_source(source, verbose)
+        process_result = load_process_from_source(source, verbose)
 
         # Check if process has validation errors
-        if isinstance(process, ProcessWithErrors):
-            error_msg = f"Cannot evaluate against invalid process. {process.get_error_summary()}"
+        if isinstance(process_result, ProcessWithErrors):
+            error_msg = f"Cannot evaluate against invalid process. {process_result.get_error_summary()}"
             if json_output:
                 console.print_json(data={
                     "error": error_msg,
-                    "validation_errors": process.validation_errors
+                    "validation_errors": process_result.validation_errors
                 })
             else:
                 console.print("[red]❌ Error:[/red] Cannot evaluate against invalid process")
-                console.print(f"   {process.get_error_summary()}")
+                console.print(f"   {process_result.get_error_summary()}")
                 console.print(f"   Fix the process first using: stageflow view {source}")
             raise typer.Exit(1)
+
+        # Type narrowing: at this point, process_result must be Process
+        process = cast(Process, process_result)
 
         # Load element from file or stdin
         if element:

@@ -25,7 +25,7 @@ def backup_process_file(source_path: Path, backup_dir: Path, process_name: str) 
         Path to the created backup file
     """
     # TODO: Implement process file backup
-    pass
+    raise NotImplementedError("backup_process_file is not yet implemented")
 
 
 def cleanup_old_backups(backup_dir: Path, process_name: str, max_backups: int) -> int:
@@ -41,7 +41,7 @@ def cleanup_old_backups(backup_dir: Path, process_name: str, max_backups: int) -
         Number of backup files removed
     """
     # TODO: Implement backup cleanup
-    pass
+    raise NotImplementedError("cleanup_old_backups is not yet implemented")
 
 
 def validate_process_name(name: str) -> bool:
@@ -55,7 +55,7 @@ def validate_process_name(name: str) -> bool:
         True if name is valid, False otherwise
     """
     # TODO: Implement process name validation
-    pass
+    raise NotImplementedError("validate_process_name is not yet implemented")
 
 
 def sanitize_process_name(name: str) -> str:
@@ -69,7 +69,7 @@ def sanitize_process_name(name: str) -> str:
         Sanitized process name
     """
     # TODO: Implement process name sanitization
-    pass
+    raise NotImplementedError("sanitize_process_name is not yet implemented")
 
 
 def detect_file_format(path: Path) -> str:
@@ -83,7 +83,7 @@ def detect_file_format(path: Path) -> str:
         Detected format ('yaml' or 'json')
     """
     # TODO: Implement file format detection
-    pass
+    raise NotImplementedError("detect_file_format is not yet implemented")
 
 
 def get_process_files(directory: Path, recursive: bool = False) -> list[Path]:
@@ -98,7 +98,7 @@ def get_process_files(directory: Path, recursive: bool = False) -> list[Path]:
         List of process file paths
     """
     # TODO: Implement process file discovery
-    pass
+    raise NotImplementedError("get_process_files is not yet implemented")
 
 
 def format_process_summary(process: Process) -> dict[str, Any]:
@@ -112,7 +112,7 @@ def format_process_summary(process: Process) -> dict[str, Any]:
         Formatted summary dictionary
     """
     # TODO: Implement process summary formatting
-    pass
+    raise NotImplementedError("format_process_summary is not yet implemented")
 
 
 def format_validation_results(results: dict[str, Any]) -> str:
@@ -126,7 +126,7 @@ def format_validation_results(results: dict[str, Any]) -> str:
         Formatted validation results string
     """
     # TODO: Implement validation results formatting
-    pass
+    raise NotImplementedError("format_validation_results is not yet implemented")
 
 
 def generate_timestamp() -> str:
@@ -137,7 +137,7 @@ def generate_timestamp() -> str:
         Timestamp string in ISO format suitable for filenames
     """
     # TODO: Implement timestamp generation
-    pass
+    raise NotImplementedError("generate_timestamp is not yet implemented")
 
 
 def check_file_permissions(path: Path, required_permissions: str = "rw") -> bool:
@@ -152,7 +152,7 @@ def check_file_permissions(path: Path, required_permissions: str = "rw") -> bool
         True if file has required permissions, False otherwise
     """
     # TODO: Implement permission checking
-    pass
+    raise NotImplementedError("check_file_permissions is not yet implemented")
 
 
 def ensure_directory_exists(path: Path, create_parents: bool = True) -> bool:
@@ -167,7 +167,7 @@ def ensure_directory_exists(path: Path, create_parents: bool = True) -> bool:
         True if directory exists or was created, False otherwise
     """
     # TODO: Implement directory creation
-    pass
+    raise NotImplementedError("ensure_directory_exists is not yet implemented")
 
 
 def get_file_size_human(path: Path) -> str:
@@ -181,7 +181,7 @@ def get_file_size_human(path: Path) -> str:
         Human-readable file size string
     """
     # TODO: Implement human-readable file size
-    pass
+    raise NotImplementedError("get_file_size_human is not yet implemented")
 
 
 def compare_process_versions(process1: Process, process2: Process) -> dict[str, Any]:
@@ -196,7 +196,7 @@ def compare_process_versions(process1: Process, process2: Process) -> dict[str, 
         Dictionary containing comparison results
     """
     # TODO: Implement process comparison
-    pass
+    raise NotImplementedError("compare_process_versions is not yet implemented")
 
 
 

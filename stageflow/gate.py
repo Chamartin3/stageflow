@@ -145,6 +145,7 @@ class Gate:
             "name": self.name,
             "description": self.description,
             "target_stage": self.target_stage,
+            "parent_stage": self.parent_stage,
             "locks": self.lock_to_dict(),
         }
 

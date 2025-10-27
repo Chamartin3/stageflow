@@ -161,14 +161,18 @@ class ProcessRegistry:
         try:
             # Load the process and extract its configuration
             process = load_process(file_path)
+            # Ensure required stages exist
+            if not process.initial_stage or not process.final_stage:
+                raise ProcessRegistryError(f"Process '{process_name}' missing required initial or final stage")
+
             # For now, return a basic dict - this method may need to be updated
             # based on how ProcessDefinition is used
             return {
                 'name': process.name,
                 'description': process.description,
                 'stages': {},  # This would need proper extraction
-                'initial_stage': process.initial_stage._id if process.initial_stage else None,
-                'final_stage': process.final_stage._id if process.final_stage else None
+                'initial_stage': process.initial_stage._id,
+                'final_stage': process.final_stage._id
             }
         except LoadError as e:
             raise ProcessRegistryError(f"Failed to load process data '{process_name}': {e}") from e

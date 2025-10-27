@@ -109,13 +109,13 @@ class MermaidDiagramGenerator:
                     lines.append(f"        {gate_node}[{gate_label}]")
 
                     # Add lock details if gate has locks
-                    if hasattr(gate, 'locks') and gate.locks:
+                    if hasattr(gate, '_locks') and gate._locks:
                         try:
                             # Ensure locks is iterable (handles Mock objects)
-                            lock_list = list(gate.locks) if hasattr(gate.locks, '__iter__') else []
+                            lock_list = list(gate._locks) if hasattr(gate._locks, '__iter__') else []
                             for k, lock in enumerate(lock_list):
                                 lock_node = f"L{gate_node}_{k}"
-                                lock_label = f"{lock.property}\\n{lock.type.value}"
+                                lock_label = f"{lock.property_path}\\n{lock.lock_type.value}"
                                 if hasattr(lock, 'expected_value') and lock.expected_value is not None:
                                     lock_label += f"\\n= {lock.expected_value}"
                                 lines.append(f"        {lock_node}[{lock_label}]")

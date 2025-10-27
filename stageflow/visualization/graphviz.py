@@ -140,15 +140,13 @@ class GraphvizDotGenerator:
                     gate_label = self._generate_gate_label(gate, style)
                     lines.append(f'        {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];')
 
-                    # Add lock nodes if gate has components
-                    if hasattr(gate, 'components') and gate.components:
-                        for k, component in enumerate(gate.components):
-                            if hasattr(component, 'lock'):
-                                lock = component.lock
-                                lock_node = f"lock_{gate_node}_{k}"
-                                lock_label = self._generate_lock_label(lock)
-                                lines.append(f'        {lock_node} [label="{lock_label}", shape=diamond, fillcolor="lightcyan"];')
-                                lines.append(f"        {gate_node} -> {lock_node};")
+                    # Add lock nodes if gate has locks
+                    if hasattr(gate, '_locks') and gate._locks:
+                        for k, lock in enumerate(gate._locks):
+                            lock_node = f"lock_{gate_node}_{k}"
+                            lock_label = self._generate_lock_label(lock)
+                            lines.append(f'        {lock_node} [label="{lock_label}", shape=diamond, fillcolor="lightcyan"];')
+                            lines.append(f"        {gate_node} -> {lock_node};")
 
                 lines.append("    }")
                 lines.append("")

@@ -1,7 +1,7 @@
 """Diagram command for generating process visualizations."""
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 from rich.console import Console
@@ -12,6 +12,7 @@ from stageflow.cli.commands.common import (
     load_process_from_source,
 )
 from stageflow.cli.utils import safe_write_file, show_success
+from stageflow.process import Process
 from stageflow.schema import ProcessWithErrors
 from stageflow.visualization.mermaid import MermaidDiagramGenerator
 
@@ -25,21 +26,24 @@ def diagram_command(
 ):
     """Generate process visualization diagram."""
     try:
-        process = load_process_from_source(source, verbose=False)
+        process_result = load_process_from_source(source, verbose=False)
 
         # Check if process has validation errors
-        if isinstance(process, ProcessWithErrors):
-            error_msg = f"Cannot generate diagram for invalid process. {process.get_error_summary()}"
+        if isinstance(process_result, ProcessWithErrors):
+            error_msg = f"Cannot generate diagram for invalid process. {process_result.get_error_summary()}"
             if json_output:
                 console.print_json(data={
                     "error": error_msg,
-                    "validation_errors": process.validation_errors
+                    "validation_errors": process_result.validation_errors
                 })
             else:
                 console.print("[red]❌ Error:[/red] Cannot generate diagram for invalid process")
-                console.print(f"   {process.get_error_summary()}")
+                console.print(f"   {process_result.get_error_summary()}")
                 console.print(f"   Fix the process first using: stageflow view {source}")
             raise typer.Exit(1)
+
+        # Type narrowing: at this point, process_result must be Process
+        process = cast(Process, process_result)
 
         # Default output filename if not provided
         if not output:

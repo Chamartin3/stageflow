@@ -146,8 +146,9 @@ class LockType(Enum):
                 elif hasattr(value, '__contains__'):
                     # For collections, check if expected_value is in the collection
                     # or if string representation matches any element
-                    return (expected_value in value or
-                            str(expected_value) in [str(item) for item in value])
+                    # Type ignore needed because value could be various types
+                    return (expected_value in value or  # type: ignore[operator]
+                            str(expected_value) in [str(item) for item in value])  # type: ignore[arg-type]
                 else:
                     return False
             except (TypeError, AttributeError):
@@ -302,12 +303,13 @@ class LockFactory:
     @classmethod
     def create(cls, lock_definition:  LockDefinition) -> Lock:
         if "type" in lock_definition and "property_path" in lock_definition:
-            return Lock({
-                "type": lock_definition["type"],
-                "property_path": lock_definition["property_path"],
-                "expected_value": lock_definition.get("expected_value"),
-                "metadata": lock_definition.get("metadata", {}),
-            })
+            # Create base lock config without metadata (not part of TypedDict)
+            lock_config: LockDefinitionDict = {
+                "type": lock_definition["type"],  # type: ignore[typeddict-item]
+                "property_path": lock_definition["property_path"],  # type: ignore[typeddict-item]
+                "expected_value": lock_definition.get("expected_value"),  # type: ignore[typeddict-item]
+            }
+            return Lock(lock_config)
         else:
             for key in cls.SHORTHAND_KEYS:
                 if key in lock_definition and lock_definition[key] is not None:
