@@ -25,7 +25,7 @@ def basic_configuration_example():
         basic_config = ManagerConfig(
             processes_dir=temp_path / "processes",
             default_format=ProcessFileFormat.YAML,
-            create_dir_if_missing=True
+            create_dir_if_missing=True,
         )
 
         print(f"   Processes directory: {basic_config.processes_dir}")
@@ -41,7 +41,7 @@ def basic_configuration_example():
             create_dir_if_missing=True,
             backup_enabled=True,
             backup_dir=temp_path / "backups",
-            max_backups=10
+            max_backups=10,
         )
 
         print(f"   Processes directory: {backup_config.processes_dir}")
@@ -56,7 +56,7 @@ def basic_configuration_example():
             processes_dir=temp_path / "json_processes",
             default_format=ProcessFileFormat.JSON,
             create_dir_if_missing=True,
-            strict_validation=False
+            strict_validation=False,
         )
 
         print(f"   Default format: {json_config.default_format}")
@@ -92,7 +92,9 @@ def basic_configuration_example():
         # Recreate config from dict
         recreated_config = ManagerConfig.from_dict(config_dict)
         print(f"   Recreated config processes_dir: {recreated_config.processes_dir}")
-        print(f"   Configs are equivalent: {basic_config.processes_dir == recreated_config.processes_dir}")
+        print(
+            f"   Configs are equivalent: {basic_config.processes_dir == recreated_config.processes_dir}"
+        )
         print()
 
 
@@ -105,18 +107,15 @@ def file_path_examples():
 
         # Create configs with different formats
         yaml_config = ManagerConfig(
-            processes_dir=temp_path,
-            default_format=ProcessFileFormat.YAML
+            processes_dir=temp_path, default_format=ProcessFileFormat.YAML
         )
 
         json_config = ManagerConfig(
-            processes_dir=temp_path,
-            default_format=ProcessFileFormat.JSON
+            processes_dir=temp_path, default_format=ProcessFileFormat.JSON
         )
 
         auto_config = ManagerConfig(
-            processes_dir=temp_path,
-            default_format=ProcessFileFormat.AUTO
+            processes_dir=temp_path, default_format=ProcessFileFormat.AUTO
         )
 
         # Generate file paths for different formats
@@ -149,7 +148,7 @@ def file_path_examples():
         backup_config = ManagerConfig(
             processes_dir=temp_path,
             backup_enabled=True,
-            backup_dir=temp_path / "backups"
+            backup_dir=temp_path / "backups",
         )
 
         print("3. Backup path generation:")
@@ -175,7 +174,7 @@ def configuration_comparison():
             default_format=ProcessFileFormat.YAML,
             create_dir_if_missing=True,
             backup_enabled=False,
-            strict_validation=True
+            strict_validation=True,
         )
 
         # 3. Production configuration
@@ -187,13 +186,13 @@ def configuration_comparison():
             backup_dir=temp_path / "prod_backups",
             max_backups=50,
             strict_validation=True,
-            auto_fix_permissions=False
+            auto_fix_permissions=False,
         )
 
         configs = {
             "Minimal": minimal,
             "Development": development,
-            "Production": production
+            "Production": production,
         }
 
         print("Configuration comparison:")

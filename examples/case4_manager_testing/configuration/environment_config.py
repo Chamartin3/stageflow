@@ -41,7 +41,7 @@ def environment_config_basic():
             "STAGEFLOW_BACKUP_DIR": str(temp_path / "backups"),
             "STAGEFLOW_MAX_BACKUPS": "25",
             "STAGEFLOW_STRICT_VALIDATION": "false",
-            "STAGEFLOW_AUTO_FIX_PERMISSIONS": "true"
+            "STAGEFLOW_AUTO_FIX_PERMISSIONS": "true",
         }
 
         # Apply environment variables temporarily
@@ -91,8 +91,8 @@ def environment_config_scenarios():
                 "STAGEFLOW_PROCESSES_DIR": "./dev_processes",
                 "STAGEFLOW_DEFAULT_FORMAT": "yaml",
                 "STAGEFLOW_BACKUP_ENABLED": "false",
-                "STAGEFLOW_STRICT_VALIDATION": "true"
-            }
+                "STAGEFLOW_STRICT_VALIDATION": "true",
+            },
         },
         {
             "name": "Testing Environment",
@@ -101,8 +101,8 @@ def environment_config_scenarios():
                 "STAGEFLOW_DEFAULT_FORMAT": "json",
                 "STAGEFLOW_BACKUP_ENABLED": "true",
                 "STAGEFLOW_MAX_BACKUPS": "5",
-                "STAGEFLOW_STRICT_VALIDATION": "true"
-            }
+                "STAGEFLOW_STRICT_VALIDATION": "true",
+            },
         },
         {
             "name": "Production Environment",
@@ -113,9 +113,9 @@ def environment_config_scenarios():
                 "STAGEFLOW_BACKUP_DIR": "/var/lib/stageflow/backups",
                 "STAGEFLOW_MAX_BACKUPS": "100",
                 "STAGEFLOW_STRICT_VALIDATION": "true",
-                "STAGEFLOW_AUTO_FIX_PERMISSIONS": "false"
-            }
-        }
+                "STAGEFLOW_AUTO_FIX_PERMISSIONS": "false",
+            },
+        },
     ]
 
     for i, scenario in enumerate(scenarios, 1):
@@ -123,11 +123,11 @@ def environment_config_scenarios():
 
         # Store original environment
         original_env = {}
-        for key in scenario['env']:
+        for key in scenario["env"]:
             original_env[key] = os.environ.get(key)
 
         # Set scenario environment
-        for key, value in scenario['env'].items():
+        for key, value in scenario["env"].items():
             os.environ[key] = value
 
         try:
@@ -163,25 +163,25 @@ def environment_validation():
             "name": "Valid Configuration",
             "env": {
                 "STAGEFLOW_PROCESSES_DIR": "/tmp/valid_processes",
-                "STAGEFLOW_DEFAULT_FORMAT": "yaml"
+                "STAGEFLOW_DEFAULT_FORMAT": "yaml",
             },
-            "should_pass": True
+            "should_pass": True,
         },
         {
             "name": "Invalid Format",
             "env": {
                 "STAGEFLOW_PROCESSES_DIR": "/tmp/test_processes",
-                "STAGEFLOW_DEFAULT_FORMAT": "xml"  # Invalid format
+                "STAGEFLOW_DEFAULT_FORMAT": "xml",  # Invalid format
             },
-            "should_pass": True  # Should fallback to YAML
+            "should_pass": True,  # Should fallback to YAML
         },
         {
             "name": "Invalid Max Backups",
             "env": {
                 "STAGEFLOW_PROCESSES_DIR": "/tmp/test_processes",
-                "STAGEFLOW_MAX_BACKUPS": "-5"  # Negative value
+                "STAGEFLOW_MAX_BACKUPS": "-5",  # Negative value
             },
-            "should_pass": False
+            "should_pass": False,
         },
         {
             "name": "Boolean Parsing Variations",
@@ -189,10 +189,10 @@ def environment_validation():
                 "STAGEFLOW_PROCESSES_DIR": "/tmp/test_processes",
                 "STAGEFLOW_BACKUP_ENABLED": "1",
                 "STAGEFLOW_STRICT_VALIDATION": "yes",
-                "STAGEFLOW_AUTO_FIX_PERMISSIONS": "false"
+                "STAGEFLOW_AUTO_FIX_PERMISSIONS": "false",
             },
-            "should_pass": True
-        }
+            "should_pass": True,
+        },
     ]
 
     for i, test_case in enumerate(test_cases, 1):
@@ -200,20 +200,22 @@ def environment_validation():
 
         # Store and set environment
         original_env = {}
-        for key in test_case['env']:
+        for key in test_case["env"]:
             original_env[key] = os.environ.get(key)
-            os.environ[key] = test_case['env'][key]
+            os.environ[key] = test_case["env"][key]
 
         try:
             config = ManagerConfig.from_env()
-            if test_case['should_pass']:
+            if test_case["should_pass"]:
                 print("   ✅ Configuration created successfully")
-                if 'DEFAULT_FORMAT' in test_case['env']:
+                if "DEFAULT_FORMAT" in test_case["env"]:
                     print(f"   Format: {config.default_format}")
-                if 'MAX_BACKUPS' in test_case['env']:
+                if "MAX_BACKUPS" in test_case["env"]:
                     print(f"   Max backups: {config.max_backups}")
-                if any('BACKUP_ENABLED' in k or 'STRICT_VALIDATION' in k or 'AUTO_FIX' in k
-                       for k in test_case['env']):
+                if any(
+                    "BACKUP_ENABLED" in k or "STRICT_VALIDATION" in k or "AUTO_FIX" in k
+                    for k in test_case["env"]
+                ):
                     print(f"   Backup: {config.backup_enabled}")
                     print(f"   Strict: {config.strict_validation}")
                     print(f"   Auto fix: {config.auto_fix_permissions}")
@@ -221,7 +223,7 @@ def environment_validation():
                 print("   ❌ Should have failed but didn't")
 
         except Exception as e:
-            if test_case['should_pass']:
+            if test_case["should_pass"]:
                 print(f"   ❌ Unexpected failure: {e}")
             else:
                 print(f"   ✅ Failed as expected: {e}")
@@ -246,7 +248,7 @@ def custom_prefix_example():
         custom_prefix_env = {
             "MYAPP_PROCESSES_DIR": str(Path(temp_dir) / "myapp_processes"),
             "MYAPP_DEFAULT_FORMAT": "json",
-            "MYAPP_BACKUP_ENABLED": "true"
+            "MYAPP_BACKUP_ENABLED": "true",
         }
 
         original_env = {}
@@ -256,7 +258,7 @@ def custom_prefix_example():
 
         try:
             # Create configuration with custom prefix
-            config = ManagerConfig.from_env(env_prefix='MYAPP_')
+            config = ManagerConfig.from_env(env_prefix="MYAPP_")
 
             print("Custom prefix configuration:")
             print(f"   Processes dir: {config.processes_dir}")

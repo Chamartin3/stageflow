@@ -14,13 +14,16 @@ process:
           - customer_id
 
       gates:
-        proceed_to_checkout:
-          target_stage: checkout
-          locks:
-            - exists: "items"
-            - type: not_empty
-              property_path: "items"
-            - exists: "customer_id"
+         proceed_to_checkout:
+           target_stage: checkout
+           locks:
+             - exists: "items"
+               error_message: "Shopping cart cannot be empty. Add at least one item before proceeding to checkout."
+             - type: not_empty
+               property_path: "items"
+               error_message: "Shopping cart cannot be empty. Add at least one item before proceeding to checkout."
+             - exists: "customer_id"
+               error_message: "Customer account is required. Please log in or create an account to continue."
 
     checkout:
       schema:
@@ -31,12 +34,15 @@ process:
           - billing_address
 
       gates:
-        submit_payment:
-          target_stage: payment_processing
-          locks:
-            - exists: "shipping_address.street"
-            - exists: "billing_address.street"
-            - exists: "payment_method"
+         submit_payment:
+           target_stage: payment_processing
+           locks:
+             - exists: "shipping_address.street"
+               error_message: "Shipping address is required. Please provide a complete shipping address."
+             - exists: "billing_address.street"
+               error_message: "Billing address is required. Please provide a complete billing address."
+             - exists: "payment_method"
+               error_message: "Payment method is required. Please select a payment method to complete your order."
 
     payment_processing:
       schema:
@@ -51,7 +57,9 @@ process:
             - type: equals
               property_path: "payment_status"
               expected_value: "completed"
+              error_message: "Payment must be completed successfully. Please check your payment method and try again."
             - exists: "transaction_id"
+              error_message: "Payment transaction ID is required. Contact support if this error persists."
 
         payment_failed:
           target_stage: payment_retry
