@@ -77,7 +77,7 @@ class TestProcessManagerCreation:
     def test_create_manager_with_default_config(self):
         """Verify ProcessManager can be created with default environment config."""
         # Arrange & Act
-        with patch.object(ManagerConfig, 'from_env') as mock_from_env:
+        with patch.object(ManagerConfig, "from_env") as mock_from_env:
             mock_config = Mock(spec=ManagerConfig)
             mock_from_env.return_value = mock_config
 
@@ -247,7 +247,7 @@ class TestProcessManagerEditorOperations:
         manager._registry.load_process.return_value = mock_process
 
         # Act
-        with patch('stageflow.manager.manager.ProcessEditor') as mock_editor_class:
+        with patch("stageflow.manager.manager.ProcessEditor") as mock_editor_class:
             mock_editor = Mock(spec=ProcessEditor)
             mock_editor_class.return_value = mock_editor
 
@@ -282,7 +282,7 @@ class TestProcessManagerEditorOperations:
         manager._registry.load_process.return_value = mock_process
 
         # Act
-        with patch('stageflow.manager.manager.ProcessEditor') as mock_editor_class:
+        with patch("stageflow.manager.manager.ProcessEditor") as mock_editor_class:
             mock_editor = Mock(spec=ProcessEditor)
             mock_editor_class.return_value = mock_editor
 
@@ -301,7 +301,9 @@ class TestProcessManagerEditorOperations:
         # Act & Assert
         # The actual implementation raises ProcessManagerError when create_if_missing=True
         # but process doesn't exist, as it doesn't implement process creation in this method
-        with pytest.raises(ProcessManagerError, match="Cannot create editor for non-existent process"):
+        with pytest.raises(
+            ProcessManagerError, match="Cannot create editor for non-existent process"
+        ):
             manager.get_process_editor("nonexistent", create_if_missing=True)
 
     def test_get_process_editor_create_if_missing_false_raises_error(self):
@@ -311,7 +313,9 @@ class TestProcessManagerEditorOperations:
         manager._registry.load_process.side_effect = Exception("Process not found")
 
         # Act & Assert
-        with pytest.raises(ProcessNotFoundError, match="Process 'nonexistent' not found"):
+        with pytest.raises(
+            ProcessNotFoundError, match="Process 'nonexistent' not found"
+        ):
             manager.get_process_editor("nonexistent", create_if_missing=False)
 
 
@@ -347,7 +351,9 @@ class TestProcessManagerProcessLifecycle:
         manager._registry.load_process.side_effect = Exception("Process not found")
 
         # Act & Assert
-        with pytest.raises(ProcessNotFoundError, match="Process 'test_process' not found"):
+        with pytest.raises(
+            ProcessNotFoundError, match="Process 'test_process' not found"
+        ):
             manager.load_process("test_process")
 
     def test_create_process_with_valid_config(self):
@@ -359,13 +365,13 @@ class TestProcessManagerProcessLifecycle:
         process_config = {
             "name": "new_process",
             "stages": {"start": {"gates": []}},
-            "initial_stage": "start"
+            "initial_stage": "start",
         }
 
         # Act
-        with patch('stageflow.manager.manager.Process') as mock_process_class:
-            with patch('stageflow.manager.manager.ProcessEditor') as mock_editor_class:
-                with patch.object(manager, 'sync') as mock_sync:
+        with patch("stageflow.manager.manager.Process") as mock_process_class:
+            with patch("stageflow.manager.manager.ProcessEditor") as mock_editor_class:
+                with patch.object(manager, "sync") as mock_sync:
                     mock_process = Mock(spec=Process)
                     mock_process_class.return_value = mock_process
 
@@ -391,7 +397,9 @@ class TestProcessManagerProcessLifecycle:
         process_config = {"name": "existing_process"}
 
         # Act & Assert
-        with pytest.raises(ProcessManagerError, match="Process 'existing_process' already exists"):
+        with pytest.raises(
+            ProcessManagerError, match="Process 'existing_process' already exists"
+        ):
             manager.create_process("existing_process", process_config)
 
     def test_create_process_without_immediate_save(self):
@@ -403,16 +411,18 @@ class TestProcessManagerProcessLifecycle:
         process_config = {"name": "new_process"}
 
         # Act
-        with patch('stageflow.manager.manager.Process') as mock_process_class:
-            with patch('stageflow.manager.manager.ProcessEditor') as mock_editor_class:
-                with patch.object(manager, 'sync') as mock_sync:
+        with patch("stageflow.manager.manager.Process") as mock_process_class:
+            with patch("stageflow.manager.manager.ProcessEditor") as mock_editor_class:
+                with patch.object(manager, "sync") as mock_sync:
                     mock_process = Mock(spec=Process)
                     mock_process_class.return_value = mock_process
 
                     mock_editor = Mock(spec=ProcessEditor)
                     mock_editor_class.return_value = mock_editor
 
-                    manager.create_process("new_process", process_config, save_immediately=False)
+                    manager.create_process(
+                        "new_process", process_config, save_immediately=False
+                    )
 
         # Assert
         mock_sync.assert_not_called()
@@ -428,7 +438,7 @@ class TestProcessManagerProcessLifecycle:
         manager._pending_changes.add("test_process")
 
         # Act
-        with patch.object(manager._registry, 'delete_process') as mock_delete:
+        with patch.object(manager._registry, "delete_process") as mock_delete:
             result = manager.remove_process("test_process")
 
         # Assert
@@ -444,7 +454,7 @@ class TestProcessManagerProcessLifecycle:
         manager._registry.process_exists.return_value = True
 
         # Act
-        with patch.object(manager._registry, 'delete_process') as mock_delete:
+        with patch.object(manager._registry, "delete_process") as mock_delete:
             result = manager.remove_process("test_process", delete_file=False)
 
         # Assert
@@ -458,7 +468,9 @@ class TestProcessManagerProcessLifecycle:
         manager._registry.process_exists.return_value = False
 
         # Act & Assert
-        with pytest.raises(ProcessNotFoundError, match="Process 'nonexistent' not found"):
+        with pytest.raises(
+            ProcessNotFoundError, match="Process 'nonexistent' not found"
+        ):
             manager.remove_process("nonexistent")
 
 
@@ -493,7 +505,9 @@ class TestProcessManagerSyncOperations:
         assert result is True
         assert "test_process" not in manager._pending_changes
         assert manager._last_sync is not None
-        manager._registry.save_process.assert_called_once_with("test_process", mock_editor.process)
+        manager._registry.save_process.assert_called_once_with(
+            "test_process", mock_editor.process
+        )
         mock_editor.mark_clean.assert_called_once()
 
     def test_sync_with_clean_editor_returns_false(self):
@@ -558,7 +572,7 @@ class TestProcessManagerSyncOperations:
             manager._pending_changes.add(process_name)
 
         # Act
-        with patch.object(manager, 'sync', return_value=True) as mock_sync:
+        with patch.object(manager, "sync", return_value=True) as mock_sync:
             results = manager.sync_all()
 
         # Assert
@@ -610,7 +624,10 @@ class TestProcessManagerBatchOperations:
         # Arrange
         manager = self.create_test_manager()
         manager._pending_changes.add("modified_process")
-        manager._registry.list_processes.return_value = ["modified_process", "clean_process"]
+        manager._registry.list_processes.return_value = [
+            "modified_process",
+            "clean_process",
+        ]
 
         # Act
         result = manager.has_pending_changes()
@@ -632,7 +649,7 @@ class TestProcessManagerBatchOperations:
         manager._editors["test_process"] = old_editor
 
         # Act
-        with patch('stageflow.manager.manager.ProcessEditor') as mock_editor_class:
+        with patch("stageflow.manager.manager.ProcessEditor") as mock_editor_class:
             new_editor = Mock(spec=ProcessEditor)
             mock_editor_class.return_value = new_editor
 
@@ -664,7 +681,7 @@ class TestProcessManagerBatchOperations:
         manager._registry.load_process.return_value = mock_process
 
         # Act
-        with patch('stageflow.manager.manager.ProcessEditor'):
+        with patch("stageflow.manager.manager.ProcessEditor"):
             result = manager.reload_process("modified_process", force=True)
 
         # Assert
@@ -680,7 +697,7 @@ class TestProcessManagerBatchOperations:
         manager._pending_changes.add("test_process")
 
         # Act
-        with patch.object(manager, 'sync') as mock_sync:
+        with patch.object(manager, "sync") as mock_sync:
             result = manager.close_editor("test_process", save_changes=True)
 
         # Assert
@@ -696,7 +713,7 @@ class TestProcessManagerBatchOperations:
         manager._editors["test_process"] = mock_editor
 
         # Act
-        with patch.object(manager, 'sync') as mock_sync:
+        with patch.object(manager, "sync") as mock_sync:
             result = manager.close_editor("test_process", save_changes=False)
 
         # Assert
@@ -797,7 +814,7 @@ class TestProcessManagerContextManager:
         manager._pending_changes.update(["proc1", "proc2"])
 
         # Act
-        with patch.object(manager, 'sync_all') as mock_sync_all:
+        with patch.object(manager, "sync_all") as mock_sync_all:
             with manager:
                 pass
 
@@ -810,7 +827,7 @@ class TestProcessManagerContextManager:
         manager = self.create_test_manager()
 
         # Act
-        with patch.object(manager, 'sync_all') as mock_sync_all:
+        with patch.object(manager, "sync_all") as mock_sync_all:
             with manager:
                 pass
 
@@ -824,8 +841,8 @@ class TestProcessManagerContextManager:
         manager._pending_changes.add("proc1")
 
         # Act & Assert - Should not raise exception
-        with patch.object(manager, 'sync_all', side_effect=Exception("Sync failed")):
-            with patch('stageflow.manager.manager.logger') as mock_logger:
+        with patch.object(manager, "sync_all", side_effect=Exception("Sync failed")):
+            with patch("stageflow.manager.manager.logger") as mock_logger:
                 with manager:
                     pass
                 mock_logger.error.assert_called_once()
@@ -879,19 +896,21 @@ class TestProcessManagerImportExport:
 
         mock_process = Mock(spec=Process)
         manager._registry.load_process.return_value = mock_process
-        manager._registry._extract_process_data.return_value = {'process': {'name': 'test'}}
+        manager._registry._extract_process_data.return_value = {
+            "process": {"name": "test"}
+        }
 
-        export_path = Path('/tmp/exported.yaml')
+        export_path = Path("/tmp/exported.yaml")
 
         # Act
-        with patch('builtins.open', create=True):
-            with patch('ruamel.yaml.YAML'):
-                result = manager.export_process('test_process', export_path)
+        with patch("builtins.open", create=True):
+            with patch("ruamel.yaml.YAML"):
+                result = manager.export_process("test_process", export_path)
 
         # Assert
         assert result == export_path
-        manager._registry.process_exists.assert_called_once_with('test_process')
-        manager._registry.load_process.assert_called_once_with('test_process')
+        manager._registry.process_exists.assert_called_once_with("test_process")
+        manager._registry.load_process.assert_called_once_with("test_process")
 
     def test_export_process_with_nonexistent_process_raises_error(self):
         """Verify export_process raises error when process doesn't exist."""
@@ -900,8 +919,10 @@ class TestProcessManagerImportExport:
         manager._registry.process_exists.return_value = False
 
         # Act & Assert
-        with pytest.raises(ProcessNotFoundError, match="Process 'nonexistent' not found"):
-            manager.export_process('nonexistent', Path('/tmp/export.yaml'))
+        with pytest.raises(
+            ProcessNotFoundError, match="Process 'nonexistent' not found"
+        ):
+            manager.export_process("nonexistent", Path("/tmp/export.yaml"))
 
     def test_export_process_with_json_format(self):
         """Verify export_process correctly exports to JSON format."""
@@ -911,14 +932,16 @@ class TestProcessManagerImportExport:
 
         mock_process = Mock(spec=Process)
         manager._registry.load_process.return_value = mock_process
-        manager._registry._extract_process_data.return_value = {'process': {'name': 'test'}}
+        manager._registry._extract_process_data.return_value = {
+            "process": {"name": "test"}
+        }
 
-        export_path = Path('/tmp/exported.json')
+        export_path = Path("/tmp/exported.json")
 
         # Act
-        with patch('builtins.open', create=True):
-            with patch('json.dump') as mock_json_dump:
-                manager.export_process('test_process', export_path)
+        with patch("builtins.open", create=True):
+            with patch("json.dump") as mock_json_dump:
+                manager.export_process("test_process", export_path)
 
         # Assert
         mock_json_dump.assert_called_once()
@@ -929,30 +952,34 @@ class TestProcessManagerImportExport:
         manager = self.create_test_manager()
         manager._registry.process_exists.return_value = False
 
-        import_path = Path('/tmp/import.yaml')
+        import_path = Path("/tmp/import.yaml")
         mock_process = Mock(spec=Process)
 
         # Act
-        with patch('stageflow.schema.load_process', return_value=mock_process):
-            with patch.object(Path, 'exists', return_value=True):
-                result = manager.import_process(import_path, 'new_process')
+        with patch("stageflow.schema.load_process", return_value=mock_process):
+            with patch.object(Path, "exists", return_value=True):
+                result = manager.import_process(import_path, "new_process")
 
         # Assert
-        assert result == 'new_process'
-        manager._registry.save_process.assert_called_once_with('new_process', mock_process)
+        assert result == "new_process"
+        manager._registry.save_process.assert_called_once_with(
+            "new_process", mock_process
+        )
 
-    def test_import_process_with_existing_process_and_overwrite_false_raises_error(self):
+    def test_import_process_with_existing_process_and_overwrite_false_raises_error(
+        self,
+    ):
         """Verify import_process raises error when process exists and overwrite=False."""
         # Arrange
         manager = self.create_test_manager()
         manager._registry.process_exists.return_value = True
 
-        import_path = Path('/tmp/import.yaml')
+        import_path = Path("/tmp/import.yaml")
 
         # Act & Assert
-        with patch.object(Path, 'exists', return_value=True):
+        with patch.object(Path, "exists", return_value=True):
             with pytest.raises(ProcessManagerError, match="already exists"):
-                manager.import_process(import_path, 'existing_process', overwrite=False)
+                manager.import_process(import_path, "existing_process", overwrite=False)
 
     def test_import_process_with_existing_process_and_overwrite_true_succeeds(self):
         """Verify import_process overwrites existing process when overwrite=True."""
@@ -960,23 +987,27 @@ class TestProcessManagerImportExport:
         manager = self.create_test_manager()
         manager._registry.process_exists.return_value = True
 
-        import_path = Path('/tmp/import.yaml')
+        import_path = Path("/tmp/import.yaml")
         mock_process = Mock(spec=Process)
 
         # Act
-        with patch('stageflow.schema.load_process', return_value=mock_process):
-            with patch.object(Path, 'exists', return_value=True):
-                result = manager.import_process(import_path, 'existing_process', overwrite=True)
+        with patch("stageflow.schema.load_process", return_value=mock_process):
+            with patch.object(Path, "exists", return_value=True):
+                result = manager.import_process(
+                    import_path, "existing_process", overwrite=True
+                )
 
         # Assert
-        assert result == 'existing_process'
-        manager._registry.save_process.assert_called_once_with('existing_process', mock_process)
+        assert result == "existing_process"
+        manager._registry.save_process.assert_called_once_with(
+            "existing_process", mock_process
+        )
 
     def test_import_process_with_nonexistent_file_raises_error(self):
         """Verify import_process raises error when import file doesn't exist."""
         # Arrange
         manager = self.create_test_manager()
-        import_path = Path('/tmp/nonexistent.yaml')
+        import_path = Path("/tmp/nonexistent.yaml")
 
         # Act & Assert
         with pytest.raises(ProcessManagerError, match="Import file not found"):
@@ -988,16 +1019,16 @@ class TestProcessManagerImportExport:
         manager = self.create_test_manager()
         manager._registry.process_exists.return_value = False
 
-        import_path = Path('/tmp/my_process.yaml')
+        import_path = Path("/tmp/my_process.yaml")
         mock_process = Mock(spec=Process)
 
         # Act
-        with patch('stageflow.schema.load_process', return_value=mock_process):
-            with patch.object(Path, 'exists', return_value=True):
+        with patch("stageflow.schema.load_process", return_value=mock_process):
+            with patch.object(Path, "exists", return_value=True):
                 result = manager.import_process(import_path)
 
         # Assert
-        assert result == 'my_process'
+        assert result == "my_process"
 
 
 class TestProcessManagerIntegration:
@@ -1008,8 +1039,7 @@ class TestProcessManagerIntegration:
         # Arrange
         with tempfile.TemporaryDirectory() as tmp_dir:
             config = ManagerConfig(
-                processes_dir=Path(tmp_dir),
-                create_dir_if_missing=True
+                processes_dir=Path(tmp_dir), create_dir_if_missing=True
             )
 
             # Act - Create manager and perform operations
@@ -1024,14 +1054,15 @@ class TestProcessManagerIntegration:
         """Test error handling behavior with strict validation enabled."""
         # Arrange
         with tempfile.TemporaryDirectory() as tmp_dir:
-            config = ManagerConfig(
-                processes_dir=Path(tmp_dir),
-                strict_validation=True
-            )
+            config = ManagerConfig(processes_dir=Path(tmp_dir), strict_validation=True)
 
             # Act & Assert - ProcessManager doesn't have _load_processes_from_directory
             # Instead test with registry initialization that might fail
-            with patch.object(ProcessRegistry, '__init__', side_effect=Exception("Registry initialization failed")):
+            with patch.object(
+                ProcessRegistry,
+                "__init__",
+                side_effect=Exception("Registry initialization failed"),
+            ):
                 with pytest.raises(Exception, match="Registry initialization failed"):
                     ProcessManager(config)
 
@@ -1039,10 +1070,7 @@ class TestProcessManagerIntegration:
         """Test error handling behavior with strict validation disabled."""
         # Arrange
         with tempfile.TemporaryDirectory() as tmp_dir:
-            config = ManagerConfig(
-                processes_dir=Path(tmp_dir),
-                strict_validation=False
-            )
+            config = ManagerConfig(processes_dir=Path(tmp_dir), strict_validation=False)
 
             # Act - ProcessManager doesn't handle validation errors during init
             # Testing that normal initialization works
@@ -1068,7 +1096,9 @@ class TestProcessManagerIntegration:
                 manager._registry.load_process.return_value = mock_process
 
                 # Act - Create multiple editors
-                with patch('stageflow.manager.manager.ProcessEditor') as mock_editor_class:
+                with patch(
+                    "stageflow.manager.manager.ProcessEditor"
+                ) as mock_editor_class:
                     mock_editor = Mock(spec=ProcessEditor)
                     mock_editor_class.return_value = mock_editor
 

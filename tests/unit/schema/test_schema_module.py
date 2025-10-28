@@ -123,14 +123,12 @@ class TestLoadProcessFunction:
                                 "name": "begin",
                                 "description": "Begin gate",
                                 "target_stage": "end",
-                                "locks": [
-                                    {"property_path": "ready", "type": "exists"}
-                                ]
+                                "locks": [{"property_path": "ready", "type": "exists"}],
                             }
                         },
                         "expected_actions": [],
                         "expected_properties": {"ready": {"type": "boolean"}},
-                        "is_final": False
+                        "is_final": False,
                     },
                     "end": {
                         "name": "end",
@@ -138,14 +136,14 @@ class TestLoadProcessFunction:
                         "gates": {},
                         "expected_actions": [],
                         "expected_properties": None,
-                        "is_final": True
-                    }
-                }
+                        "is_final": True,
+                    },
+                },
             }
         }
 
         json_file = tmp_path / "test_process.json"
-        with open(json_file, 'w') as f:
+        with open(json_file, "w") as f:
             json.dump(process_data, f)
 
         # Act
@@ -208,7 +206,10 @@ class TestLoadProcessFunction:
         yaml_file.write_text(yaml_content)
 
         # Act & Assert
-        with pytest.raises(LoadError, match="File must contain either a 'process' key or process definition at root level"):
+        with pytest.raises(
+            LoadError,
+            match="File must contain either a 'process' key or process definition at root level",
+        ):
             load_process(yaml_file)
 
     def test_load_process_with_non_dict_content(self, tmp_path):
@@ -360,14 +361,8 @@ class TestSchemaIntegrationWithProcess:
 
         # Valid element data
         valid_element_data = {
-            "input": {
-                "data": {"key": "value"},
-                "format": "json"
-            },
-            "processing": {
-                "status": "done",
-                "duration_ms": 1500
-            }
+            "input": {"data": {"key": "value"}, "format": "json"},
+            "processing": {"status": "done", "duration_ms": 1500},
         }
 
         # Invalid element data
@@ -399,8 +394,6 @@ class TestSchemaIntegrationWithProcess:
 
         # Invalid element should have evaluation issues
         assert invalid_result["stage"] == "input_validation"
-
-
 
 
 class TestSchemaErrorHandling:
@@ -439,7 +432,10 @@ class TestSchemaErrorHandling:
         yaml_content = "name: test"
         yaml_file = tmp_path / "missing_process_key.yaml"
         yaml_file.write_text(yaml_content)
-        with pytest.raises(LoadError, match="File must contain either a 'process' key or process definition at root level"):
+        with pytest.raises(
+            LoadError,
+            match="File must contain either a 'process' key or process definition at root level",
+        ):
             load_process(yaml_file)
 
     def test_exception_chaining_preserves_stack_trace(self, tmp_path):
@@ -449,12 +445,12 @@ class TestSchemaErrorHandling:
         invalid_process_data = {
             "process": {
                 "name": "",  # Invalid empty name should cause Process constructor to fail
-                "stages": []
+                "stages": [],
             }
         }
 
         json_file = tmp_path / "invalid_process.json"
-        with open(json_file, 'w') as f:
+        with open(json_file, "w") as f:
             json.dump(invalid_process_data, f)
 
         # Act & Assert

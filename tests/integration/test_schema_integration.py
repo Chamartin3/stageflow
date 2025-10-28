@@ -100,8 +100,7 @@ class TestSchemaIntegration:
 
         # Verify cumulative schema includes more properties than any single stage
         max_partial_size = max(
-            len(schema) if schema else 0
-            for schema in partial_schemas.values()
+            len(schema) if schema else 0 for schema in partial_schemas.values()
         )
         cumulative_size = len(cumulative_schema) if cumulative_schema else 0
 
@@ -150,7 +149,9 @@ class TestSchemaIntegration:
             pytest.skip("Need at least 2 example files for consistency testing")
 
         processes = []
-        for yaml_file in all_yaml_files[:5]:  # Test up to 5 processes for reasonable test time
+        for yaml_file in all_yaml_files[
+            :5
+        ]:  # Test up to 5 processes for reasonable test time
             try:
                 process = load_process(str(yaml_file))
                 processes.append((yaml_file.name, process))
@@ -182,7 +183,9 @@ class TestSchemaIntegration:
                 # Cumulative should include at least as many properties as partial
                 partial_size = len(partial_schema) if partial_schema else 0
                 cumulative_size = len(cumulative_schema) if cumulative_schema else 0
-                assert cumulative_size >= partial_size, f"Cumulative schema smaller than partial in {file_name}"
+                assert cumulative_size >= partial_size, (
+                    f"Cumulative schema smaller than partial in {file_name}"
+                )
 
     def test_schema_with_real_element_data(self, examples_dir):
         """Test schema extraction works with actual element evaluation."""
@@ -196,13 +199,8 @@ class TestSchemaIntegration:
         # Create test data that matches expected schema
         test_data = {
             "email": "test@example.com",
-            "profile": {
-                "first_name": "John",
-                "last_name": "Doe"
-            },
-            "meta": {
-                "email_verified_at": "2024-01-01T10:00:00Z"
-            }
+            "profile": {"first_name": "John", "last_name": "Doe"},
+            "meta": {"email_verified_at": "2024-01-01T10:00:00Z"},
         }
         element = DictElement(test_data)
 

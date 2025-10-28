@@ -80,8 +80,8 @@ class TestManagerConfigCreation:
         processes_dir = Path("/tmp/test_processes")
 
         # Act
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(processes_dir=processes_dir)
 
         # Assert
@@ -101,8 +101,8 @@ class TestManagerConfigCreation:
         backup_dir = Path("/tmp/test_backups")
 
         # Act
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
                     processes_dir=processes_dir,
                     default_format=ProcessFileFormat.JSON,
@@ -111,7 +111,7 @@ class TestManagerConfigCreation:
                     backup_dir=backup_dir,
                     max_backups=10,
                     strict_validation=False,
-                    auto_fix_permissions=False
+                    auto_fix_permissions=False,
                 )
 
         # Assert
@@ -130,12 +130,15 @@ class TestManagerConfigCreation:
         processes_dir = Path("/tmp/test_processes")
 
         # Act
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(processes_dir=processes_dir)
 
         # Assert
-        with pytest.raises((AttributeError, FrozenInstanceError), match="cannot assign to field|can't set attribute"):
+        with pytest.raises(
+            (AttributeError, FrozenInstanceError),
+            match="cannot assign to field|can't set attribute",
+        ):
             config.processes_dir = Path("/different/path")
 
 
@@ -149,12 +152,12 @@ class TestManagerConfigFromEnv:
 
         # Act
         with patch.dict(os.environ, env_vars, clear=True):
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig.from_env()
 
         # Assert
-        assert config.processes_dir == Path.home() / '.stageflow'
+        assert config.processes_dir == Path.home() / ".stageflow"
         assert config.default_format == ProcessFileFormat.YAML
         assert config.create_dir_if_missing is True
         assert config.backup_enabled is False
@@ -167,28 +170,28 @@ class TestManagerConfigFromEnv:
         """Verify from_env works with custom environment prefix."""
         # Arrange
         env_vars = {
-            'CUSTOM_PROCESSES_DIR': '/custom/processes',
-            'CUSTOM_DEFAULT_FORMAT': 'json',
-            'CUSTOM_CREATE_DIR': 'false',
-            'CUSTOM_BACKUP_ENABLED': 'true',
-            'CUSTOM_BACKUP_DIR': '/custom/backups',
-            'CUSTOM_MAX_BACKUPS': '7',
-            'CUSTOM_STRICT_VALIDATION': 'false',
-            'CUSTOM_AUTO_FIX_PERMISSIONS': 'false'
+            "CUSTOM_PROCESSES_DIR": "/custom/processes",
+            "CUSTOM_DEFAULT_FORMAT": "json",
+            "CUSTOM_CREATE_DIR": "false",
+            "CUSTOM_BACKUP_ENABLED": "true",
+            "CUSTOM_BACKUP_DIR": "/custom/backups",
+            "CUSTOM_MAX_BACKUPS": "7",
+            "CUSTOM_STRICT_VALIDATION": "false",
+            "CUSTOM_AUTO_FIX_PERMISSIONS": "false",
         }
 
         # Act
         with patch.dict(os.environ, env_vars, clear=True):
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
-                    config = ManagerConfig.from_env(env_prefix='CUSTOM_')
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
+                    config = ManagerConfig.from_env(env_prefix="CUSTOM_")
 
         # Assert
-        assert config.processes_dir == Path('/custom/processes').resolve()
+        assert config.processes_dir == Path("/custom/processes").resolve()
         assert config.default_format == ProcessFileFormat.JSON
         assert config.create_dir_if_missing is False
         assert config.backup_enabled is True
-        assert config.backup_dir == Path('/custom/backups').resolve()
+        assert config.backup_dir == Path("/custom/backups").resolve()
         assert config.max_backups == 7
         assert config.strict_validation is False
         assert config.auto_fix_permissions is False
@@ -197,28 +200,28 @@ class TestManagerConfigFromEnv:
         """Verify from_env works with all STAGEFLOW_ environment variables."""
         # Arrange
         env_vars = {
-            'STAGEFLOW_PROCESSES_DIR': '/stage/processes',
-            'STAGEFLOW_DEFAULT_FORMAT': 'auto',
-            'STAGEFLOW_CREATE_DIR': 'true',
-            'STAGEFLOW_BACKUP_ENABLED': 'yes',
-            'STAGEFLOW_BACKUP_DIR': '/stage/backups',
-            'STAGEFLOW_MAX_BACKUPS': '3',
-            'STAGEFLOW_STRICT_VALIDATION': '1',
-            'STAGEFLOW_AUTO_FIX_PERMISSIONS': 'true'
+            "STAGEFLOW_PROCESSES_DIR": "/stage/processes",
+            "STAGEFLOW_DEFAULT_FORMAT": "auto",
+            "STAGEFLOW_CREATE_DIR": "true",
+            "STAGEFLOW_BACKUP_ENABLED": "yes",
+            "STAGEFLOW_BACKUP_DIR": "/stage/backups",
+            "STAGEFLOW_MAX_BACKUPS": "3",
+            "STAGEFLOW_STRICT_VALIDATION": "1",
+            "STAGEFLOW_AUTO_FIX_PERMISSIONS": "true",
         }
 
         # Act
         with patch.dict(os.environ, env_vars, clear=True):
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig.from_env()
 
         # Assert
-        assert config.processes_dir == Path('/stage/processes').resolve()
+        assert config.processes_dir == Path("/stage/processes").resolve()
         assert config.default_format == ProcessFileFormat.AUTO
         assert config.create_dir_if_missing is True
         assert config.backup_enabled is True
-        assert config.backup_dir == Path('/stage/backups').resolve()
+        assert config.backup_dir == Path("/stage/backups").resolve()
         assert config.max_backups == 3
         assert config.strict_validation is True
         assert config.auto_fix_permissions is True
@@ -226,32 +229,36 @@ class TestManagerConfigFromEnv:
     def test_from_env_boolean_parsing_variations(self):
         """Verify from_env correctly parses boolean values in various formats."""
         # Test true values
-        for true_val in ['true', 'TRUE', '1', 'yes', 'YES']:
-            env_vars = {'STAGEFLOW_CREATE_DIR': true_val}
+        for true_val in ["true", "TRUE", "1", "yes", "YES"]:
+            env_vars = {"STAGEFLOW_CREATE_DIR": true_val}
             with patch.dict(os.environ, env_vars, clear=True):
-                with patch.object(ManagerConfig, '_validate_config'):
-                    with patch.object(ManagerConfig, '_setup_directories'):
+                with patch.object(ManagerConfig, "_validate_config"):
+                    with patch.object(ManagerConfig, "_setup_directories"):
                         config = ManagerConfig.from_env()
-                assert config.create_dir_if_missing is True, f"Failed for true value: {true_val}"
+                assert config.create_dir_if_missing is True, (
+                    f"Failed for true value: {true_val}"
+                )
 
         # Test false values
-        for false_val in ['false', 'FALSE', '0', 'no', 'NO', 'other']:
-            env_vars = {'STAGEFLOW_CREATE_DIR': false_val}
+        for false_val in ["false", "FALSE", "0", "no", "NO", "other"]:
+            env_vars = {"STAGEFLOW_CREATE_DIR": false_val}
             with patch.dict(os.environ, env_vars, clear=True):
-                with patch.object(ManagerConfig, '_validate_config'):
-                    with patch.object(ManagerConfig, '_setup_directories'):
+                with patch.object(ManagerConfig, "_validate_config"):
+                    with patch.object(ManagerConfig, "_setup_directories"):
                         config = ManagerConfig.from_env()
-                assert config.create_dir_if_missing is False, f"Failed for false value: {false_val}"
+                assert config.create_dir_if_missing is False, (
+                    f"Failed for false value: {false_val}"
+                )
 
     def test_from_env_invalid_format_falls_back_to_yaml(self):
         """Verify from_env falls back to YAML for invalid format values."""
         # Arrange
-        env_vars = {'STAGEFLOW_DEFAULT_FORMAT': 'invalid_format'}
+        env_vars = {"STAGEFLOW_DEFAULT_FORMAT": "invalid_format"}
 
         # Act
         with patch.dict(os.environ, env_vars, clear=True):
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig.from_env()
 
         # Assert
@@ -260,12 +267,12 @@ class TestManagerConfigFromEnv:
     def test_from_env_with_custom_fallback_dir(self):
         """Verify from_env uses custom fallback directory when provided."""
         # Arrange
-        custom_fallback = '/custom/fallback'
+        custom_fallback = "/custom/fallback"
 
         # Act
         with patch.dict(os.environ, {}, clear=True):
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig.from_env(fallback_dir=custom_fallback)
 
         # Assert
@@ -278,17 +285,15 @@ class TestManagerConfigFromDict:
     def test_from_dict_with_minimal_config(self):
         """Verify from_dict works with minimal configuration."""
         # Arrange
-        config_dict: ManagerConfigDict = {
-            'processes_dir': '/test/processes'
-        }
+        config_dict: ManagerConfigDict = {"processes_dir": "/test/processes"}
 
         # Act
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig.from_dict(config_dict)
 
         # Assert
-        assert config.processes_dir == Path('/test/processes').resolve()
+        assert config.processes_dir == Path("/test/processes").resolve()
         assert config.default_format == ProcessFileFormat.YAML
         assert config.create_dir_if_missing is True
 
@@ -296,27 +301,27 @@ class TestManagerConfigFromDict:
         """Verify from_dict works with complete configuration."""
         # Arrange
         config_dict: ManagerConfigDict = {
-            'processes_dir': '/complete/processes',
-            'default_format': 'json',
-            'create_dir_if_missing': False,
-            'backup_enabled': True,
-            'backup_dir': '/complete/backups',
-            'max_backups': 8,
-            'strict_validation': False,
-            'auto_fix_permissions': False
+            "processes_dir": "/complete/processes",
+            "default_format": "json",
+            "create_dir_if_missing": False,
+            "backup_enabled": True,
+            "backup_dir": "/complete/backups",
+            "max_backups": 8,
+            "strict_validation": False,
+            "auto_fix_permissions": False,
         }
 
         # Act
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig.from_dict(config_dict)
 
         # Assert
-        assert config.processes_dir == Path('/complete/processes').resolve()
+        assert config.processes_dir == Path("/complete/processes").resolve()
         assert config.default_format == ProcessFileFormat.JSON
         assert config.create_dir_if_missing is False
         assert config.backup_enabled is True
-        assert config.backup_dir == Path('/complete/backups').resolve()
+        assert config.backup_dir == Path("/complete/backups").resolve()
         assert config.max_backups == 8
         assert config.strict_validation is False
         assert config.auto_fix_permissions is False
@@ -325,24 +330,28 @@ class TestManagerConfigFromDict:
         """Verify from_dict raises ConfigValidationError for invalid format."""
         # Arrange
         config_dict: ManagerConfigDict = {
-            'processes_dir': '/test/processes',
-            'default_format': 'invalid_format'
+            "processes_dir": "/test/processes",
+            "default_format": "invalid_format",
         }
 
         # Act & Assert
-        with pytest.raises(ConfigValidationError, match="Invalid default_format: invalid_format"):
+        with pytest.raises(
+            ConfigValidationError, match="Invalid default_format: invalid_format"
+        ):
             ManagerConfig.from_dict(config_dict)
 
     def test_from_dict_with_negative_max_backups_raises_error(self):
         """Verify from_dict raises ConfigValidationError for negative max_backups."""
         # Arrange
         config_dict: ManagerConfigDict = {
-            'processes_dir': '/test/processes',
-            'max_backups': -1
+            "processes_dir": "/test/processes",
+            "max_backups": -1,
         }
 
         # Act & Assert
-        with pytest.raises(ConfigValidationError, match="max_backups must be non-negative"):
+        with pytest.raises(
+            ConfigValidationError, match="max_backups must be non-negative"
+        ):
             ManagerConfig.from_dict(config_dict)
 
     def test_from_dict_with_empty_dict_uses_defaults(self):
@@ -351,12 +360,12 @@ class TestManagerConfigFromDict:
         config_dict: ManagerConfigDict = {}
 
         # Act
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig.from_dict(config_dict)
 
         # Assert
-        assert config.processes_dir == Path('./processes').resolve()
+        assert config.processes_dir == Path("./processes").resolve()
         assert config.default_format == ProcessFileFormat.YAML
 
 
@@ -369,18 +378,20 @@ class TestManagerConfigValidation:
         processes_dir = Path("/tmp/test_processes")
 
         # Act & Assert - Should not raise any exceptions
-        with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_setup_directories"):
             ManagerConfig(processes_dir=processes_dir)
         # Validation is called in __post_init__
 
     def test_validate_config_with_empty_processes_dir_raises_error(self):
         """Verify _validate_config raises error for empty processes_dir."""
         # Arrange & Act & Assert
-        with pytest.raises(ConfigValidationError, match="processes_dir cannot be empty"):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with pytest.raises(
+            ConfigValidationError, match="processes_dir cannot be empty"
+        ):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 # Use object.__setattr__ to bypass frozen dataclass to test validation
                 config = ManagerConfig.__new__(ManagerConfig)
-                object.__setattr__(config, 'processes_dir', None)
+                object.__setattr__(config, "processes_dir", None)
                 config._validate_config()
 
     def test_validate_config_with_backup_enabled_sets_default_backup_dir(self):
@@ -389,38 +400,38 @@ class TestManagerConfigValidation:
         processes_dir = Path("/tmp/test_processes")
 
         # Act
-        with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_setup_directories"):
             config = ManagerConfig(
-                processes_dir=processes_dir,
-                backup_enabled=True,
-                backup_dir=None
+                processes_dir=processes_dir, backup_enabled=True, backup_dir=None
             )
 
         # Assert
-        assert config.backup_dir == processes_dir / '.backups'
+        assert config.backup_dir == processes_dir / ".backups"
 
     def test_validate_config_with_negative_max_backups_raises_error(self):
         """Verify _validate_config raises error for negative max_backups."""
         # Arrange & Act & Assert
-        with pytest.raises(ConfigValidationError, match="max_backups must be non-negative"):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with pytest.raises(
+            ConfigValidationError, match="max_backups must be non-negative"
+        ):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig.__new__(ManagerConfig)
-                object.__setattr__(config, 'processes_dir', Path("/tmp/test"))
-                object.__setattr__(config, 'max_backups', -1)
-                object.__setattr__(config, 'default_format', ProcessFileFormat.YAML)
-                object.__setattr__(config, 'backup_enabled', False)
+                object.__setattr__(config, "processes_dir", Path("/tmp/test"))
+                object.__setattr__(config, "max_backups", -1)
+                object.__setattr__(config, "default_format", ProcessFileFormat.YAML)
+                object.__setattr__(config, "backup_enabled", False)
                 config._validate_config()
 
     def test_validate_config_with_invalid_format_type_raises_error(self):
         """Verify _validate_config raises error for invalid format type."""
         # Arrange & Act & Assert
         with pytest.raises(ConfigValidationError, match="Invalid default_format"):
-            with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig.__new__(ManagerConfig)
-                object.__setattr__(config, 'processes_dir', Path("/tmp/test"))
-                object.__setattr__(config, 'max_backups', 5)
-                object.__setattr__(config, 'default_format', "invalid_format")
-                object.__setattr__(config, 'backup_enabled', False)
+                object.__setattr__(config, "processes_dir", Path("/tmp/test"))
+                object.__setattr__(config, "max_backups", 5)
+                object.__setattr__(config, "default_format", "invalid_format")
+                object.__setattr__(config, "backup_enabled", False)
                 config._validate_config()
 
 
@@ -434,11 +445,8 @@ class TestManagerConfigDirectorySetup:
             processes_dir = Path(tmp_dir) / "new_processes"
 
             # Act
-            with patch.object(ManagerConfig, '_validate_config'):
-                ManagerConfig(
-                    processes_dir=processes_dir,
-                    create_dir_if_missing=True
-                )
+            with patch.object(ManagerConfig, "_validate_config"):
+                ManagerConfig(processes_dir=processes_dir, create_dir_if_missing=True)
 
             # Assert
             assert processes_dir.exists()
@@ -451,11 +459,8 @@ class TestManagerConfigDirectorySetup:
             processes_dir = Path(tmp_dir) / "should_not_exist"
 
             # Act
-            with patch.object(ManagerConfig, '_validate_config'):
-                ManagerConfig(
-                    processes_dir=processes_dir,
-                    create_dir_if_missing=False
-                )
+            with patch.object(ManagerConfig, "_validate_config"):
+                ManagerConfig(processes_dir=processes_dir, create_dir_if_missing=False)
 
             # Assert
             assert not processes_dir.exists()
@@ -468,12 +473,12 @@ class TestManagerConfigDirectorySetup:
             backup_dir = Path(tmp_dir) / "backups"
 
             # Act
-            with patch.object(ManagerConfig, '_validate_config'):
+            with patch.object(ManagerConfig, "_validate_config"):
                 ManagerConfig(
                     processes_dir=processes_dir,
                     backup_enabled=True,
                     backup_dir=backup_dir,
-                    create_dir_if_missing=True
+                    create_dir_if_missing=True,
                 )
 
             # Assert
@@ -487,13 +492,13 @@ class TestManagerConfigDirectorySetup:
             processes_dir = Path(tmp_dir) / "processes"
 
             # Act
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch('os.access', return_value=False):
-                    with patch('os.chmod') as mock_chmod:
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch("os.access", return_value=False):
+                    with patch("os.chmod") as mock_chmod:
                         ManagerConfig(
                             processes_dir=processes_dir,
                             auto_fix_permissions=True,
-                            create_dir_if_missing=True
+                            create_dir_if_missing=True,
                         )
 
             # Assert
@@ -506,13 +511,15 @@ class TestManagerConfigDirectorySetup:
             processes_dir = Path(tmp_dir) / "processes"
 
             # Act & Assert - Should not raise exception
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch('os.access', return_value=False):
-                    with patch('os.chmod', side_effect=PermissionError("Permission denied")):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch("os.access", return_value=False):
+                    with patch(
+                        "os.chmod", side_effect=PermissionError("Permission denied")
+                    ):
                         ManagerConfig(
                             processes_dir=processes_dir,
                             auto_fix_permissions=True,
-                            create_dir_if_missing=True
+                            create_dir_if_missing=True,
                         )
 
     def test_setup_directories_raises_error_on_oserror(self):
@@ -521,12 +528,15 @@ class TestManagerConfigDirectorySetup:
         processes_dir = Path("/invalid/path/that/cannot/be/created")
 
         # Act & Assert
-        with pytest.raises(ConfigValidationError, match="Failed to create processes directory"):
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(Path, 'mkdir', side_effect=OSError("Cannot create directory")):
+        with pytest.raises(
+            ConfigValidationError, match="Failed to create processes directory"
+        ):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(
+                    Path, "mkdir", side_effect=OSError("Cannot create directory")
+                ):
                     ManagerConfig(
-                        processes_dir=processes_dir,
-                        create_dir_if_missing=True
+                        processes_dir=processes_dir, create_dir_if_missing=True
                     )
 
 
@@ -537,11 +547,10 @@ class TestManagerConfigFilePaths:
         """Verify get_process_file_path returns correct path for YAML format."""
         # Arrange
         processes_dir = Path("/tmp/processes")
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
-                    processes_dir=processes_dir,
-                    default_format=ProcessFileFormat.YAML
+                    processes_dir=processes_dir, default_format=ProcessFileFormat.YAML
                 )
 
         # Act
@@ -554,11 +563,10 @@ class TestManagerConfigFilePaths:
         """Verify get_process_file_path returns correct path for JSON format."""
         # Arrange
         processes_dir = Path("/tmp/processes")
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
-                    processes_dir=processes_dir,
-                    default_format=ProcessFileFormat.JSON
+                    processes_dir=processes_dir, default_format=ProcessFileFormat.JSON
                 )
 
         # Act
@@ -571,11 +579,10 @@ class TestManagerConfigFilePaths:
         """Verify get_process_file_path respects format override parameter."""
         # Arrange
         processes_dir = Path("/tmp/processes")
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
-                    processes_dir=processes_dir,
-                    default_format=ProcessFileFormat.YAML
+                    processes_dir=processes_dir, default_format=ProcessFileFormat.YAML
                 )
 
         # Act
@@ -592,12 +599,14 @@ class TestManagerConfigFilePaths:
             existing_file = processes_dir / "test_process.yaml"
             existing_file.touch()
 
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig(processes_dir=processes_dir)
 
             # Act
-            file_path = config.get_process_file_path("test_process", ProcessFileFormat.AUTO)
+            file_path = config.get_process_file_path(
+                "test_process", ProcessFileFormat.AUTO
+            )
 
             # Assert
             assert file_path == existing_file
@@ -610,12 +619,14 @@ class TestManagerConfigFilePaths:
             existing_file = processes_dir / "test_process.json"
             existing_file.touch()
 
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig(processes_dir=processes_dir)
 
             # Act
-            file_path = config.get_process_file_path("test_process", ProcessFileFormat.AUTO)
+            file_path = config.get_process_file_path(
+                "test_process", ProcessFileFormat.AUTO
+            )
 
             # Assert
             assert file_path == existing_file
@@ -626,12 +637,14 @@ class TestManagerConfigFilePaths:
         with tempfile.TemporaryDirectory() as tmp_dir:
             processes_dir = Path(tmp_dir)
 
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig(processes_dir=processes_dir)
 
             # Act
-            file_path = config.get_process_file_path("test_process", ProcessFileFormat.AUTO)
+            file_path = config.get_process_file_path(
+                "test_process", ProcessFileFormat.AUTO
+            )
 
             # Assert
             assert file_path == processes_dir / "test_process.yaml"
@@ -640,12 +653,12 @@ class TestManagerConfigFilePaths:
         """Verify get_backup_path returns correct backup path when backup is enabled."""
         # Arrange
         backup_dir = Path("/tmp/backups")
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
                     processes_dir=Path("/tmp/processes"),
                     backup_enabled=True,
-                    backup_dir=backup_dir
+                    backup_dir=backup_dir,
                 )
 
         # Act
@@ -657,11 +670,10 @@ class TestManagerConfigFilePaths:
     def test_get_backup_path_with_backup_disabled_raises_error(self):
         """Verify get_backup_path raises error when backup is disabled."""
         # Arrange
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
-                    processes_dir=Path("/tmp/processes"),
-                    backup_enabled=False
+                    processes_dir=Path("/tmp/processes"), backup_enabled=False
                 )
 
         # Act & Assert
@@ -671,12 +683,12 @@ class TestManagerConfigFilePaths:
     def test_get_backup_path_with_no_backup_dir_raises_error(self):
         """Verify get_backup_path raises error when backup is enabled but no backup_dir set."""
         # Arrange
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
                     processes_dir=Path("/tmp/processes"),
                     backup_enabled=True,
-                    backup_dir=None
+                    backup_dir=None,
                 )
 
         # Act & Assert
@@ -693,8 +705,8 @@ class TestManagerConfigUtilityMethods:
         with tempfile.TemporaryDirectory() as tmp_dir:
             processes_dir = Path(tmp_dir)
 
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig(processes_dir=processes_dir)
 
             # Act
@@ -708,8 +720,8 @@ class TestManagerConfigUtilityMethods:
         # Arrange
         processes_dir = Path("/nonexistent/directory")
 
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(processes_dir=processes_dir)
 
         # Act
@@ -725,8 +737,8 @@ class TestManagerConfigUtilityMethods:
             file_path = Path(tmp_dir) / "not_a_directory.txt"
             file_path.touch()
 
-            with patch.object(ManagerConfig, '_validate_config'):
-                with patch.object(ManagerConfig, '_setup_directories'):
+            with patch.object(ManagerConfig, "_validate_config"):
+                with patch.object(ManagerConfig, "_setup_directories"):
                     config = ManagerConfig(processes_dir=file_path)
 
             # Act
@@ -740,12 +752,12 @@ class TestManagerConfigUtilityMethods:
         # Arrange
         processes_dir = Path("/tmp/test")
 
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(processes_dir=processes_dir)
 
         # Act
-        with patch('os.access', side_effect=OSError("Permission denied")):
+        with patch("os.access", side_effect=OSError("Permission denied")):
             result = config.is_valid_processes_dir()
 
         # Assert
@@ -757,8 +769,8 @@ class TestManagerConfigUtilityMethods:
         processes_dir = Path("/tmp/processes")
         backup_dir = Path("/tmp/backups")
 
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
                     processes_dir=processes_dir,
                     default_format=ProcessFileFormat.JSON,
@@ -767,7 +779,7 @@ class TestManagerConfigUtilityMethods:
                     backup_dir=backup_dir,
                     max_backups=7,
                     strict_validation=False,
-                    auto_fix_permissions=False
+                    auto_fix_permissions=False,
                 )
 
         # Act
@@ -775,14 +787,14 @@ class TestManagerConfigUtilityMethods:
 
         # Assert
         expected_dict: ManagerConfigDict = {
-            'processes_dir': str(processes_dir),
-            'default_format': 'json',
-            'create_dir_if_missing': False,
-            'backup_enabled': True,
-            'backup_dir': str(backup_dir),
-            'max_backups': 7,
-            'strict_validation': False,
-            'auto_fix_permissions': False
+            "processes_dir": str(processes_dir),
+            "default_format": "json",
+            "create_dir_if_missing": False,
+            "backup_enabled": True,
+            "backup_dir": str(backup_dir),
+            "max_backups": 7,
+            "strict_validation": False,
+            "auto_fix_permissions": False,
         }
         assert result_dict == expected_dict
 
@@ -791,30 +803,27 @@ class TestManagerConfigUtilityMethods:
         # Arrange
         processes_dir = Path("/tmp/processes")
 
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
-                    processes_dir=processes_dir,
-                    backup_enabled=False,
-                    backup_dir=None
+                    processes_dir=processes_dir, backup_enabled=False, backup_dir=None
                 )
 
         # Act
         result_dict = config.to_dict()
 
         # Assert
-        assert result_dict['backup_dir'] is None
+        assert result_dict["backup_dir"] is None
 
     def test_str_representation(self):
         """Verify __str__ returns expected string representation."""
         # Arrange
         processes_dir = Path("/tmp/processes")
 
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
-                    processes_dir=processes_dir,
-                    default_format=ProcessFileFormat.JSON
+                    processes_dir=processes_dir, default_format=ProcessFileFormat.JSON
                 )
 
         # Act
@@ -829,21 +838,23 @@ class TestManagerConfigUtilityMethods:
         # Arrange
         processes_dir = Path("/tmp/processes")
 
-        with patch.object(ManagerConfig, '_validate_config'):
-            with patch.object(ManagerConfig, '_setup_directories'):
+        with patch.object(ManagerConfig, "_validate_config"):
+            with patch.object(ManagerConfig, "_setup_directories"):
                 config = ManagerConfig(
                     processes_dir=processes_dir,
                     default_format=ProcessFileFormat.AUTO,
-                    backup_enabled=True
+                    backup_enabled=True,
                 )
 
         # Act
         repr_str = repr(config)
 
         # Assert
-        expected = (f"ManagerConfig(processes_dir={processes_dir!r}, "
-                   f"default_format={ProcessFileFormat.AUTO!r}, "
-                   f"backup_enabled=True)")
+        expected = (
+            f"ManagerConfig(processes_dir={processes_dir!r}, "
+            f"default_format={ProcessFileFormat.AUTO!r}, "
+            f"backup_enabled=True)"
+        )
         assert repr_str == expected
 
 
@@ -863,7 +874,7 @@ class TestManagerConfigIntegration:
                 processes_dir=processes_dir,
                 backup_enabled=True,
                 backup_dir=backup_dir,
-                create_dir_if_missing=True
+                create_dir_if_missing=True,
             )
 
             # Assert - Directories should be created
@@ -885,11 +896,11 @@ class TestManagerConfigIntegration:
         # Arrange
         with tempfile.TemporaryDirectory() as tmp_dir:
             env_vars = {
-                'STAGEFLOW_PROCESSES_DIR': str(Path(tmp_dir) / "env_processes"),
-                'STAGEFLOW_DEFAULT_FORMAT': 'json',
-                'STAGEFLOW_BACKUP_ENABLED': 'true',
-                'STAGEFLOW_BACKUP_DIR': str(Path(tmp_dir) / "env_backups"),
-                'STAGEFLOW_CREATE_DIR': 'true'
+                "STAGEFLOW_PROCESSES_DIR": str(Path(tmp_dir) / "env_processes"),
+                "STAGEFLOW_DEFAULT_FORMAT": "json",
+                "STAGEFLOW_BACKUP_ENABLED": "true",
+                "STAGEFLOW_BACKUP_DIR": str(Path(tmp_dir) / "env_backups"),
+                "STAGEFLOW_CREATE_DIR": "true",
             }
 
             # Act

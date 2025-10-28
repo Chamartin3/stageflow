@@ -60,9 +60,13 @@ class TestLoadElement:
         data = {"foo": "bar"}
         file_path = tmp_path / "element.json"
         file_path.write_text(json.dumps(data))
+
         def fake_create_element(_):
             raise ValueError("validation failed")
-        monkeypatch.setattr("stageflow.schema.loader.create_element", fake_create_element)
+
+        monkeypatch.setattr(
+            "stageflow.schema.loader.create_element", fake_create_element
+        )
         with pytest.raises(LoadError, match="Element validation failed"):
             load_element(file_path)
 
@@ -71,9 +75,13 @@ class TestLoadElement:
         data = {"foo": "bar"}
         file_path = tmp_path / "element.json"
         file_path.write_text(json.dumps(data))
+
         def fake_create_element(_):
             raise RuntimeError("underlying error")
-        monkeypatch.setattr("stageflow.schema.loader.create_element", fake_create_element)
+
+        monkeypatch.setattr(
+            "stageflow.schema.loader.create_element", fake_create_element
+        )
         with pytest.raises(LoadError) as excinfo:
             load_element(file_path)
         assert excinfo.value.__cause__ is not None

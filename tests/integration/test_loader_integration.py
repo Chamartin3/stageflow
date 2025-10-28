@@ -28,23 +28,19 @@ class TestDualInterfaceConsistency:
                         "gates": {
                             "to_end": {
                                 "target_stage": "end",
-                                "locks": [
-                                    {"property_path": "ready", "type": "exists"}
-                                ]
+                                "locks": [{"property_path": "ready", "type": "exists"}],
                             }
                         }
                     },
-                    "end": {
-                        "is_final": True
-                    }
-                }
+                    "end": {"is_final": True},
+                },
             }
         }
 
         # Create temporary YAML file
         process_file = tmp_path / "test_process.yaml"
         yaml = YAML()
-        with open(process_file, 'w') as f:
+        with open(process_file, "w") as f:
             yaml.dump(process_data, f)
 
         # Load using both interfaces
@@ -55,20 +51,18 @@ class TestDualInterfaceConsistency:
         assert isinstance(process_class, Process)
         assert isinstance(process_func, Process)
         assert process_class.name == process_func.name == "test_process"
-        assert process_class.initial_stage._id == process_func.initial_stage._id == "start"
+        assert (
+            process_class.initial_stage._id == process_func.initial_stage._id == "start"
+        )
         assert process_class.final_stage._id == process_func.final_stage._id == "end"
 
     def test_element_loading_consistency(self, tmp_path):
         """Test that Loader.element() and load_element() return identical Element objects."""
-        element_data = {
-            "user_id": 123,
-            "email": "test@example.com",
-            "ready": True
-        }
+        element_data = {"user_id": 123, "email": "test@example.com", "ready": True}
 
         # Create temporary JSON file
         element_file = tmp_path / "test_element.json"
-        with open(element_file, 'w') as f:
+        with open(element_file, "w") as f:
             json.dump(element_data, f)
 
         # Load using both interfaces
@@ -78,9 +72,21 @@ class TestDualInterfaceConsistency:
         # Verify they are equivalent Element objects
         assert isinstance(element_class, Element)
         assert isinstance(element_func, Element)
-        assert element_class.get_property("user_id") == element_func.get_property("user_id") == 123
-        assert element_class.get_property("email") == element_func.get_property("email") == "test@example.com"
-        assert element_class.get_property("ready") == element_func.get_property("ready") is True
+        assert (
+            element_class.get_property("user_id")
+            == element_func.get_property("user_id")
+            == 123
+        )
+        assert (
+            element_class.get_property("email")
+            == element_func.get_property("email")
+            == "test@example.com"
+        )
+        assert (
+            element_class.get_property("ready")
+            == element_func.get_property("ready")
+            is True
+        )
 
 
 class TestBackwardCompatibility:
@@ -89,7 +95,9 @@ class TestBackwardCompatibility:
     def test_existing_process_patterns(self, tmp_path):
         """Test that existing process loading patterns still work."""
         # Test with a complex process from examples
-        example_process = Path("examples/case1_process_creation/valid_processes/simple_2stage.yaml")
+        example_process = Path(
+            "examples/case1_process_creation/valid_processes/simple_2stage.yaml"
+        )
         if example_process.exists():
             # Load using new interface
             process = load_process(example_process)
@@ -103,7 +111,9 @@ class TestBackwardCompatibility:
     def test_existing_element_patterns(self, tmp_path):
         """Test that existing element loading patterns still work."""
         # Test with an example element
-        example_element = Path("examples/case2_element_validation/normal_flow/ready_elements/user_ready_for_activation.json")
+        example_element = Path(
+            "examples/case2_element_validation/normal_flow/ready_elements/user_ready_for_activation.json"
+        )
         if example_element.exists():
             # Load using new interface
             element = load_element(example_element)
@@ -130,20 +140,18 @@ class TestCLIIntegration:
                                 "target_stage": "published",
                                 "locks": [
                                     {"property_path": "content", "type": "exists"}
-                                ]
+                                ],
                             }
                         }
                     },
-                    "published": {
-                        "is_final": True
-                    }
-                }
+                    "published": {"is_final": True},
+                },
             }
         }
 
         process_file = tmp_path / "cli_process.yaml"
         yaml = YAML()
-        with open(process_file, 'w') as f:
+        with open(process_file, "w") as f:
             yaml.dump(process_data, f)
 
         # Test CLI process validation
@@ -151,7 +159,7 @@ class TestCLIIntegration:
             ["uv", "run", "stageflow", str(process_file)],
             capture_output=True,
             text=True,
-            cwd=Path.cwd()
+            cwd=Path.cwd(),
         )
 
         assert result.returncode == 0
@@ -171,28 +179,26 @@ class TestCLIIntegration:
                         "gates": {
                             "proceed": {
                                 "target_stage": "end",
-                            "locks": [
-                                {"property_path": "approved", "type": "exists"}
-                            ]
+                                "locks": [
+                                    {"property_path": "approved", "type": "exists"}
+                                ],
                             }
                         }
                     },
-                    "end": {
-                        "is_final": True
-                    }
-                }
+                    "end": {"is_final": True},
+                },
             }
         }
 
         process_file = tmp_path / "cli_eval_process.yaml"
         yaml = YAML()
-        with open(process_file, 'w') as f:
+        with open(process_file, "w") as f:
             yaml.dump(process_data, f)
 
         # Create element file
         element_data = {"approved": True, "user_id": 456}
         element_file = tmp_path / "cli_element.json"
-        with open(element_file, 'w') as f:
+        with open(element_file, "w") as f:
             json.dump(element_data, f)
 
         # Test CLI element evaluation
@@ -200,7 +206,7 @@ class TestCLIIntegration:
             ["uv", "run", "stageflow", str(process_file), "-e", str(element_file)],
             capture_output=True,
             text=True,
-            cwd=Path.cwd()
+            cwd=Path.cwd(),
         )
 
         assert result.returncode == 0
@@ -225,7 +231,7 @@ class TestErrorMessageQuality:
     def test_invalid_yaml_error(self, tmp_path):
         """Test helpful error message for invalid YAML."""
         invalid_yaml_file = tmp_path / "invalid.yaml"
-        with open(invalid_yaml_file, 'w') as f:
+        with open(invalid_yaml_file, "w") as f:
             f.write("invalid: yaml: content: [\n")
 
         with pytest.raises(LoadError) as exc_info:
@@ -237,7 +243,7 @@ class TestErrorMessageQuality:
     def test_invalid_json_error(self, tmp_path):
         """Test helpful error message for invalid JSON."""
         invalid_json_file = tmp_path / "invalid.json"
-        with open(invalid_json_file, 'w') as f:
+        with open(invalid_json_file, "w") as f:
             f.write('{"invalid": json content}')
 
         with pytest.raises(LoadError) as exc_info:
@@ -251,14 +257,17 @@ class TestErrorMessageQuality:
         # Try to load element data as process
         element_data = {"user_id": 123, "email": "test@example.com"}
         wrong_file = tmp_path / "element_as_process.json"
-        with open(wrong_file, 'w') as f:
+        with open(wrong_file, "w") as f:
             json.dump(element_data, f)
 
         with pytest.raises(LoadError) as exc_info:
             load_process(wrong_file)
 
         error_msg = str(exc_info.value)
-        assert "File must contain either a 'process' key or process definition at root level" in error_msg
+        assert (
+            "File must contain either a 'process' key or process definition at root level"
+            in error_msg
+        )
         assert "use load_element() instead" in error_msg
 
 
@@ -274,11 +283,11 @@ class TestPerformanceCharacteristics:
             gates = {}
             if i < 19:
                 gates[f"gate_{i}"] = {
-                    "target_stage": f"stage_{i+1}",
+                    "target_stage": f"stage_{i + 1}",
                     "locks": [
                         {"property_path": f"prop_{j}", "type": "exists"}
                         for j in range(5)
-                    ]
+                    ],
                 }
             stages[stage_id] = {"gates": gates}
             if i == 19:
@@ -289,13 +298,13 @@ class TestPerformanceCharacteristics:
                 "name": "performance_test_process",
                 "initial_stage": "stage_0",
                 "final_stage": "stage_19",
-                "stages": stages
+                "stages": stages,
             }
         }
 
         process_file = tmp_path / "perf_process.yaml"
         yaml = YAML()
-        with open(process_file, 'w') as f:
+        with open(process_file, "w") as f:
             yaml.dump(process_data, f)
 
         # Measure loading time
@@ -315,7 +324,7 @@ class TestPerformanceCharacteristics:
         element_data["user_id"] = "12345"
 
         element_file = tmp_path / "perf_element.json"
-        with open(element_file, 'w') as f:
+        with open(element_file, "w") as f:
             json.dump(element_data, f)
 
         # Measure loading time
@@ -338,9 +347,12 @@ class TestRealWorldUsage:
         # Test various example processes
         base_path = Path(__file__).parent.parent.parent.parent
         example_processes = [
-            base_path / "examples/case1_process_creation/valid_processes/simple_2stage.yaml",
-            base_path / "examples/case1_process_creation/valid_processes/complex_multistage.yaml",
-            base_path / "examples/case4_manager_testing/sample_processes/user_onboarding.yaml"
+            base_path
+            / "examples/case1_process_creation/valid_processes/simple_2stage.yaml",
+            base_path
+            / "examples/case1_process_creation/valid_processes/complex_multistage.yaml",
+            base_path
+            / "examples/case4_manager_testing/sample_processes/user_onboarding.yaml",
         ]
 
         for process_path in example_processes:
@@ -355,8 +367,10 @@ class TestRealWorldUsage:
         """Test loading real example elements."""
         base_path = Path(__file__).parent.parent.parent.parent
         example_elements = [
-            base_path / "examples/case2_element_validation/normal_flow/ready_elements/user_ready_for_activation.json",
-            base_path / "examples/case2_element_validation/default_properties/user_needs_defaults.json"
+            base_path
+            / "examples/case2_element_validation/normal_flow/ready_elements/user_ready_for_activation.json",
+            base_path
+            / "examples/case2_element_validation/default_properties/user_needs_defaults.json",
         ]
 
         for element_path in example_elements:
@@ -379,9 +393,16 @@ class TestLoaderClassInterface:
                 "initial_stage": "init",
                 "final_stage": "done",
                 "stages": {
-                    "init": {"gates": {"advance": {"target_stage": "done", "locks": [{"property_path": "ready", "type": "exists"}]}}},
-                    "done": {"is_final": True}
-                }
+                    "init": {
+                        "gates": {
+                            "advance": {
+                                "target_stage": "done",
+                                "locks": [{"property_path": "ready", "type": "exists"}],
+                            }
+                        }
+                    },
+                    "done": {"is_final": True},
+                },
             }
         }
 
@@ -391,9 +412,9 @@ class TestLoaderClassInterface:
         element_file = tmp_path / "loader_test.json"
 
         yaml = YAML()
-        with open(process_file, 'w') as f:
+        with open(process_file, "w") as f:
             yaml.dump(process_data, f)
-        with open(element_file, 'w') as f:
+        with open(element_file, "w") as f:
             json.dump(element_data, f)
 
         # Test Loader class methods
@@ -408,5 +429,5 @@ class TestLoaderClassInterface:
         # Test evaluation works
         result = process.evaluate(element)
         assert result is not None
-        assert 'stage' in result
-        assert 'stage_result' in result
+        assert "stage" in result
+        assert "stage_result" in result

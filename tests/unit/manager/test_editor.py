@@ -9,79 +9,89 @@ from stageflow.process import Process
 @pytest.fixture
 def simple_process():
     """Create a simple two-stage process for testing."""
-    return Process({
-        'name': 'test_process',
-        'description': 'Test process for editor',
-        'stages': {
-            'start': {
-                'name': 'Start',
-                'description': 'Starting stage',
-                'gates': [{
-                    'name': 'to_end',
-                    'target_stage': 'end',
-                    'locks': [{'exists': 'test_field'}]
-                }],
-                'expected_actions': [],
-                'expected_properties': {'test_field': {'type': 'str'}},
-                'is_final': False
+    return Process(
+        {
+            "name": "test_process",
+            "description": "Test process for editor",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "description": "Starting stage",
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "locks": [{"exists": "test_field"}],
+                        }
+                    ],
+                    "expected_actions": [],
+                    "expected_properties": {"test_field": {"type": "str"}},
+                    "is_final": False,
+                },
+                "end": {
+                    "name": "End",
+                    "description": "Final stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": True,
+                },
             },
-            'end': {
-                'name': 'End',
-                'description': 'Final stage',
-                'gates': [],
-                'expected_actions': [],
-                'expected_properties': {},
-                'is_final': True
-            }
-        },
-        'initial_stage': 'start',
-        'final_stage': 'end'
-    })
+            "initial_stage": "start",
+            "final_stage": "end",
+        }
+    )
 
 
 @pytest.fixture
 def three_stage_process():
     """Create a three-stage process for testing."""
-    return Process({
-        'name': 'test_process',
-        'description': 'Test process for editor',
-        'stages': {
-            'start': {
-                'name': 'Start',
-                'description': 'Starting stage',
-                'gates': [{
-                    'name': 'to_middle',
-                    'target_stage': 'middle',
-                    'locks': [{'exists': 'field1'}]
-                }],
-                'expected_actions': [],
-                'expected_properties': {'field1': {'type': 'str'}},
-                'is_final': False
+    return Process(
+        {
+            "name": "test_process",
+            "description": "Test process for editor",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "description": "Starting stage",
+                    "gates": [
+                        {
+                            "name": "to_middle",
+                            "target_stage": "middle",
+                            "locks": [{"exists": "field1"}],
+                        }
+                    ],
+                    "expected_actions": [],
+                    "expected_properties": {"field1": {"type": "str"}},
+                    "is_final": False,
+                },
+                "middle": {
+                    "name": "Middle",
+                    "description": "Middle stage",
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "locks": [{"exists": "field2"}],
+                        }
+                    ],
+                    "expected_actions": [],
+                    "expected_properties": {"field2": {"type": "str"}},
+                    "is_final": False,
+                },
+                "end": {
+                    "name": "End",
+                    "description": "Final stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": True,
+                },
             },
-            'middle': {
-                'name': 'Middle',
-                'description': 'Middle stage',
-                'gates': [{
-                    'name': 'to_end',
-                    'target_stage': 'end',
-                    'locks': [{'exists': 'field2'}]
-                }],
-                'expected_actions': [],
-                'expected_properties': {'field2': {'type': 'str'}},
-                'is_final': False
-            },
-            'end': {
-                'name': 'End',
-                'description': 'Final stage',
-                'gates': [],
-                'expected_actions': [],
-                'expected_properties': {},
-                'is_final': True
-            }
-        },
-        'initial_stage': 'start',
-        'final_stage': 'end'
-    })
+            "initial_stage": "start",
+            "final_stage": "end",
+        }
+    )
 
 
 class TestProcessEditorInitialization:
@@ -99,32 +109,34 @@ class TestProcessEditorInitialization:
         """Test that editor allows initialization with inconsistent process for fixing."""
         # Create a process with invalid transitions
         invalid_config = {
-            'name': 'invalid_process',
-            'description': 'Invalid process',
-            'stages': {
-                'start': {
-                    'name': 'Start',
-                    'description': 'Starting stage',
-                    'gates': [{
-                        'name': 'to_nonexistent',
-                        'target_stage': 'nonexistent',
-                        'locks': [{'exists': 'field'}]
-                    }],
-                    'expected_actions': [],
-                    'expected_properties': {},
-                    'is_final': False
+            "name": "invalid_process",
+            "description": "Invalid process",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "description": "Starting stage",
+                    "gates": [
+                        {
+                            "name": "to_nonexistent",
+                            "target_stage": "nonexistent",
+                            "locks": [{"exists": "field"}],
+                        }
+                    ],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": False,
                 },
-                'end': {
-                    'name': 'End',
-                    'description': 'Final stage',
-                    'gates': [],
-                    'expected_actions': [],
-                    'expected_properties': {},
-                    'is_final': True
-                }
+                "end": {
+                    "name": "End",
+                    "description": "Final stage",
+                    "gates": [],
+                    "expected_actions": [],
+                    "expected_properties": {},
+                    "is_final": True,
+                },
             },
-            'initial_stage': 'start',
-            'final_stage': 'end'
+            "initial_stage": "start",
+            "final_stage": "end",
         }
 
         invalid_process = Process(invalid_config)
@@ -149,45 +161,50 @@ class TestProcessEditorAddStage:
 
         # Add alternative stage that connects to end
         alt_config = {
-            'name': 'Alternative',
-            'description': 'Alternative path',
-            'gates': [{
-                'name': 'to_end',
-                'target_stage': 'end',
-                'locks': [{'exists': 'alt_field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {'alt_field': {'type': 'str'}},
-            'is_final': False
+            "name": "Alternative",
+            "description": "Alternative path",
+            "gates": [
+                {
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "alt_field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {"alt_field": {"type": "str"}},
+            "is_final": False,
         }
 
-        editor.add_stage('alternative', alt_config)
+        editor.add_stage("alternative", alt_config)
 
         # Update start to have two paths
         start_config = {
-            'name': 'Start',
-            'description': 'Starting stage',
-            'gates': [
+            "name": "Start",
+            "description": "Starting stage",
+            "gates": [
                 {
-                    'name': 'to_end',
-                    'target_stage': 'end',
-                    'locks': [{'exists': 'test_field'}]
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "test_field"}],
                 },
                 {
-                    'name': 'to_alternative',
-                    'target_stage': 'alternative',
-                    'locks': [{'exists': 'alt_trigger'}]
-                }
+                    "name": "to_alternative",
+                    "target_stage": "alternative",
+                    "locks": [{"exists": "alt_trigger"}],
+                },
             ],
-            'expected_actions': [],
-            'expected_properties': {'test_field': {'type': 'str'}, 'alt_trigger': {'type': 'str'}},
-            'is_final': False
+            "expected_actions": [],
+            "expected_properties": {
+                "test_field": {"type": "str"},
+                "alt_trigger": {"type": "str"},
+            },
+            "is_final": False,
         }
 
-        editor.update_stage('start', start_config)
+        editor.update_stage("start", start_config)
 
         assert editor.is_dirty
-        assert editor.process.get_stage('alternative') is not None
+        assert editor.process.get_stage("alternative") is not None
         assert len(editor.consistency_issues) == 0
 
     def test_add_duplicate_stage_raises_error(self, simple_process):
@@ -195,16 +212,16 @@ class TestProcessEditorAddStage:
         editor = ProcessEditor(simple_process)
 
         duplicate_config = {
-            'name': 'Start',
-            'description': 'Duplicate stage',
-            'gates': [],
-            'expected_actions': [],
-            'expected_properties': {},
-            'is_final': False
+            "name": "Start",
+            "description": "Duplicate stage",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {},
+            "is_final": False,
         }
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.add_stage('start', duplicate_config)
+            editor.add_stage("start", duplicate_config)
 
         assert "already exists" in str(exc_info.value)
 
@@ -218,46 +235,51 @@ class TestProcessEditorRemoveStage:
 
         # First add alternative path from start to end
         alt_config = {
-            'name': 'Alternative',
-            'description': 'Alternative path',
-            'gates': [{
-                'name': 'to_end',
-                'target_stage': 'end',
-                'locks': [{'exists': 'alt_field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {'alt_field': {'type': 'str'}},
-            'is_final': False
+            "name": "Alternative",
+            "description": "Alternative path",
+            "gates": [
+                {
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "alt_field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {"alt_field": {"type": "str"}},
+            "is_final": False,
         }
-        editor.add_stage('alternative', alt_config)
+        editor.add_stage("alternative", alt_config)
 
         # Update start to have path to alternative
         start_config = {
-            'name': 'Start',
-            'description': 'Starting stage',
-            'gates': [
+            "name": "Start",
+            "description": "Starting stage",
+            "gates": [
                 {
-                    'name': 'to_middle',
-                    'target_stage': 'middle',
-                    'locks': [{'exists': 'field1'}]
+                    "name": "to_middle",
+                    "target_stage": "middle",
+                    "locks": [{"exists": "field1"}],
                 },
                 {
-                    'name': 'to_alternative',
-                    'target_stage': 'alternative',
-                    'locks': [{'exists': 'alt_trigger'}]
-                }
+                    "name": "to_alternative",
+                    "target_stage": "alternative",
+                    "locks": [{"exists": "alt_trigger"}],
+                },
             ],
-            'expected_actions': [],
-            'expected_properties': {'field1': {'type': 'str'}, 'alt_trigger': {'type': 'str'}},
-            'is_final': False
+            "expected_actions": [],
+            "expected_properties": {
+                "field1": {"type": "str"},
+                "alt_trigger": {"type": "str"},
+            },
+            "is_final": False,
         }
-        editor.update_stage('start', start_config)
+        editor.update_stage("start", start_config)
 
         # Now remove middle stage
-        editor.remove_stage('middle')
+        editor.remove_stage("middle")
 
         assert editor.is_dirty
-        assert editor.process.get_stage('middle') is None
+        assert editor.process.get_stage("middle") is None
         assert len(editor.consistency_issues) == 0
 
     def test_remove_initial_stage_raises_error(self, simple_process):
@@ -265,7 +287,7 @@ class TestProcessEditorRemoveStage:
         editor = ProcessEditor(simple_process)
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.remove_stage('start')
+            editor.remove_stage("start")
 
         assert "Cannot remove initial stage" in str(exc_info.value)
 
@@ -274,7 +296,7 @@ class TestProcessEditorRemoveStage:
         editor = ProcessEditor(simple_process)
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.remove_stage('end')
+            editor.remove_stage("end")
 
         assert "Cannot remove final stage" in str(exc_info.value)
 
@@ -283,7 +305,7 @@ class TestProcessEditorRemoveStage:
         editor = ProcessEditor(simple_process)
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.remove_stage('nonexistent')
+            editor.remove_stage("nonexistent")
 
         assert "not found" in str(exc_info.value)
 
@@ -296,23 +318,25 @@ class TestProcessEditorUpdateStage:
         editor = ProcessEditor(simple_process)
 
         updated_config = {
-            'name': 'Updated Start',
-            'description': 'Updated starting stage',
-            'gates': [{
-                'name': 'to_end',
-                'target_stage': 'end',
-                'locks': [{'exists': 'updated_field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {'updated_field': {'type': 'str'}},
-            'is_final': False
+            "name": "Updated Start",
+            "description": "Updated starting stage",
+            "gates": [
+                {
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "updated_field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {"updated_field": {"type": "str"}},
+            "is_final": False,
         }
 
-        editor.update_stage('start', updated_config)
+        editor.update_stage("start", updated_config)
 
         assert editor.is_dirty
-        updated_stage = editor.process.get_stage('start')
-        assert updated_stage.name == 'Updated Start'
+        updated_stage = editor.process.get_stage("start")
+        assert updated_stage.name == "Updated Start"
         assert len(editor.consistency_issues) == 0
 
     def test_update_nonexistent_stage_raises_error(self, simple_process):
@@ -320,16 +344,16 @@ class TestProcessEditorUpdateStage:
         editor = ProcessEditor(simple_process)
 
         config = {
-            'name': 'Nonexistent',
-            'description': 'Nonexistent stage',
-            'gates': [],
-            'expected_actions': [],
-            'expected_properties': {},
-            'is_final': False
+            "name": "Nonexistent",
+            "description": "Nonexistent stage",
+            "gates": [],
+            "expected_actions": [],
+            "expected_properties": {},
+            "is_final": False,
         }
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.update_stage('nonexistent', config)
+            editor.update_stage("nonexistent", config)
 
         assert "not found" in str(exc_info.value)
 
@@ -344,50 +368,55 @@ class TestProcessEditorRollback:
 
         # Make changes - add alternative branch
         alt_config = {
-            'name': 'Temporary',
-            'description': 'Temporary stage',
-            'gates': [{
-                'name': 'to_end',
-                'target_stage': 'end',
-                'locks': [{'exists': 'temp_field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {'temp_field': {'type': 'str'}},
-            'is_final': False
+            "name": "Temporary",
+            "description": "Temporary stage",
+            "gates": [
+                {
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "temp_field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {"temp_field": {"type": "str"}},
+            "is_final": False,
         }
 
-        editor.add_stage('temporary', alt_config)
+        editor.add_stage("temporary", alt_config)
 
         # Update start to add branch to temporary
         start_config = {
-            'name': 'Start',
-            'description': 'Starting stage',
-            'gates': [
+            "name": "Start",
+            "description": "Starting stage",
+            "gates": [
                 {
-                    'name': 'to_end',
-                    'target_stage': 'end',
-                    'locks': [{'exists': 'test_field'}]
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "test_field"}],
                 },
                 {
-                    'name': 'to_temporary',
-                    'target_stage': 'temporary',
-                    'locks': [{'exists': 'temp_trigger'}]
-                }
+                    "name": "to_temporary",
+                    "target_stage": "temporary",
+                    "locks": [{"exists": "temp_trigger"}],
+                },
             ],
-            'expected_actions': [],
-            'expected_properties': {'test_field': {'type': 'str'}, 'temp_trigger': {'type': 'str'}},
-            'is_final': False
+            "expected_actions": [],
+            "expected_properties": {
+                "test_field": {"type": "str"},
+                "temp_trigger": {"type": "str"},
+            },
+            "is_final": False,
         }
-        editor.update_stage('start', start_config)
+        editor.update_stage("start", start_config)
 
         assert editor.is_dirty
-        assert editor.process.get_stage('temporary') is not None
+        assert editor.process.get_stage("temporary") is not None
 
         # Rollback
         editor.rollback()
 
         assert not editor.is_dirty
-        assert editor.process.get_stage('temporary') is None
+        assert editor.process.get_stage("temporary") is None
         assert len(editor.process.stages) == original_stage_count
 
 
@@ -400,68 +429,75 @@ class TestProcessEditorSync:
 
         # Make changes - add alternative branch
         alt_config = {
-            'name': 'Synced',
-            'description': 'Synced stage',
-            'gates': [{
-                'name': 'to_end',
-                'target_stage': 'end',
-                'locks': [{'exists': 'synced_field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {'synced_field': {'type': 'str'}},
-            'is_final': False
+            "name": "Synced",
+            "description": "Synced stage",
+            "gates": [
+                {
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "synced_field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {"synced_field": {"type": "str"}},
+            "is_final": False,
         }
 
-        editor.add_stage('synced', alt_config)
+        editor.add_stage("synced", alt_config)
 
         # Update start to add branch
         start_config = {
-            'name': 'Start',
-            'description': 'Starting stage',
-            'gates': [
+            "name": "Start",
+            "description": "Starting stage",
+            "gates": [
                 {
-                    'name': 'to_end',
-                    'target_stage': 'end',
-                    'locks': [{'exists': 'test_field'}]
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "test_field"}],
                 },
                 {
-                    'name': 'to_synced',
-                    'target_stage': 'synced',
-                    'locks': [{'exists': 'sync_trigger'}]
-                }
+                    "name": "to_synced",
+                    "target_stage": "synced",
+                    "locks": [{"exists": "sync_trigger"}],
+                },
             ],
-            'expected_actions': [],
-            'expected_properties': {'test_field': {'type': 'str'}, 'sync_trigger': {'type': 'str'}},
-            'is_final': False
+            "expected_actions": [],
+            "expected_properties": {
+                "test_field": {"type": "str"},
+                "sync_trigger": {"type": "str"},
+            },
+            "is_final": False,
         }
-        editor.update_stage('start', start_config)
+        editor.update_stage("start", start_config)
 
         assert editor.is_dirty
 
         # Sync changes
         editor.sync()
         assert not editor.is_dirty
-        assert editor.process.get_stage('synced') is not None
+        assert editor.process.get_stage("synced") is not None
 
         # Make another change and rollback - should keep synced stage
         temp_config = {
-            'name': 'Temporary',
-            'description': 'Temporary stage',
-            'gates': [{
-                'name': 'to_end',
-                'target_stage': 'end',
-                'locks': [{'exists': 'temp_field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {'temp_field': {'type': 'str'}},
-            'is_final': False
+            "name": "Temporary",
+            "description": "Temporary stage",
+            "gates": [
+                {
+                    "name": "to_end",
+                    "target_stage": "end",
+                    "locks": [{"exists": "temp_field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {"temp_field": {"type": "str"}},
+            "is_final": False,
         }
 
-        editor.add_stage('temporary', temp_config)
+        editor.add_stage("temporary", temp_config)
         editor.rollback()
 
-        assert editor.process.get_stage('synced') is not None
-        assert editor.process.get_stage('temporary') is None
+        assert editor.process.get_stage("synced") is not None
+        assert editor.process.get_stage("temporary") is None
 
 
 class TestProcessEditorValidation:
@@ -473,23 +509,25 @@ class TestProcessEditorValidation:
 
         # Try to add stage with invalid transition
         invalid_config = {
-            'name': 'Invalid',
-            'description': 'Invalid stage',
-            'gates': [{
-                'name': 'invalid_gate',
-                'target_stage': 'nonexistent',
-                'locks': [{'exists': 'field'}]
-            }],
-            'expected_actions': [],
-            'expected_properties': {},
-            'is_final': False
+            "name": "Invalid",
+            "description": "Invalid stage",
+            "gates": [
+                {
+                    "name": "invalid_gate",
+                    "target_stage": "nonexistent",
+                    "locks": [{"exists": "field"}],
+                }
+            ],
+            "expected_actions": [],
+            "expected_properties": {},
+            "is_final": False,
         }
 
         with pytest.raises(ValidationFailedError) as exc_info:
-            editor.add_stage('invalid', invalid_config)
+            editor.add_stage("invalid", invalid_config)
 
         assert not editor.is_dirty
-        assert editor.process.get_stage('invalid') is None
+        assert editor.process.get_stage("invalid") is None
         assert len(exc_info.value.issues) > 0
 
     def test_validate_method_returns_status(self, simple_process):
@@ -513,41 +551,46 @@ class TestProcessEditorContextManager:
             with ProcessEditor(simple_process) as editor:
                 # Make changes - add alternative branch
                 alt_config = {
-                    'name': 'Context',
-                    'description': 'Context stage',
-                    'gates': [{
-                        'name': 'to_end',
-                        'target_stage': 'end',
-                        'locks': [{'exists': 'context_field'}]
-                    }],
-                    'expected_actions': [],
-                    'expected_properties': {'context_field': {'type': 'str'}},
-                    'is_final': False
+                    "name": "Context",
+                    "description": "Context stage",
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "locks": [{"exists": "context_field"}],
+                        }
+                    ],
+                    "expected_actions": [],
+                    "expected_properties": {"context_field": {"type": "str"}},
+                    "is_final": False,
                 }
 
-                editor.add_stage('context', alt_config)
+                editor.add_stage("context", alt_config)
 
                 # Update start to add branch
                 start_config = {
-                    'name': 'Start',
-                    'description': 'Starting stage',
-                    'gates': [
+                    "name": "Start",
+                    "description": "Starting stage",
+                    "gates": [
                         {
-                            'name': 'to_end',
-                            'target_stage': 'end',
-                            'locks': [{'exists': 'test_field'}]
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "locks": [{"exists": "test_field"}],
                         },
                         {
-                            'name': 'to_context',
-                            'target_stage': 'context',
-                            'locks': [{'exists': 'context_trigger'}]
-                        }
+                            "name": "to_context",
+                            "target_stage": "context",
+                            "locks": [{"exists": "context_trigger"}],
+                        },
                     ],
-                    'expected_actions': [],
-                    'expected_properties': {'test_field': {'type': 'str'}, 'context_trigger': {'type': 'str'}},
-                    'is_final': False
+                    "expected_actions": [],
+                    "expected_properties": {
+                        "test_field": {"type": "str"},
+                        "context_trigger": {"type": "str"},
+                    },
+                    "is_final": False,
                 }
-                editor.update_stage('start', start_config)
+                editor.update_stage("start", start_config)
 
                 # Store reference to check after exception
                 editor_after_exception = editor
@@ -557,7 +600,7 @@ class TestProcessEditorContextManager:
 
         # Check rollback occurred on the editor's process
         assert not editor_after_exception.is_dirty
-        assert editor_after_exception.process.get_stage('context') is None
+        assert editor_after_exception.process.get_stage("context") is None
         assert len(editor_after_exception.process.stages) == original_stage_count
 
 
@@ -568,7 +611,7 @@ class TestProcessEditorAddTransition:
         """Test adding a transition between existing stages."""
         editor = ProcessEditor(simple_process)
 
-        editor.add_transition('start', 'end')
+        editor.add_transition("start", "end")
 
         assert editor.is_dirty
         assert len(editor.consistency_issues) == 0
@@ -578,7 +621,7 @@ class TestProcessEditorAddTransition:
         editor = ProcessEditor(simple_process)
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.add_transition('nonexistent', 'end')
+            editor.add_transition("nonexistent", "end")
 
         assert "Source stage" in str(exc_info.value)
         assert "not found" in str(exc_info.value)
@@ -588,7 +631,7 @@ class TestProcessEditorAddTransition:
         editor = ProcessEditor(simple_process)
 
         with pytest.raises(ProcessEditorError) as exc_info:
-            editor.add_transition('start', 'nonexistent')
+            editor.add_transition("start", "nonexistent")
 
         assert "Target stage" in str(exc_info.value)
         assert "not found" in str(exc_info.value)
@@ -604,10 +647,10 @@ class TestProcessEditorUtilityMethods:
         definition = editor.get_process_definition()
 
         assert isinstance(definition, dict)
-        assert definition['name'] == 'test_process'
-        assert 'stages' in definition
-        assert 'initial_stage' in definition
-        assert 'final_stage' in definition
+        assert definition["name"] == "test_process"
+        assert "stages" in definition
+        assert "initial_stage" in definition
+        assert "final_stage" in definition
 
     def test_consistency_issues_property(self, simple_process):
         """Test consistency issues property."""

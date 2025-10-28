@@ -15,7 +15,9 @@ import pytest
 class TestVisualizationRegression:
     """Regression test suite for previously fixed visualization bugs."""
 
-    def run_stageflow_cli(self, args: list[str], expect_success: bool = True) -> dict[str, Any]:
+    def run_stageflow_cli(
+        self, args: list[str], expect_success: bool = True
+    ) -> dict[str, Any]:
         """Run StageFlow CLI and return structured result."""
         cmd = ["uv", "run", "stageflow"] + args
 
@@ -25,16 +27,18 @@ class TestVisualizationRegression:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd=Path(__file__).parent.parent.parent
+                cwd=Path(__file__).parent.parent.parent,
             )
 
             if expect_success:
-                assert result.returncode == 0, f"Expected success but got exit code {result.returncode}. stderr: {result.stderr}"
+                assert result.returncode == 0, (
+                    f"Expected success but got exit code {result.returncode}. stderr: {result.stderr}"
+                )
 
             return {
                 "exit_code": result.returncode,
                 "stdout": result.stdout,
-                "stderr": result.stderr
+                "stderr": result.stderr,
             }
 
         except subprocess.TimeoutExpired:
@@ -52,27 +56,29 @@ class TestVisualizationRegression:
         converge at S2.
         """
         examples_dir = Path(__file__).parent.parent.parent / "examples"
-        convergence_file = examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+        convergence_file = (
+            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+        )
 
         if not convergence_file.exists():
             pytest.skip("Convergence flow example not found")
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
 
         try:
             # Generate visualization
-            result = self.run_stageflow_cli([
-                str(convergence_file),
-                "--diagram", str(output_file)
-            ], expect_success=True)
+            result = self.run_stageflow_cli(
+                [str(convergence_file), "--diagram", str(output_file)],
+                expect_success=True,
+            )
 
             assert result["exit_code"] == 0
             assert output_file.exists()
 
             # Parse transitions
             content = output_file.read_text()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
             transitions = []
             for line in lines:
@@ -87,21 +93,27 @@ class TestVisualizationRegression:
             # The bug would create: S0->S1, S1->S2, S2->S3, S3->S4, S4->S5, S5->S6, S6->S7, S7->S8
             consecutive_linear_transitions = 0
             for i in range(8):  # S0 through S7
-                linear_transition = (f"S{i}", f"S{i+1}")
+                linear_transition = (f"S{i}", f"S{i + 1}")
                 if linear_transition in transitions:
                     consecutive_linear_transitions += 1
 
             # Should NOT have more than 6 consecutive linear transitions in a convergence flow
             # (The broken version would have 8 consecutive linear transitions)
-            assert consecutive_linear_transitions <= 6, f"Found {consecutive_linear_transitions} consecutive linear transitions, indicating linear bug regression. Transitions: {transitions}"
+            assert consecutive_linear_transitions <= 6, (
+                f"Found {consecutive_linear_transitions} consecutive linear transitions, indicating linear bug regression. Transitions: {transitions}"
+            )
 
             # Should have branching from S0 (order_received)
             s0_targets = [target for source, target in transitions if source == "S0"]
-            assert len(s0_targets) >= 2, f"S0 should branch to multiple targets, but only found: {s0_targets}"
+            assert len(s0_targets) >= 2, (
+                f"S0 should branch to multiple targets, but only found: {s0_targets}"
+            )
 
             # Should have convergence at S2 (inventory_check)
             s2_sources = [source for source, target in transitions if target == "S2"]
-            assert len(s2_sources) >= 2, f"S2 should be target of multiple sources (convergence), but only found: {s2_sources}"
+            assert len(s2_sources) >= 2, (
+                f"S2 should be target of multiple sources (convergence), but only found: {s2_sources}"
+            )
 
         finally:
             output_file.unlink(missing_ok=True)
@@ -115,27 +127,29 @@ class TestVisualizationRegression:
         the actual final stage from the process configuration.
         """
         examples_dir = Path(__file__).parent.parent.parent / "examples"
-        convergence_file = examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+        convergence_file = (
+            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+        )
 
         if not convergence_file.exists():
             pytest.skip("Convergence flow example not found")
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
 
         try:
             # Generate visualization
-            result = self.run_stageflow_cli([
-                str(convergence_file),
-                "--diagram", str(output_file)
-            ], expect_success=True)
+            result = self.run_stageflow_cli(
+                [str(convergence_file), "--diagram", str(output_file)],
+                expect_success=True,
+            )
 
             assert result["exit_code"] == 0
             assert output_file.exists()
 
             # Parse the visualization
             content = output_file.read_text()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
             # Extract stage-to-node mappings
             stage_mappings = {}
@@ -156,7 +170,9 @@ class TestVisualizationRegression:
                         final_styled_nodes.append(parts[1])
 
             # Should have exactly one final-styled node
-            assert len(final_styled_nodes) == 1, f"Should have exactly one final-styled node, found: {final_styled_nodes}"
+            assert len(final_styled_nodes) == 1, (
+                f"Should have exactly one final-styled node, found: {final_styled_nodes}"
+            )
 
             final_node = final_styled_nodes[0]
 
@@ -170,13 +186,17 @@ class TestVisualizationRegression:
             # The final stage should be 'order_fulfilled', not any other stage
             # This would catch the bug where 'store_validation' was marked as final
             # because it was last in the stage_order array
-            assert final_stage_name == "order_fulfilled", f"Final stage should be 'order_fulfilled', but '{final_stage_name}' was marked as final"
+            assert final_stage_name == "order_fulfilled", (
+                f"Final stage should be 'order_fulfilled', but '{final_stage_name}' was marked as final"
+            )
 
             # Specifically check that 'store_validation' is NOT marked as final
             # (this was the specific bug symptom)
             store_validation_node = stage_mappings.get("store_validation")
             if store_validation_node:
-                assert store_validation_node not in final_styled_nodes, "store_validation should not be marked as final (position-based bug)"
+                assert store_validation_node not in final_styled_nodes, (
+                    "store_validation should not be marked as final (position-based bug)"
+                )
 
         finally:
             output_file.unlink(missing_ok=True)
@@ -192,27 +212,29 @@ class TestVisualizationRegression:
         examples_dir = Path(__file__).parent.parent.parent / "examples"
 
         # Test with a simple branching flow that should NOT be linear
-        branching_file = examples_dir / "case3_visualization" / "simple" / "branching_flow.yaml"
+        branching_file = (
+            examples_dir / "case3_visualization" / "simple" / "branching_flow.yaml"
+        )
 
         if not branching_file.exists():
             pytest.skip("Branching flow example not found")
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
 
         try:
             # Generate visualization
-            result = self.run_stageflow_cli([
-                str(branching_file),
-                "--diagram", str(output_file)
-            ], expect_success=True)
+            result = self.run_stageflow_cli(
+                [str(branching_file), "--diagram", str(output_file)],
+                expect_success=True,
+            )
 
             assert result["exit_code"] == 0
             assert output_file.exists()
 
             # Parse transitions
             content = output_file.read_text()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
             transitions = []
             for line in lines:
@@ -227,10 +249,14 @@ class TestVisualizationRegression:
             # This would catch the bug where only S0->S1 was shown instead of proper branching
 
             # Find transitions from the first stage (S0)
-            s0_transitions = [target for source, target in transitions if source == "S0"]
+            s0_transitions = [
+                target for source, target in transitions if source == "S0"
+            ]
 
             # Should have branching (multiple transitions from S0)
-            assert len(s0_transitions) > 1, f"First stage should branch to multiple stages, but only found transitions to: {s0_transitions}"
+            assert len(s0_transitions) > 1, (
+                f"First stage should branch to multiple stages, but only found transitions to: {s0_transitions}"
+            )
 
             # Verify transitions match actual process logic, not just linear ordering
             # The bug would show S0->S1->S2->S3->S4 instead of actual gate relationships
@@ -238,15 +264,21 @@ class TestVisualizationRegression:
             # Count how many transitions follow the pattern Si -> S(i+1)
             linear_pattern_count = 0
             for i in range(len(transitions)):
-                linear_transition = (f"S{i}", f"S{i+1}")
+                linear_transition = (f"S{i}", f"S{i + 1}")
                 if linear_transition in transitions:
                     linear_pattern_count += 1
 
             total_transitions = len(transitions)
-            linear_percentage = (linear_pattern_count / total_transitions) if total_transitions > 0 else 0
+            linear_percentage = (
+                (linear_pattern_count / total_transitions)
+                if total_transitions > 0
+                else 0
+            )
 
             # For a branching flow, shouldn't be more than 50% linear transitions
-            assert linear_percentage < 0.5, f"Too many linear transitions ({linear_pattern_count}/{total_transitions} = {linear_percentage:.1%}), suggests ordering-based bug regression"
+            assert linear_percentage < 0.5, (
+                f"Too many linear transitions ({linear_pattern_count}/{total_transitions} = {linear_percentage:.1%}), suggests ordering-based bug regression"
+            )
 
         finally:
             output_file.unlink(missing_ok=True)
@@ -262,7 +294,9 @@ class TestVisualizationRegression:
         from stageflow.schema.loader import load_process
 
         examples_dir = Path(__file__).parent.parent.parent / "examples"
-        convergence_file = examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+        convergence_file = (
+            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+        )
 
         if not convergence_file.exists():
             pytest.skip("Convergence flow example not found")
@@ -271,17 +305,17 @@ class TestVisualizationRegression:
         process = load_process(str(convergence_file))
 
         # Generate visualization
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
 
         try:
-            self.run_stageflow_cli([
-                str(convergence_file),
-                "--diagram", str(output_file)
-            ], expect_success=True)
+            self.run_stageflow_cli(
+                [str(convergence_file), "--diagram", str(output_file)],
+                expect_success=True,
+            )
 
             content = output_file.read_text()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
             # Parse actual transitions from visualization
             actual_transitions = []
@@ -308,10 +342,12 @@ class TestVisualizationRegression:
             for stage in process.stages:
                 if stage.gates:
                     for gate in stage.gates:
-                        if hasattr(gate, 'target_stage') and gate.target_stage:
+                        if hasattr(gate, "target_stage") and gate.target_stage:
                             source_stage = stage._id
                             target_stage = gate.target_stage
-                            expected_stage_transitions.append((source_stage, target_stage))
+                            expected_stage_transitions.append(
+                                (source_stage, target_stage)
+                            )
 
             # Convert expected stage transitions to node transitions
             expected_node_transitions = []
@@ -328,8 +364,12 @@ class TestVisualizationRegression:
             missing_transitions = expected_set - actual_set
             extra_transitions = actual_set - expected_set
 
-            assert len(missing_transitions) == 0, f"Missing expected transitions: {missing_transitions}"
-            assert len(extra_transitions) == 0, f"Unexpected extra transitions: {extra_transitions}"
+            assert len(missing_transitions) == 0, (
+                f"Missing expected transitions: {missing_transitions}"
+            )
+            assert len(extra_transitions) == 0, (
+                f"Unexpected extra transitions: {extra_transitions}"
+            )
 
         finally:
             output_file.unlink(missing_ok=True)

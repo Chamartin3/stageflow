@@ -61,7 +61,7 @@ class TestProcessRegistryCreation:
 
             # Assert
             assert registry.config == config
-            assert hasattr(registry, '_yaml')
+            assert hasattr(registry, "_yaml")
 
     def test_registry_yaml_configuration(self):
         """Verify registry has properly configured YAML instance."""
@@ -73,7 +73,7 @@ class TestProcessRegistryCreation:
             registry = ProcessRegistry(config)
 
             # Assert
-            assert hasattr(registry, '_yaml')
+            assert hasattr(registry, "_yaml")
             assert registry._yaml.preserve_quotes is True
 
 
@@ -174,13 +174,14 @@ class TestProcessRegistryListOperations:
         """Verify list_processes raises error when directory is not accessible."""
         # Arrange
         config = ManagerConfig(
-            processes_dir=Path("/nonexistent/directory"),
-            create_dir_if_missing=False
+            processes_dir=Path("/nonexistent/directory"), create_dir_if_missing=False
         )
         registry = ProcessRegistry(config)
 
         # Act & Assert
-        with pytest.raises(ProcessRegistryError, match="Processes directory not accessible"):
+        with pytest.raises(
+            ProcessRegistryError, match="Processes directory not accessible"
+        ):
             registry.list_processes()
 
     def test_list_processes_with_os_error_raises_registry_error(self):
@@ -191,8 +192,12 @@ class TestProcessRegistryListOperations:
             registry = ProcessRegistry(config)
 
             # Act & Assert
-            with patch.object(Path, 'iterdir', side_effect=OSError("Permission denied")):
-                with pytest.raises(ProcessRegistryError, match="Failed to list processes"):
+            with patch.object(
+                Path, "iterdir", side_effect=OSError("Permission denied")
+            ):
+                with pytest.raises(
+                    ProcessRegistryError, match="Failed to list processes"
+                ):
                     registry.list_processes()
 
 
@@ -264,7 +269,7 @@ class TestProcessRegistryExistenceChecks:
             registry = ProcessRegistry(config)
 
             # Act
-            with patch.object(Path, 'exists', side_effect=OSError("Permission denied")):
+            with patch.object(Path, "exists", side_effect=OSError("Permission denied")):
                 exists = registry.process_exists("test")
 
             # Assert
@@ -333,20 +338,18 @@ class TestProcessRegistryLoadOperations:
                     "start": {
                         "name": "Start Stage",
                         "expected_properties": {"input": {"type": "str"}},
-                        "gates": [{
-                            "name": "proceed",
-                            "target_stage": "end",
-                            "locks": [{"exists": "input"}]
-                        }]
+                        "gates": [
+                            {
+                                "name": "proceed",
+                                "target_stage": "end",
+                                "locks": [{"exists": "input"}],
+                            }
+                        ],
                     },
-                    "end": {
-                        "name": "End Stage",
-                        "is_final": True,
-                        "gates": []
-                    }
+                    "end": {"name": "End Stage", "is_final": True, "gates": []},
                 },
                 "initial_stage": "start",
-                "final_stage": "end"
+                "final_stage": "end",
             }
         }
 
@@ -360,8 +363,8 @@ class TestProcessRegistryLoadOperations:
 
             # Create process file
             process_file = processes_dir / "test.yaml"
-            with open(process_file, 'w') as f:
-                yaml_handler = YAML(typ='safe', pure=True)
+            with open(process_file, "w") as f:
+                yaml_handler = YAML(typ="safe", pure=True)
                 yaml_handler.dump(self.create_test_process_data(), f)
 
             # Act
@@ -381,7 +384,7 @@ class TestProcessRegistryLoadOperations:
 
             # Create process file
             process_file = processes_dir / "test.json"
-            with open(process_file, 'w') as f:
+            with open(process_file, "w") as f:
                 json.dump(self.create_test_process_data(), f)
 
             # Act
@@ -399,7 +402,9 @@ class TestProcessRegistryLoadOperations:
             registry = ProcessRegistry(config)
 
             # Act & Assert
-            with pytest.raises(ProcessRegistryError, match="Process 'nonexistent' not found"):
+            with pytest.raises(
+                ProcessRegistryError, match="Process 'nonexistent' not found"
+            ):
                 registry.load_process("nonexistent")
 
     def test_load_process_invalid_file_raises_error(self):
@@ -415,6 +420,7 @@ class TestProcessRegistryLoadOperations:
             process_file.write_text("invalid: yaml: content:")
 
             # Act & Assert
-            with pytest.raises(ProcessRegistryError, match="Failed to load process 'invalid'"):
+            with pytest.raises(
+                ProcessRegistryError, match="Failed to load process 'invalid'"
+            ):
                 registry.load_process("invalid")
-

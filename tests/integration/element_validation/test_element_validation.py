@@ -28,7 +28,9 @@ class TestElementValidation:
         return Path(__file__).parent / "data"
 
     @pytest.fixture(scope="class")
-    def normal_flow_test_cases(self, test_data_dir: Path) -> list[tuple[Path, list[Path]]]:
+    def normal_flow_test_cases(
+        self, test_data_dir: Path
+    ) -> list[tuple[Path, list[Path]]]:
         """
         Get normal flow test cases with process files and their associated element files.
 
@@ -50,7 +52,9 @@ class TestElementValidation:
         return test_cases
 
     @pytest.fixture(scope="class")
-    def regression_test_cases(self, test_data_dir: Path) -> list[tuple[Path, list[Path]]]:
+    def regression_test_cases(
+        self, test_data_dir: Path
+    ) -> list[tuple[Path, list[Path]]]:
         """Get regression detection test cases with process and element files."""
         regression_dir = test_data_dir / "regression"
         test_cases = []
@@ -74,7 +78,9 @@ class TestElementValidation:
         return process_file, element_files
 
     @pytest.fixture(scope="class")
-    def default_properties_test_case(self, test_data_dir: Path) -> tuple[Path, list[Path]]:
+    def default_properties_test_case(
+        self, test_data_dir: Path
+    ) -> tuple[Path, list[Path]]:
         """Get default properties test case with process and element files."""
         defaults_dir = test_data_dir / "default_properties"
         # Look for the main process file for defaults testing
@@ -84,8 +90,15 @@ class TestElementValidation:
         element_files = list(defaults_dir.glob("*.json"))
         return process_file, element_files
 
-    def run_stageflow_cli(self, process_file: str, element_file: str | None = None, stage: str | None = None,
-                         expect_success: bool = True, json_output: bool = False, verbose: bool = False) -> dict[str, Any]:
+    def run_stageflow_cli(
+        self,
+        process_file: str,
+        element_file: str | None = None,
+        stage: str | None = None,
+        expect_success: bool = True,
+        json_output: bool = False,
+        verbose: bool = False,
+    ) -> dict[str, Any]:
         """
         Run the StageFlow CLI with given arguments and return structured result.
 
@@ -127,7 +140,7 @@ class TestElementValidation:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd="/home/omidev/Code/tools/stageflow"
+                cwd="/home/omidev/Code/tools/stageflow",
             )
 
             # Parse JSON output if JSON flag was used
@@ -142,11 +155,13 @@ class TestElementValidation:
                 "exit_code": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "parsed_json": parsed_json
+                "parsed_json": parsed_json,
             }
 
             if expect_success:
-                assert result.returncode == 0, f"Expected success but got exit code {result.returncode}. stderr: {result.stderr}"
+                assert result.returncode == 0, (
+                    f"Expected success but got exit code {result.returncode}. stderr: {result.stderr}"
+                )
 
             return response
 
@@ -155,11 +170,14 @@ class TestElementValidation:
         except Exception as e:
             pytest.fail(f"Failed to run CLI command: {e}")
 
-    @pytest.mark.parametrize("element_file", [
-        "user_ready_for_profile.json",
-        "user_ready_for_verification.json",
-        "user_ready_for_activation.json"
-    ])
+    @pytest.mark.parametrize(
+        "element_file",
+        [
+            "user_ready_for_profile.json",
+            "user_ready_for_verification.json",
+            "user_ready_for_activation.json",
+        ],
+    )
     def test_ready_elements_human_output(self, test_data_dir: Path, element_file: str):
         """
         Verify that elements ready for progression show correct status and next steps.
@@ -175,21 +193,30 @@ class TestElementValidation:
         element_path = test_data_dir / "normal_flow" / "ready_elements" / element_file
 
         # Act
-        result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file), str(element_path), expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
         assert "✅" in result["stdout"], "Ready element should show success indicator"
-        assert "Evaluation Result" in result["stdout"], "Should display evaluation section"
+        assert "Evaluation Result" in result["stdout"], (
+            "Should display evaluation section"
+        )
         assert "Current Stage:" in result["stdout"], "Should show current stage"
         assert "Status:" in result["stdout"], "Should show evaluation status"
 
-    @pytest.mark.parametrize("element_file", [
-        "user_missing_email_verification.json",
-        "user_incomplete_profile.json",
-        "user_pending_identity_verification.json"
-    ])
-    def test_action_required_elements_human_output(self, test_data_dir: Path, element_file: str):
+    @pytest.mark.parametrize(
+        "element_file",
+        [
+            "user_missing_email_verification.json",
+            "user_incomplete_profile.json",
+            "user_pending_identity_verification.json",
+        ],
+    )
+    def test_action_required_elements_human_output(
+        self, test_data_dir: Path, element_file: str
+    ):
         """
         Verify that elements requiring actions show clear guidance and missing requirements.
 
@@ -200,12 +227,18 @@ class TestElementValidation:
         - Provide actionable next steps
         """
         # Arrange
-        process_file = test_data_dir / "normal_flow" / "action_required" / "process.yaml"
+        process_file = (
+            test_data_dir / "normal_flow" / "action_required" / "process.yaml"
+        )
         element_path = test_data_dir / "normal_flow" / "action_required" / element_file
 
         # Act - Use appropriate stage based on element type
-        stage = "verification" if "verification" in element_file else "profile_completion"
-        result = self.run_stageflow_cli(str(process_file), str(element_path), stage=stage, expect_success=True)
+        stage = (
+            "verification" if "verification" in element_file else "profile_completion"
+        )
+        result = self.run_stageflow_cli(
+            str(process_file), str(element_path), stage=stage, expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -213,11 +246,12 @@ class TestElementValidation:
         assert "Required Actions:" in result["stdout"], "Should list required actions"
         assert "Current Stage:" in result["stdout"], "Should show current stage"
 
-    @pytest.mark.parametrize("element_file", [
-        "user_invalid_email.json",
-        "user_missing_required_field.json"
-    ])
-    def test_invalid_schema_elements_human_output(self, test_data_dir: Path, element_file: str):
+    @pytest.mark.parametrize(
+        "element_file", ["user_invalid_email.json", "user_missing_required_field.json"]
+    )
+    def test_invalid_schema_elements_human_output(
+        self, test_data_dir: Path, element_file: str
+    ):
         """
         Verify that elements with schema violations show clear error reporting.
 
@@ -232,13 +266,24 @@ class TestElementValidation:
         element_path = test_data_dir / "normal_flow" / "invalid_schema" / element_file
 
         # Act - Test at data_validation stage to trigger type validation failures
-        result = self.run_stageflow_cli(str(process_file), str(element_path), stage="data_validation", expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file),
+            str(element_path),
+            stage="data_validation",
+            expect_success=True,
+        )
 
         # Assert
         assert result["exit_code"] == 0
-        assert "⚠️" in result["stdout"], "Schema validation failures should show warning indicator"
-        assert "action_required" in result["stdout"], "Should show action_required status for validation failures"
-        assert "Type" in result["stdout"] or "should be of type" in result["stdout"], "Should show type validation errors"
+        assert "⚠️" in result["stdout"], (
+            "Schema validation failures should show warning indicator"
+        )
+        assert "action_required" in result["stdout"], (
+            "Should show action_required status for validation failures"
+        )
+        assert "Type" in result["stdout"] or "should be of type" in result["stdout"], (
+            "Should show type validation errors"
+        )
 
     def test_normal_flow_progression_json_output(self, test_data_dir: Path):
         """
@@ -253,10 +298,17 @@ class TestElementValidation:
         """
         # Arrange
         process_file = test_data_dir / "normal_flow" / "process.yaml"
-        element_file = test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"
+        element_file = (
+            test_data_dir
+            / "normal_flow"
+            / "ready_elements"
+            / "user_ready_for_profile.json"
+        )
 
         # Act
-        result = self.run_stageflow_cli(str(process_file), str(element_file), json_output=True, expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file), str(element_file), json_output=True, expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -278,11 +330,13 @@ class TestElementValidation:
         assert "regression" in evaluation, "Evaluation should show regression info"
         assert "gate_results" in evaluation, "Evaluation should show gate results"
 
-    @pytest.mark.parametrize("element_file", [
-        "element_regressed_to_basic.json",
-        "element_regressed_to_intermediate.json"
-    ])
-    def test_backward_regression_detection(self, test_data_dir: Path, element_file: str):
+    @pytest.mark.parametrize(
+        "element_file",
+        ["element_regressed_to_basic.json", "element_regressed_to_intermediate.json"],
+    )
+    def test_backward_regression_detection(
+        self, test_data_dir: Path, element_file: str
+    ):
         """
         Verify detection of backward progression through process stages.
 
@@ -293,17 +347,31 @@ class TestElementValidation:
         - Provide clear indication of the regression type
         """
         # Arrange
-        process_file = test_data_dir / "regression" / "backward_regression" / "process.yaml"
-        element_path = test_data_dir / "regression" / "backward_regression" / element_file
+        process_file = (
+            test_data_dir / "regression" / "backward_regression" / "process.yaml"
+        )
+        element_path = (
+            test_data_dir / "regression" / "backward_regression" / element_file
+        )
 
         # Act - Test both human and JSON output at appropriate stage to detect regression
         stage = "review" if "intermediate" in element_file else "draft"
-        human_result = self.run_stageflow_cli(str(process_file), str(element_path), stage=stage, expect_success=True)
-        json_result = self.run_stageflow_cli(str(process_file), str(element_path), stage=stage, json_output=True, expect_success=True)
+        human_result = self.run_stageflow_cli(
+            str(process_file), str(element_path), stage=stage, expect_success=True
+        )
+        json_result = self.run_stageflow_cli(
+            str(process_file),
+            str(element_path),
+            stage=stage,
+            json_output=True,
+            expect_success=True,
+        )
 
         # Assert human output
         assert human_result["exit_code"] == 0
-        assert "Evaluation Result" in human_result["stdout"], "Should show evaluation results"
+        assert "Evaluation Result" in human_result["stdout"], (
+            "Should show evaluation results"
+        )
 
         # Assert JSON output
         assert json_result["exit_code"] == 0
@@ -311,11 +379,13 @@ class TestElementValidation:
         evaluation = json_result["parsed_json"]["evaluation"]
         assert "regression" in evaluation, "Should contain regression information"
 
-    @pytest.mark.parametrize("element_file", [
-        "element_lost_processed_data.json",
-        "element_lost_advanced_features.json"
-    ])
-    def test_property_loss_regression_detection(self, test_data_dir: Path, element_file: str):
+    @pytest.mark.parametrize(
+        "element_file",
+        ["element_lost_processed_data.json", "element_lost_advanced_features.json"],
+    )
+    def test_property_loss_regression_detection(
+        self, test_data_dir: Path, element_file: str
+    ):
         """
         Verify detection of property loss regressions in element data.
 
@@ -330,7 +400,9 @@ class TestElementValidation:
         element_path = test_data_dir / "regression" / "property_loss" / element_file
 
         # Act
-        result = self.run_stageflow_cli(str(process_file), str(element_path), json_output=True, expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file), str(element_path), json_output=True, expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -338,11 +410,12 @@ class TestElementValidation:
         evaluation = result["parsed_json"]["evaluation"]
         assert "regression" in evaluation, "Should detect regression"
 
-    @pytest.mark.parametrize("element_file", [
-        "element_status_changed.json",
-        "element_score_decreased.json"
-    ])
-    def test_value_change_regression_detection(self, test_data_dir: Path, element_file: str):
+    @pytest.mark.parametrize(
+        "element_file", ["element_status_changed.json", "element_score_decreased.json"]
+    )
+    def test_value_change_regression_detection(
+        self, test_data_dir: Path, element_file: str
+    ):
         """
         Verify detection of value change regressions in element properties.
 
@@ -357,7 +430,13 @@ class TestElementValidation:
         element_path = test_data_dir / "regression" / "value_change" / element_file
 
         # Act - Test at application_approved stage to detect value change regression
-        result = self.run_stageflow_cli(str(process_file), str(element_path), stage="application_approved", json_output=True, expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file),
+            str(element_path),
+            stage="application_approved",
+            json_output=True,
+            expect_success=True,
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -365,12 +444,15 @@ class TestElementValidation:
         evaluation = result["parsed_json"]["evaluation"]
         assert "regression" in evaluation, "Should detect value change regression"
 
-    @pytest.mark.parametrize("element_file", [
-        "empty_element.json",
-        "nested_properties.json",
-        "large_data.json",
-        "special_chars.json"
-    ])
+    @pytest.mark.parametrize(
+        "element_file",
+        [
+            "empty_element.json",
+            "nested_properties.json",
+            "large_data.json",
+            "special_chars.json",
+        ],
+    )
     def test_edge_case_element_handling(self, test_data_dir: Path, element_file: str):
         """
         Verify robust handling of edge case element data patterns.
@@ -386,11 +468,17 @@ class TestElementValidation:
         element_path = test_data_dir / "edge_cases" / element_file
 
         # Act
-        result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_file), str(element_path), expect_success=True
+        )
 
         # Assert
-        assert result["exit_code"] == 0, f"Edge case {element_file} should not cause CLI failure"
-        assert "Evaluation Result" in result["stdout"], "Should provide evaluation results"
+        assert result["exit_code"] == 0, (
+            f"Edge case {element_file} should not cause CLI failure"
+        )
+        assert "Evaluation Result" in result["stdout"], (
+            "Should provide evaluation results"
+        )
 
     def test_stage_specific_evaluation(self, test_data_dir: Path):
         """
@@ -404,7 +492,12 @@ class TestElementValidation:
         """
         # Arrange
         process_file = test_data_dir / "normal_flow" / "process.yaml"
-        element_file = test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"
+        element_file = (
+            test_data_dir
+            / "normal_flow"
+            / "ready_elements"
+            / "user_ready_for_profile.json"
+        )
 
         # Act - Test evaluation at specific stage
         result = self.run_stageflow_cli(
@@ -412,7 +505,7 @@ class TestElementValidation:
             str(element_file),
             stage="profile_setup",
             json_output=True,
-            expect_success=True
+            expect_success=True,
         )
 
         # Assert
@@ -441,18 +534,24 @@ class TestElementValidation:
         test_elements = [
             "minimal_user.json",
             "user_needs_defaults.json",
-            "profile_needs_defaults.json"
+            "profile_needs_defaults.json",
         ]
 
         for element_file in test_elements:
             element_path = defaults_dir / element_file
             if element_path.exists():
                 # Act
-                result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
+                result = self.run_stageflow_cli(
+                    str(process_file), str(element_path), expect_success=True
+                )
 
                 # Assert
-                assert result["exit_code"] == 0, f"Default properties test should succeed for {element_file}"
-                assert "Evaluation Result" in result["stdout"], "Should show evaluation results"
+                assert result["exit_code"] == 0, (
+                    f"Default properties test should succeed for {element_file}"
+                )
+                assert "Evaluation Result" in result["stdout"], (
+                    "Should show evaluation results"
+                )
 
     def test_comprehensive_element_evaluation_workflow(self, test_data_dir: Path):
         """
@@ -467,18 +566,40 @@ class TestElementValidation:
 
         # Test different element types in sequence
         test_scenarios = [
-            (test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json", "should be ready"),
-            (test_data_dir / "normal_flow" / "action_required" / "user_incomplete_profile.json", "should need actions"),
-            (test_data_dir / "normal_flow" / "invalid_schema" / "user_invalid_email.json", "should be invalid")
+            (
+                test_data_dir
+                / "normal_flow"
+                / "ready_elements"
+                / "user_ready_for_profile.json",
+                "should be ready",
+            ),
+            (
+                test_data_dir
+                / "normal_flow"
+                / "action_required"
+                / "user_incomplete_profile.json",
+                "should need actions",
+            ),
+            (
+                test_data_dir
+                / "normal_flow"
+                / "invalid_schema"
+                / "user_invalid_email.json",
+                "should be invalid",
+            ),
         ]
 
         # Act & Assert
         for element_path, expectation in test_scenarios:
             if element_path.exists():
-                result = self.run_stageflow_cli(str(process_file), str(element_path), expect_success=True)
+                result = self.run_stageflow_cli(
+                    str(process_file), str(element_path), expect_success=True
+                )
 
                 assert result["exit_code"] == 0, f"Element evaluation {expectation}"
-                assert "Evaluation Result" in result["stdout"], f"Should show results for {element_path.name}"
+                assert "Evaluation Result" in result["stdout"], (
+                    f"Should show results for {element_path.name}"
+                )
 
     def test_verbose_element_evaluation(self, test_data_dir: Path):
         """
@@ -492,21 +613,29 @@ class TestElementValidation:
         """
         # Arrange
         process_file = test_data_dir / "normal_flow" / "process.yaml"
-        element_file = test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"
+        element_file = (
+            test_data_dir
+            / "normal_flow"
+            / "ready_elements"
+            / "user_ready_for_profile.json"
+        )
 
         # Act
         result = self.run_stageflow_cli(
-            str(process_file),
-            str(element_file),
-            verbose=True,
-            expect_success=True
+            str(process_file), str(element_file), verbose=True, expect_success=True
         )
 
         # Assert
         assert result["exit_code"] == 0
-        assert "Loading process" in result["stdout"], "Verbose should show process loading"
-        assert "Loading element" in result["stdout"], "Verbose should show element loading"
-        assert "Evaluating element" in result["stdout"], "Verbose should show evaluation progress"
+        assert "Loading process" in result["stdout"], (
+            "Verbose should show process loading"
+        )
+        assert "Loading element" in result["stdout"], (
+            "Verbose should show element loading"
+        )
+        assert "Evaluating element" in result["stdout"], (
+            "Verbose should show evaluation progress"
+        )
 
     def test_json_output_consistency_across_evaluation_types(self, test_data_dir: Path):
         """
@@ -523,10 +652,20 @@ class TestElementValidation:
         """
         # Arrange - collect representative files from different categories
         test_cases = [
-            (test_data_dir / "normal_flow" / "ready_elements" / "process.yaml",
-             test_data_dir / "normal_flow" / "ready_elements" / "user_ready_for_profile.json"),
-            (test_data_dir / "normal_flow" / "action_required" / "process.yaml",
-             test_data_dir / "normal_flow" / "action_required" / "user_incomplete_profile.json"),
+            (
+                test_data_dir / "normal_flow" / "ready_elements" / "process.yaml",
+                test_data_dir
+                / "normal_flow"
+                / "ready_elements"
+                / "user_ready_for_profile.json",
+            ),
+            (
+                test_data_dir / "normal_flow" / "action_required" / "process.yaml",
+                test_data_dir
+                / "normal_flow"
+                / "action_required"
+                / "user_incomplete_profile.json",
+            ),
         ]
 
         # Act & Assert
@@ -536,18 +675,24 @@ class TestElementValidation:
                     str(process_file),
                     str(element_file),
                     json_output=True,
-                    expect_success=True
+                    expect_success=True,
                 )
 
-                assert result["parsed_json"] is not None, f"Should return valid JSON for {element_file.name}"
+                assert result["parsed_json"] is not None, (
+                    f"Should return valid JSON for {element_file.name}"
+                )
                 json_data = result["parsed_json"]
 
                 # Verify consistent top-level structure
                 assert "process" in json_data, "JSON should contain process information"
-                assert "evaluation" in json_data, "JSON should contain evaluation results"
+                assert "evaluation" in json_data, (
+                    "JSON should contain evaluation results"
+                )
 
                 # Verify evaluation structure consistency
                 evaluation = json_data["evaluation"]
                 required_eval_fields = ["stage", "status", "regression", "gate_results"]
                 for field in required_eval_fields:
-                    assert field in evaluation, f"Evaluation should contain {field} for {element_file.name}"
+                    assert field in evaluation, (
+                        f"Evaluation should contain {field} for {element_file.name}"
+                    )

@@ -112,19 +112,19 @@ class TestLoadProcess:
                                     {
                                         "type": "equals",
                                         "property_path": "status",
-                                        "expected_value": "ready"
-                                    }
-                                ]
+                                        "expected_value": "ready",
+                                    },
+                                ],
                             }
-                        }
+                        },
                     },
                     "final": {
                         "name": "Final Stage",
                         "description": "End point",
                         "is_final": True,
-                        "gates": []
-                    }
-                }
+                        "gates": [],
+                    },
+                },
             }
         }
 
@@ -270,7 +270,10 @@ class TestLoadProcess:
         yaml_file.write_text(yaml_content)
 
         # Act & Assert
-        with pytest.raises(LoadError, match="File must contain either a 'process' key or process definition at root level"):
+        with pytest.raises(
+            LoadError,
+            match="File must contain either a 'process' key or process definition at root level",
+        ):
             load_process(yaml_file)
 
     def test_load_process_yml_extension_works(self, tmp_path):
@@ -339,15 +342,12 @@ class TestLoadProcess:
                         "gates": {
                             "proceed": {
                                 "target_stage": "end",
-                                "locks": [{"exists": "field"}]
+                                "locks": [{"exists": "field"}],
                             }
                         }
                     },
-                    "end": {
-                        "is_final": True,
-                        "gates": []
-                    }
-                }
+                    "end": {"is_final": True, "gates": []},
+                },
             }
         }
 
@@ -379,15 +379,15 @@ class TestConvertProcessConfig:
                     "gates": {
                         "gate1": {
                             "target_stage": "stage2",
-                            "locks": [{"exists": "field1"}]
+                            "locks": [{"exists": "field1"}],
                         },
                         "gate2": {
                             "target_stage": "stage3",
-                            "locks": [{"exists": "field2"}]
-                        }
-                    }
+                            "locks": [{"exists": "field2"}],
+                        },
+                    },
                 }
-            }
+            },
         }
 
         # Act
@@ -417,16 +417,16 @@ class TestConvertProcessConfig:
                         {
                             "name": "gate1",
                             "target_stage": "stage2",
-                            "locks": [{"exists": "field1"}]
+                            "locks": [{"exists": "field1"}],
                         },
                         {
                             "name": "gate2",
                             "target_stage": "stage3",
-                            "locks": [{"exists": "field2"}]
-                        }
+                            "locks": [{"exists": "field2"}],
+                        },
                     ]
                 }
-            }
+            },
         }
 
         # Act
@@ -444,14 +444,7 @@ class TestConvertProcessConfig:
     def test_convert_process_config_adds_default_stage_fields(self):
         """Verify default fields are added to stages when missing."""
         # Arrange
-        config = {
-            "name": "defaults_test",
-            "stages": {
-                "minimal_stage": {
-                    "gates": {}
-                }
-            }
-        }
+        config = {"name": "defaults_test", "stages": {"minimal_stage": {"gates": {}}}}
 
         # Act
         converted = _convert_process_config(config)
@@ -476,9 +469,9 @@ class TestConvertProcessConfig:
                     "expected_actions": ["action1", "action2"],
                     "expected_properties": {"prop1": {"type": "str"}},
                     "is_final": True,
-                    "gates": {}
+                    "gates": {},
                 }
-            }
+            },
         }
 
         # Act
@@ -502,16 +495,16 @@ class TestConvertProcessConfig:
                     "gates": {
                         "gate_without_desc": {
                             "target_stage": "stage2",
-                            "locks": [{"exists": "field"}]
+                            "locks": [{"exists": "field"}],
                         },
                         "gate_with_desc": {
                             "description": "Existing description",
                             "target_stage": "stage2",
-                            "locks": [{"exists": "field"}]
-                        }
+                            "locks": [{"exists": "field"}],
+                        },
                     }
                 }
-            }
+            },
         }
 
         # Act
@@ -532,10 +525,7 @@ class TestConvertProcessConfig:
             "final_stage": "end",
             "custom_field": "custom_value",
             "metadata": {"version": "1.0"},
-            "stages": {
-                "start": {"gates": {}},
-                "end": {"gates": {}}
-            }
+            "stages": {"start": {"gates": {}}, "end": {"gates": {}}},
         }
 
         # Act
@@ -547,14 +537,10 @@ class TestConvertProcessConfig:
         assert converted["initial_stage"] == "start"
         assert converted["final_stage"] == "end"
 
-
     def test_convert_process_config_handles_no_stages(self):
         """Verify conversion works when no stages are present."""
         # Arrange
-        config = {
-            "name": "no_stages_test",
-            "description": "Test without stages"
-        }
+        config = {"name": "no_stages_test", "description": "Test without stages"}
 
         # Act
         converted = _convert_process_config(config)
@@ -574,11 +560,11 @@ class TestConvertProcessConfig:
                     "gates": {
                         "gate1": {
                             "target_stage": "stage2",
-                            "locks": [{"exists": "field"}]
+                            "locks": [{"exists": "field"}],
                         }
                     }
                 }
-            }
+            },
         }
         original_copy = json.loads(json.dumps(original_config))  # Deep copy
 
@@ -679,23 +665,35 @@ class TestIntegrationScenarios:
                                 "locks": [
                                     {"exists": "content.title"},
                                     {"exists": "content.body"},
-                                    {"type": "greater_than", "property_path": "content.word_count", "expected_value": 100}
-                                ]
+                                    {
+                                        "type": "greater_than",
+                                        "property_path": "content.word_count",
+                                        "expected_value": 100,
+                                    },
+                                ],
                             },
                             "save_as_template": {
                                 "target_stage": "template",
                                 "locks": [
                                     {"exists": "content.title"},
-                                    {"type": "equals", "property_path": "content.type", "expected_value": "template"}
-                                ]
+                                    {
+                                        "type": "equals",
+                                        "property_path": "content.type",
+                                        "expected_value": "template",
+                                    },
+                                ],
                             },
                             "discard": {
                                 "target_stage": "discarded",
                                 "locks": [
-                                    {"type": "equals", "property_path": "action", "expected_value": "discard"}
-                                ]
-                            }
-                        }
+                                    {
+                                        "type": "equals",
+                                        "property_path": "action",
+                                        "expected_value": "discard",
+                                    }
+                                ],
+                            },
+                        },
                     },
                     "review": {
                         "name": "Under Review",
@@ -704,17 +702,25 @@ class TestIntegrationScenarios:
                                 "target_stage": "published",
                                 "locks": [
                                     {"exists": "review.decision"},
-                                    {"type": "equals", "property_path": "review.decision", "expected_value": "approved"}
-                                ]
+                                    {
+                                        "type": "equals",
+                                        "property_path": "review.decision",
+                                        "expected_value": "approved",
+                                    },
+                                ],
                             },
                             "reject": {
                                 "target_stage": "draft",
                                 "locks": [
                                     {"exists": "review.decision"},
-                                    {"type": "equals", "property_path": "review.decision", "expected_value": "rejected"}
-                                ]
-                            }
-                        }
+                                    {
+                                        "type": "equals",
+                                        "property_path": "review.decision",
+                                        "expected_value": "rejected",
+                                    },
+                                ],
+                            },
+                        },
                     },
                     "template": {
                         "name": "Template Library",
@@ -722,27 +728,32 @@ class TestIntegrationScenarios:
                             "finalize_template": {
                                 "target_stage": "published",
                                 "locks": [
-                                    {"type": "equals", "property_path": "template.finalized", "expected_value": True}
-                                ]
+                                    {
+                                        "type": "equals",
+                                        "property_path": "template.finalized",
+                                        "expected_value": True,
+                                    }
+                                ],
                             }
-                        }
+                        },
                     },
-                    "published": {
-                        "name": "Published Content",
-                        "gates": {}
-                    },
+                    "published": {"name": "Published Content", "gates": {}},
                     "discarded": {
                         "name": "Discarded Content",
                         "gates": {
                             "archive": {
                                 "target_stage": "published",
                                 "locks": [
-                                    {"type": "equals", "property_path": "action", "expected_value": "archive"}
-                                ]
+                                    {
+                                        "type": "equals",
+                                        "property_path": "action",
+                                        "expected_value": "archive",
+                                    }
+                                ],
                             }
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             }
         }
 
@@ -780,13 +791,13 @@ class TestIntegrationScenarios:
                                     {
                                         "type": "invalid_lock_type",
                                         "property_path": "field",
-                                        "expected_value": "value"
+                                        "expected_value": "value",
                                     }
-                                ]
+                                ],
                             }
                         }
                     }
-                }
+                },
             }
         }
 
@@ -823,10 +834,10 @@ def sample_process_config() -> dict[str, Any]:
                         "target_stage": "middle",
                         "locks": [
                             {"exists": "required_field"},
-                            {"type": "not_empty", "property_path": "required_field"}
-                        ]
+                            {"type": "not_empty", "property_path": "required_field"},
+                        ],
                     }
-                }
+                },
             },
             "middle": {
                 "name": "Middle Stage",
@@ -835,24 +846,32 @@ def sample_process_config() -> dict[str, Any]:
                     "advance": {
                         "target_stage": "end",
                         "locks": [
-                            {"type": "equals", "property_path": "status", "expected_value": "ready"}
-                        ]
+                            {
+                                "type": "equals",
+                                "property_path": "status",
+                                "expected_value": "ready",
+                            }
+                        ],
                     },
                     "rollback": {
                         "target_stage": "start",
                         "locks": [
-                            {"type": "equals", "property_path": "action", "expected_value": "rollback"}
-                        ]
-                    }
-                }
+                            {
+                                "type": "equals",
+                                "property_path": "action",
+                                "expected_value": "rollback",
+                            }
+                        ],
+                    },
+                },
             },
             "end": {
                 "name": "End Stage",
                 "description": "Final stage",
                 "is_final": True,
-                "gates": []
-            }
-        }
+                "gates": [],
+            },
+        },
     }
 
 
@@ -860,11 +879,12 @@ def sample_process_config() -> dict[str, Any]:
 def sample_yaml_file(tmp_path, sample_process_config) -> Path:
     """Create a temporary YAML file with sample process configuration."""
     from ruamel.yaml import YAML
-    yaml = YAML(typ='safe', pure=True)
+
+    yaml = YAML(typ="safe", pure=True)
 
     yaml_data = {"process": sample_process_config}
     yaml_file = tmp_path / "sample_process.yaml"
-    with open(yaml_file, 'w') as f:
+    with open(yaml_file, "w") as f:
         yaml.dump(yaml_data, f)
     return yaml_file
 
@@ -881,8 +901,10 @@ def sample_json_file(tmp_path, sample_process_config) -> Path:
 def _dict_to_yaml_string(data: dict[str, Any], indent: int = 0) -> str:
     """Helper function to convert dictionary to YAML-like string for testing."""
     from ruamel.yaml import YAML
-    yaml = YAML(typ='safe', pure=True)
+
+    yaml = YAML(typ="safe", pure=True)
     from io import StringIO
+
     stream = StringIO()
     yaml.dump(data, stream)
     return stream.getvalue().strip()

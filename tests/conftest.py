@@ -40,9 +40,7 @@ def sample_process_file(tmp_path):
                 "gates": {
                     "gate1": {
                         "logic": "and",
-                        "locks": [
-                            {"property": "field1", "type": "exists"}
-                        ]
+                        "locks": [{"property": "field1", "type": "exists"}],
                     }
                 }
             },
@@ -52,8 +50,8 @@ def sample_process_file(tmp_path):
                         "logic": "and",
                         "locks": [
                             {"property": "field1", "type": "exists"},
-                            {"property": "field2", "type": "exists"}
-                        ]
+                            {"property": "field2", "type": "exists"},
+                        ],
                     }
                 }
             },
@@ -62,20 +60,25 @@ def sample_process_file(tmp_path):
                     "gate3": {
                         "logic": "and",
                         "locks": [
-                            {"property": "field3", "type": "equals", "value": "completed"}
-                        ]
+                            {
+                                "property": "field3",
+                                "type": "equals",
+                                "value": "completed",
+                            }
+                        ],
                     }
                 }
-            }
-        }
+            },
+        },
     }
 
     # Write as YAML file
     from ruamel.yaml import YAML
+
     yaml = YAML()
     yaml.default_flow_style = False
     process_file = tmp_path / "test_process.yaml"
-    with open(process_file, 'w') as f:
+    with open(process_file, "w") as f:
         yaml.dump(process_content, f)
 
     return process_file
@@ -90,11 +93,11 @@ def sample_element_file(tmp_path):
         "field1": "value1",
         "field2": "value2",
         "user_id": "user123",
-        "email": "test@example.com"
+        "email": "test@example.com",
     }
 
     element_file = tmp_path / "test_element.json"
-    with open(element_file, 'w') as f:
+    with open(element_file, "w") as f:
         json.dump(element_data, f, indent=2)
 
     return element_file
@@ -135,48 +138,58 @@ def sample_element(sample_element_data) -> DictElement:
 @pytest.fixture
 def basic_lock() -> Lock:
     """Basic lock for testing."""
-    return Lock({
-        "property_path": "email",
-        "type": LockType.EXISTS,
-    })
+    return Lock(
+        {
+            "property_path": "email",
+            "type": LockType.EXISTS,
+        }
+    )
 
 
 @pytest.fixture
 def email_lock() -> Lock:
     """Email validation lock for testing."""
-    return Lock({
-        "property_path": "email",
-        "type": LockType.REGEX,
-        "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
-    })
+    return Lock(
+        {
+            "property_path": "email",
+            "type": LockType.REGEX,
+            "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+        }
+    )
 
 
 @pytest.fixture
 def basic_gate() -> Gate:
     """Basic gate for testing."""
-    return Gate({
-        "name": "basic_validation",
-        "description": "Basic validation gate",
-        "target_stage": "validated",
-        "parent_stage": "unvalidated",
-        "locks": [{"exists": "email"}]
-    })
+    return Gate(
+        {
+            "name": "basic_validation",
+            "description": "Basic validation gate",
+            "target_stage": "validated",
+            "parent_stage": "unvalidated",
+            "locks": [{"exists": "email"}],
+        }
+    )
 
 
 @pytest.fixture
 def email_gate() -> Gate:
     """Email validation gate for testing."""
-    return Gate({
-        "name": "email_validation",
-        "description": "Email validation gate",
-        "target_stage": "email_verified",
-        "parent_stage": "unverified",
-        "locks": [{
-            "type": LockType.REGEX,
-            "property_path": "email",
-            "expected_value": r"^[^@]+@[^@]+\.[^@]+$"
-        }]
-    })
+    return Gate(
+        {
+            "name": "email_validation",
+            "description": "Email validation gate",
+            "target_stage": "email_verified",
+            "parent_stage": "unverified",
+            "locks": [
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "email",
+                    "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+                }
+            ],
+        }
+    )
 
 
 # @pytest.fixture

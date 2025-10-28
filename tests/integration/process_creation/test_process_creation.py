@@ -44,8 +44,14 @@ class TestProcessCreation:
         consistency_dir = test_data_dir / "consistency_errors"
         return list(consistency_dir.glob("*.yaml"))
 
-    def run_stageflow_cli(self, process_file: str, operation: str = None, json_output: bool = False,
-                         verbose: bool = False, expect_success: bool = True) -> dict[str, Any]:
+    def run_stageflow_cli(
+        self,
+        process_file: str,
+        operation: str = None,
+        json_output: bool = False,
+        verbose: bool = False,
+        expect_success: bool = True,
+    ) -> dict[str, Any]:
         """
         Run the StageFlow CLI with given arguments and return structured result.
 
@@ -80,7 +86,7 @@ class TestProcessCreation:
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd="/home/omidev/Code/tools/stageflow"
+                cwd="/home/omidev/Code/tools/stageflow",
             )
 
             # Try to parse JSON output if JSON flag was used
@@ -96,11 +102,13 @@ class TestProcessCreation:
                 "exit_code": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "parsed_json": parsed_json
+                "parsed_json": parsed_json,
             }
 
             if expect_success:
-                assert result.returncode == 0, f"Expected success but got exit code {result.returncode}. stderr: {result.stderr}"
+                assert result.returncode == 0, (
+                    f"Expected success but got exit code {result.returncode}. stderr: {result.stderr}"
+                )
 
             return response
 
@@ -109,11 +117,12 @@ class TestProcessCreation:
         except Exception as e:
             pytest.fail(f"Failed to run CLI command: {e}")
 
-    @pytest.mark.parametrize("process_file", [
-        "simple_2stage.yaml",
-        "all_lock_types.yaml"
-    ])
-    def test_valid_process_loading_human_output(self, test_data_dir: Path, process_file: str):
+    @pytest.mark.parametrize(
+        "process_file", ["simple_2stage.yaml", "all_lock_types.yaml"]
+    )
+    def test_valid_process_loading_human_output(
+        self, test_data_dir: Path, process_file: str
+    ):
         """
         Verify that valid process files load successfully with human-readable output.
 
@@ -132,16 +141,19 @@ class TestProcessCreation:
 
         # Assert
         assert result["exit_code"] == 0
-        assert "✅" in result["stdout"], "Should show success checkmark for valid process"
+        assert "✅" in result["stdout"], (
+            "Should show success checkmark for valid process"
+        )
         assert "Process:" in result["stdout"], "Should display process information"
         assert "Stages:" in result["stdout"], "Should list process stages"
         assert not result["stderr"], "Should not have error output"
 
-    @pytest.mark.parametrize("process_file", [
-        "simple_2stage.yaml",
-        "all_lock_types.yaml"
-    ])
-    def test_valid_process_loading_json_output(self, test_data_dir: Path, process_file: str):
+    @pytest.mark.parametrize(
+        "process_file", ["simple_2stage.yaml", "all_lock_types.yaml"]
+    )
+    def test_valid_process_loading_json_output(
+        self, test_data_dir: Path, process_file: str
+    ):
         """
         Verify that valid process files produce correct JSON output structure.
 
@@ -155,7 +167,9 @@ class TestProcessCreation:
         process_path = test_data_dir / "valid_processes" / process_file
 
         # Act
-        result = self.run_stageflow_cli(str(process_path), None, json_output=True, expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_path), None, json_output=True, expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0
@@ -166,15 +180,20 @@ class TestProcessCreation:
         assert "valid" in json_data, "JSON should contain validity status"
         assert json_data["valid"] is True, "Valid process should have valid=true"
         assert "stages" in json_data, "JSON should contain stages list"
-        assert "consistency_issues" in json_data, "JSON should contain consistency issues list"
-        assert len(json_data["consistency_issues"]) == 0, "Valid process should have no consistency issues"
+        assert "consistency_issues" in json_data, (
+            "JSON should contain consistency issues list"
+        )
+        assert len(json_data["consistency_issues"]) == 0, (
+            "Valid process should have no consistency issues"
+        )
 
-    @pytest.mark.parametrize("process_file", [
-        "missing_required.yaml",
-        "malformed_syntax.yaml",
-        "invalid_locks.yaml"
-    ])
-    def test_invalid_structure_detection_human_output(self, test_data_dir: Path, process_file: str):
+    @pytest.mark.parametrize(
+        "process_file",
+        ["missing_required.yaml", "malformed_syntax.yaml", "invalid_locks.yaml"],
+    )
+    def test_invalid_structure_detection_human_output(
+        self, test_data_dir: Path, process_file: str
+    ):
         """
         Verify that structurally invalid process files are properly detected and reported.
 
@@ -191,17 +210,20 @@ class TestProcessCreation:
         result = self.run_stageflow_cli(str(process_path), None, expect_success=False)
 
         # Assert
-        assert result["exit_code"] != 0, "Invalid structure should cause non-zero exit code"
+        assert result["exit_code"] != 0, (
+            "Invalid structure should cause non-zero exit code"
+        )
         # Error output can be in stdout or stderr depending on the error type
         error_output = result["stdout"] + result["stderr"]
         assert len(error_output.strip()) > 0, "Should provide error feedback"
 
-    @pytest.mark.parametrize("process_file", [
-        "missing_required.yaml",
-        "malformed_syntax.yaml",
-        "invalid_locks.yaml"
-    ])
-    def test_invalid_structure_detection_json_output(self, test_data_dir: Path, process_file: str):
+    @pytest.mark.parametrize(
+        "process_file",
+        ["missing_required.yaml", "malformed_syntax.yaml", "invalid_locks.yaml"],
+    )
+    def test_invalid_structure_detection_json_output(
+        self, test_data_dir: Path, process_file: str
+    ):
         """
         Verify that structurally invalid processes return appropriate JSON error responses.
 
@@ -214,10 +236,14 @@ class TestProcessCreation:
         process_path = test_data_dir / "invalid_structure" / process_file
 
         # Act
-        result = self.run_stageflow_cli(str(process_path), None, json_output=True, expect_success=False)
+        result = self.run_stageflow_cli(
+            str(process_path), None, json_output=True, expect_success=False
+        )
 
         # Assert
-        assert result["exit_code"] != 0, "Invalid structure should cause non-zero exit code"
+        assert result["exit_code"] != 0, (
+            "Invalid structure should cause non-zero exit code"
+        )
 
         # Should have some output (either valid JSON with error field or error message)
         output = result["stdout"].strip()
@@ -226,21 +252,30 @@ class TestProcessCreation:
         # Try to parse as JSON - if successful, should contain error field
         try:
             json_data = json.loads(output)
-            assert "error" in json_data, "JSON error response should contain error field"
+            assert "error" in json_data, (
+                "JSON error response should contain error field"
+            )
         except json.JSONDecodeError:
             # If not JSON, should still be meaningful error message
-            assert "error" in output.lower() or "failed" in output.lower(), "Should indicate error condition"
+            assert "error" in output.lower() or "failed" in output.lower(), (
+                "Should indicate error condition"
+            )
 
-    @pytest.mark.parametrize("process_file", [
-        "circular_dependencies.yaml",
-        "unreachable_stages.yaml",
-        "missing_targets.yaml",
-        "conflicting_gates.yaml",
-        "multiple_gates_same_target.yaml",
-        "complex_multistage.yaml",
-        "multiple_gates.yaml"
-    ])
-    def test_consistency_error_detection_human_output(self, test_data_dir: Path, process_file: str):
+    @pytest.mark.parametrize(
+        "process_file",
+        [
+            "circular_dependencies.yaml",
+            "unreachable_stages.yaml",
+            "missing_targets.yaml",
+            "conflicting_gates.yaml",
+            "multiple_gates_same_target.yaml",
+            "complex_multistage.yaml",
+            "multiple_gates.yaml",
+        ],
+    )
+    def test_consistency_error_detection_human_output(
+        self, test_data_dir: Path, process_file: str
+    ):
         """
         Verify that logically inconsistent processes are detected and reported clearly.
 
@@ -258,20 +293,31 @@ class TestProcessCreation:
 
         # Assert
         assert result["exit_code"] == 0, "Consistency errors should not prevent loading"
-        assert "❌" in result["stdout"], "Should show error indicator for invalid process"
-        assert "Consistency Issues:" in result["stdout"], "Should list consistency issues"
-        assert "not valid for execution" in result["stdout"], "Should warn about execution validity"
+        assert "❌" in result["stdout"], (
+            "Should show error indicator for invalid process"
+        )
+        assert "Consistency Issues:" in result["stdout"], (
+            "Should list consistency issues"
+        )
+        assert "not valid for execution" in result["stdout"], (
+            "Should warn about execution validity"
+        )
 
-    @pytest.mark.parametrize("process_file", [
-        "circular_dependencies.yaml",
-        "unreachable_stages.yaml",
-        "missing_targets.yaml",
-        "conflicting_gates.yaml",
-        "multiple_gates_same_target.yaml",
-        "complex_multistage.yaml",
-        "multiple_gates.yaml"
-    ])
-    def test_consistency_error_detection_json_output(self, test_data_dir: Path, process_file: str):
+    @pytest.mark.parametrize(
+        "process_file",
+        [
+            "circular_dependencies.yaml",
+            "unreachable_stages.yaml",
+            "missing_targets.yaml",
+            "conflicting_gates.yaml",
+            "multiple_gates_same_target.yaml",
+            "complex_multistage.yaml",
+            "multiple_gates.yaml",
+        ],
+    )
+    def test_consistency_error_detection_json_output(
+        self, test_data_dir: Path, process_file: str
+    ):
         """
         Verify that consistency errors are properly reported in JSON format.
 
@@ -285,7 +331,9 @@ class TestProcessCreation:
         process_path = test_data_dir / "consistency_errors" / process_file
 
         # Act
-        result = self.run_stageflow_cli(str(process_path), None, json_output=True, expect_success=True)
+        result = self.run_stageflow_cli(
+            str(process_path), None, json_output=True, expect_success=True
+        )
 
         # Assert
         assert result["exit_code"] == 0, "Consistency errors should not prevent loading"
@@ -293,9 +341,15 @@ class TestProcessCreation:
 
         json_data = result["parsed_json"]
         assert "valid" in json_data, "JSON should contain validity status"
-        assert json_data["valid"] is False, "Process with consistency errors should have valid=false"
-        assert "consistency_issues" in json_data, "JSON should contain consistency issues"
-        assert len(json_data["consistency_issues"]) > 0, "Should report specific consistency issues"
+        assert json_data["valid"] is False, (
+            "Process with consistency errors should have valid=false"
+        )
+        assert "consistency_issues" in json_data, (
+            "JSON should contain consistency issues"
+        )
+        assert len(json_data["consistency_issues"]) > 0, (
+            "Should report specific consistency issues"
+        )
 
         # Each consistency issue should have proper structure
         for issue in json_data["consistency_issues"]:
@@ -313,21 +367,29 @@ class TestProcessCreation:
         # Arrange - collect representative files from each category
         valid_file = test_data_dir / "valid_processes" / "simple_2stage.yaml"
         invalid_file = test_data_dir / "invalid_structure" / "missing_required.yaml"
-        consistency_file = test_data_dir / "consistency_errors" / "circular_dependencies.yaml"
+        consistency_file = (
+            test_data_dir / "consistency_errors" / "circular_dependencies.yaml"
+        )
 
         # Act & Assert - Test each file type in sequence
 
         # 1. Valid process should succeed
-        valid_result = self.run_stageflow_cli(str(valid_file), None, expect_success=True)
+        valid_result = self.run_stageflow_cli(
+            str(valid_file), None, expect_success=True
+        )
         assert valid_result["exit_code"] == 0
         assert "✅" in valid_result["stdout"]
 
         # 2. Invalid structure should fail
-        invalid_result = self.run_stageflow_cli(str(invalid_file), None, expect_success=False)
+        invalid_result = self.run_stageflow_cli(
+            str(invalid_file), None, expect_success=False
+        )
         assert invalid_result["exit_code"] != 0
 
         # 3. Consistency error should load but show invalid
-        consistency_result = self.run_stageflow_cli(str(consistency_file), None, expect_success=True)
+        consistency_result = self.run_stageflow_cli(
+            str(consistency_file), None, expect_success=True
+        )
         assert consistency_result["exit_code"] == 0
         assert "❌" in consistency_result["stdout"]
         assert "Consistency Issues:" in consistency_result["stdout"]
@@ -346,15 +408,23 @@ class TestProcessCreation:
         valid_process = test_data_dir / "valid_processes" / "simple_2stage.yaml"
 
         # Act - Run with and without verbose to compare
-        normal_result = self.run_stageflow_cli(str(valid_process), None, expect_success=True)
-        verbose_result = self.run_stageflow_cli(str(valid_process), None, verbose=True, expect_success=True)
+        normal_result = self.run_stageflow_cli(
+            str(valid_process), None, expect_success=True
+        )
+        verbose_result = self.run_stageflow_cli(
+            str(valid_process), None, verbose=True, expect_success=True
+        )
 
         # Assert
         assert verbose_result["exit_code"] == 0
         # Verbose output should contain progress indicators
-        assert "Loading process" in verbose_result["stdout"], "Verbose should show loading progress"
+        assert "Loading process" in verbose_result["stdout"], (
+            "Verbose should show loading progress"
+        )
         # Both should succeed, but verbose should have more detail
-        assert len(verbose_result["stdout"]) >= len(normal_result["stdout"]), "Verbose should provide more output"
+        assert len(verbose_result["stdout"]) >= len(normal_result["stdout"]), (
+            "Verbose should provide more output"
+        )
 
     def test_error_handling_with_nonexistent_files(self):
         """
@@ -392,23 +462,34 @@ class TestProcessCreation:
         # Arrange - get one file from each category
         test_files = [
             (test_data_dir / "valid_processes" / "simple_2stage.yaml", True),
-            (test_data_dir / "consistency_errors" / "circular_dependencies.yaml", False)
+            (
+                test_data_dir / "consistency_errors" / "circular_dependencies.yaml",
+                False,
+            ),
         ]
 
         # Act & Assert
         for process_file, should_be_valid in test_files:
-            result = self.run_stageflow_cli(str(process_file), None, json_output=True, expect_success=True)
+            result = self.run_stageflow_cli(
+                str(process_file), None, json_output=True, expect_success=True
+            )
 
-            assert result["parsed_json"] is not None, f"Should return valid JSON for {process_file.name}"
+            assert result["parsed_json"] is not None, (
+                f"Should return valid JSON for {process_file.name}"
+            )
             json_data = result["parsed_json"]
 
             # Common fields that should always be present
             required_fields = ["name", "valid", "stages", "consistency_issues"]
             for field in required_fields:
-                assert field in json_data, f"JSON should contain {field} field for {process_file.name}"
+                assert field in json_data, (
+                    f"JSON should contain {field} field for {process_file.name}"
+                )
 
             # Validity should match expectation
-            assert json_data["valid"] == should_be_valid, f"Process {process_file.name} validity mismatch"
+            assert json_data["valid"] == should_be_valid, (
+                f"Process {process_file.name} validity mismatch"
+            )
 
     def test_self_referencing_gate_detection(self, tmp_path: Path):
         """
@@ -453,23 +534,32 @@ class TestProcessCreation:
         assert "references the same stage" in output, "Should explain the issue clearly"
 
         # Test JSON output as well
-        json_result = self.run_stageflow_cli(str(test_file), None, json_output=True, expect_success=True)
+        json_result = self.run_stageflow_cli(
+            str(test_file), None, json_output=True, expect_success=True
+        )
         assert json_result["parsed_json"] is not None, "Should return valid JSON"
 
         json_data = json_result["parsed_json"]
-        assert json_data["valid"] is False, "Process with self-referencing gate should be invalid"
+        assert json_data["valid"] is False, (
+            "Process with self-referencing gate should be invalid"
+        )
 
         # Should have consistency issues reported
         assert "consistency_issues" in json_data, "Should report consistency issues"
-        assert len(json_data["consistency_issues"]) > 0, "Should have at least one consistency issue"
+        assert len(json_data["consistency_issues"]) > 0, (
+            "Should have at least one consistency issue"
+        )
 
         # Check that self-referencing gate issue is specifically reported
         self_ref_issues = [
-            issue for issue in json_data["consistency_issues"]
-            if "self-loop" in issue.get("description", "").lower() or
-               "references the same stage" in issue.get("description", "")
+            issue
+            for issue in json_data["consistency_issues"]
+            if "self-loop" in issue.get("description", "").lower()
+            or "references the same stage" in issue.get("description", "")
         ]
-        assert len(self_ref_issues) > 0, "Should specifically report self-referencing gate issue"
+        assert len(self_ref_issues) > 0, (
+            "Should specifically report self-referencing gate issue"
+        )
 
     def test_invalid_references_as_consistency_error(self, test_data_dir: Path):
         """
@@ -486,24 +576,39 @@ class TestProcessCreation:
         result = self.run_stageflow_cli(str(process_path), None, expect_success=True)
 
         # Assert
-        assert result["exit_code"] == 0, "Invalid references should be consistency errors, not structural errors"
+        assert result["exit_code"] == 0, (
+            "Invalid references should be consistency errors, not structural errors"
+        )
         assert "❌" in result["stdout"], "Should show invalid process status"
-        assert "Consistency Issues:" in result["stdout"], "Should list consistency issues"
-        assert "not valid for execution" in result["stdout"], "Should warn about execution validity"
+        assert "Consistency Issues:" in result["stdout"], (
+            "Should list consistency issues"
+        )
+        assert "not valid for execution" in result["stdout"], (
+            "Should warn about execution validity"
+        )
 
         # Test JSON output as well
-        json_result = self.run_stageflow_cli(str(process_path), None, json_output=True, expect_success=True)
+        json_result = self.run_stageflow_cli(
+            str(process_path), None, json_output=True, expect_success=True
+        )
         assert json_result["parsed_json"] is not None, "Should return valid JSON"
 
         json_data = json_result["parsed_json"]
-        assert json_data["valid"] is False, "Process with invalid references should have valid=false"
+        assert json_data["valid"] is False, (
+            "Process with invalid references should have valid=false"
+        )
         assert "consistency_issues" in json_data, "Should report consistency issues"
-        assert len(json_data["consistency_issues"]) > 0, "Should have at least one consistency issue"
+        assert len(json_data["consistency_issues"]) > 0, (
+            "Should have at least one consistency issue"
+        )
 
         # Check that invalid reference issue is specifically reported
         ref_issues = [
-            issue for issue in json_data["consistency_issues"]
-            if "not found" in issue.get("description", "").lower() or
-               "nonexistent" in issue.get("description", "").lower()
+            issue
+            for issue in json_data["consistency_issues"]
+            if "not found" in issue.get("description", "").lower()
+            or "nonexistent" in issue.get("description", "").lower()
         ]
-        assert len(ref_issues) > 0, "Should specifically report invalid reference issues"
+        assert len(ref_issues) > 0, (
+            "Should specifically report invalid reference issues"
+        )
