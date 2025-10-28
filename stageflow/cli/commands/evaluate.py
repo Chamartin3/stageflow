@@ -22,17 +22,31 @@ console = Console()
 
 
 def evaluate_command(
-    source: Annotated[str, typer.Argument(help="Process source (file path or @registry_name)")],
-    element: Annotated[Path | None, typer.Option("--element", "-e", help="Element file for evaluation (JSON/YAML). If omitted, reads from stdin")] = None,
+    source: Annotated[
+        str, typer.Argument(help="Process source (file path or @registry_name)")
+    ],
+    element: Annotated[
+        Path | None,
+        typer.Option(
+            "--element",
+            "-e",
+            help="Element file for evaluation (JSON/YAML). If omitted, reads from stdin",
+        ),
+    ] = None,
     stage: Annotated[
         str | None,
         typer.Option(
-            "--stage", "-s",
-            help="Override current stage (default: auto-extract from element or use initial_stage)"
-        )
+            "--stage",
+            "-s",
+            help="Override current stage (default: auto-extract from element or use initial_stage)",
+        ),
     ] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
-    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Verbose output")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Verbose output")
+    ] = False,
 ):
     """
     Evaluate an element against a process.
@@ -53,14 +67,20 @@ def evaluate_command(
         if isinstance(process_result, ProcessWithErrors):
             error_msg = f"Cannot evaluate against invalid process. {process_result.get_error_summary()}"
             if json_output:
-                console.print_json(data={
-                    "error": error_msg,
-                    "validation_errors": process_result.validation_errors
-                })
+                console.print_json(
+                    data={
+                        "error": error_msg,
+                        "validation_errors": process_result.validation_errors,
+                    }
+                )
             else:
-                console.print("[red]❌ Error:[/red] Cannot evaluate against invalid process")
+                console.print(
+                    "[red]❌ Error:[/red] Cannot evaluate against invalid process"
+                )
                 console.print(f"   {process_result.get_error_summary()}")
-                console.print(f"   Fix the process first using: stageflow view {source}")
+                console.print(
+                    f"   Fix the process first using: stageflow view {source}"
+                )
             raise typer.Exit(1)
 
         # Type narrowing: at this point, process_result must be Process
@@ -91,13 +111,15 @@ def evaluate_command(
             except json.JSONDecodeError as e:
                 raise typer.BadParameter(f"Failed to parse JSON from stdin: {e}") from e
             except Exception as e:
-                raise typer.BadParameter(f"Failed to create element from stdin: {e}") from e
+                raise typer.BadParameter(
+                    f"Failed to create element from stdin: {e}"
+                ) from e
 
         # Show stage selection method in verbose mode
         if verbose:
             if stage:
                 console.print(f"[dim]Using explicit stage override: '{stage}'[/dim]")
-            elif hasattr(process, 'stage_prop') and process.stage_prop:
+            elif hasattr(process, "stage_prop") and process.stage_prop:
                 console.print(
                     f"[dim]Process configured to auto-extract stage from property: "
                     f"'{process.stage_prop}'[/dim]"
@@ -106,11 +128,15 @@ def evaluate_command(
                 try:
                     extracted_stage = elem.get_property(process.stage_prop)
                     if extracted_stage:
-                        console.print(f"[dim]Extracted stage from element: '{extracted_stage}'[/dim]")
+                        console.print(
+                            f"[dim]Extracted stage from element: '{extracted_stage}'[/dim]"
+                        )
                 except Exception:
                     pass
             else:
-                console.print(f"[dim]Using process initial stage: '{process.initial_stage._id}'[/dim]")
+                console.print(
+                    f"[dim]Using process initial stage: '{process.initial_stage._id}'[/dim]"
+                )
 
         # Evaluate
         if verbose:
@@ -123,23 +149,25 @@ def evaluate_command(
             json_result = {
                 "process": process_description,
                 "evaluation": {
-                    "stage": result['stage'],
-                    "status": result['stage_result'].status,
-                    "regression": result['regression'],
+                    "stage": result["stage"],
+                    "status": result["stage_result"].status,
+                    "regression": result["regression"],
                     "actions": [
                         {"description": action.description, "type": action.action_type}
-                        for action in result['stage_result'].sugested_action
+                        for action in result["stage_result"].sugested_action
                     ],
                     "gate_results": {
                         gate_name: {
                             "passed": gate_result.success,
                             "success_rate": gate_result.success_rate,
                             "failed_locks": len(gate_result.failed),
-                            "passed_locks": len(gate_result.passed)
+                            "passed_locks": len(gate_result.passed),
                         }
-                        for gate_name, gate_result in result['stage_result'].gate_results.items()
-                    }
-                }
+                        for gate_name, gate_result in result[
+                            "stage_result"
+                        ].gate_results.items()
+                    },
+                },
             }
             console.print_json(data=json_result)
         else:

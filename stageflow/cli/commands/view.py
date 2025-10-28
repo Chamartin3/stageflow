@@ -15,8 +15,12 @@ console = Console()
 
 
 def view_command(
-    source: Annotated[str, typer.Argument(help="Process source (file path or @registry_name)")],
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+    source: Annotated[
+        str, typer.Argument(help="Process source (file path or @registry_name)")
+    ],
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
 ):
     """View process details including stages, transitions, and validation status."""
     try:

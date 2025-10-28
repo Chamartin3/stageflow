@@ -13,26 +13,30 @@ def build_process_description(process):
         description = {
             "name": process.name,
             "description": process.description,
-            "initial_stage": process.raw_config.get('initial_stage'),
-            "final_stage": process.raw_config.get('final_stage'),
-            "stages": []
+            "initial_stage": process.raw_config.get("initial_stage"),
+            "final_stage": process.raw_config.get("final_stage"),
+            "stages": [],
         }
 
-        consistency_issues = [{"type": "validation_error", "description": error}
-                             for error in process.validation_errors]
+        consistency_issues = [
+            {"type": "validation_error", "description": error}
+            for error in process.validation_errors
+        ]
 
         description["valid"] = process.valid
         description["consistency_issues"] = consistency_issues
 
-        stages = process.raw_config.get('stages', {})
+        stages = process.raw_config.get("stages", {})
         for stage_id, stage_config in stages.items():
             stage_info = {
                 "id": stage_id,
-                "name": stage_config.get('name', stage_id),
-                "expected_properties": list(stage_config.get('expected_properties', {}).keys()),
-                "gates": len(stage_config.get('gates', [])),
+                "name": stage_config.get("name", stage_id),
+                "expected_properties": list(
+                    stage_config.get("expected_properties", {}).keys()
+                ),
+                "gates": len(stage_config.get("gates", [])),
                 "target_stages": [],
-                "is_final": stage_config.get('is_final', False)
+                "is_final": stage_config.get("is_final", False),
             }
             description["stages"].append(stage_info)
 
@@ -41,17 +45,29 @@ def build_process_description(process):
     else:
         description = {
             "name": process.name,
-            "description": getattr(process, 'description', ''),
-            "initial_stage": process.initial_stage._id if process.initial_stage else None,
+            "description": getattr(process, "description", ""),
+            "initial_stage": process.initial_stage._id
+            if process.initial_stage
+            else None,
             "final_stage": process.final_stage._id if process.final_stage else None,
-            "stages": []
+            "stages": [],
         }
 
-        consistency_valid = process.checker.valid if hasattr(process, 'checker') and process.checker else True
+        consistency_valid = (
+            process.checker.valid
+            if hasattr(process, "checker") and process.checker
+            else True
+        )
         consistency_issues = []
-        if hasattr(process, 'checker') and process.checker and hasattr(process.checker, 'issues'):
-            consistency_issues = [{"type": str(issue.issue_type), "description": issue.description}
-                                 for issue in process.checker.issues]
+        if (
+            hasattr(process, "checker")
+            and process.checker
+            and hasattr(process.checker, "issues")
+        ):
+            consistency_issues = [
+                {"type": str(issue.issue_type), "description": issue.description}
+                for issue in process.checker.issues
+            ]
 
         description["valid"] = consistency_valid
         description["consistency_issues"] = consistency_issues
@@ -68,7 +84,7 @@ def build_process_description(process):
             stage = process.get_stage(stage_id)
             if stage:
                 for gate in stage.gates:
-                    if hasattr(gate, 'target_stage') and gate.target_stage:
+                    if hasattr(gate, "target_stage") and gate.target_stage:
                         collect_stages(gate.target_stage)
 
         if process.initial_stage:
@@ -83,17 +99,19 @@ def build_process_description(process):
             if stage:
                 target_stages = []
                 for gate in stage.gates:
-                    if hasattr(gate, 'target_stage') and gate.target_stage:
+                    if hasattr(gate, "target_stage") and gate.target_stage:
                         if gate.target_stage not in target_stages:
                             target_stages.append(gate.target_stage)
 
                 stage_info = {
                     "id": stage._id,
                     "name": stage.name,
-                    "expected_properties": list(stage._base_schema.keys()) if stage._base_schema else [],
+                    "expected_properties": list(stage._base_schema.keys())
+                    if stage._base_schema
+                    else [],
                     "gates": len(stage.gates),
                     "target_stages": target_stages,
-                    "is_final": stage.is_final
+                    "is_final": stage.is_final,
                 }
                 description["stages"].append(stage_info)
 
@@ -102,55 +120,61 @@ def build_process_description(process):
 
 def print_process_description(desc, process):
     """Print human-readable process description."""
-    if desc['valid']:
+    if desc["valid"]:
         status_icon = "✅"
         status_text = "Valid"
     else:
         status_icon = "❌"
         status_text = "Invalid"
 
-    console.print(f"\n{status_icon} [bold]Process: {desc['name']}[/bold] ({status_text})")
-    if desc['description']:
+    console.print(
+        f"\n{status_icon} [bold]Process: {desc['name']}[/bold] ({status_text})"
+    )
+    if desc["description"]:
         console.print(f"   Description: {desc['description']}")
     console.print(f"   Initial Stage: {desc['initial_stage']}")
     console.print(f"   Final Stage: {desc['final_stage']}")
     console.print(f"   Total Stages: {len(desc['stages'])}\n")
 
     console.print("[bold]Stages:[/bold]")
-    for i, stage in enumerate(desc['stages']):
-        prefix = "└─" if i == len(desc['stages']) - 1 else "├─"
-        final_marker = " (final)" if stage['is_final'] else ""
+    for i, stage in enumerate(desc["stages"]):
+        prefix = "└─" if i == len(desc["stages"]) - 1 else "├─"
+        final_marker = " (final)" if stage["is_final"] else ""
 
-        if stage['target_stages']:
+        if stage["target_stages"]:
             targets_text = f" → {', '.join(stage['target_stages'])}"
         else:
             targets_text = ""
 
         console.print(f"{prefix} {stage['name']}{targets_text}{final_marker}")
 
-        if stage['expected_properties']:
-            console.print(f"   Expected properties: {', '.join(stage['expected_properties'])}")
+        if stage["expected_properties"]:
+            console.print(
+                f"   Expected properties: {', '.join(stage['expected_properties'])}"
+            )
 
-    if desc['consistency_issues']:
+    if desc["consistency_issues"]:
         console.print()
         console.print("[red]❌ Consistency Issues:[/red]")
-        for issue in desc['consistency_issues']:
+        for issue in desc["consistency_issues"]:
             console.print(f"   • {issue['description']}")
         console.print()
-        console.print("⚠️  This process is not valid for execution due to the above consistency issues.")
+        console.print(
+            "⚠️  This process is not valid for execution due to the above consistency issues."
+        )
 
 
 def print_evaluation_result(result):
     """Print human-readable evaluation result."""
-    stage_result = result['stage_result']
+    stage_result = result["stage_result"]
     status = stage_result.status
-    current_stage = result['stage']
+    current_stage = result["stage"]
 
     status_emoji = {
-        'READY_FOR_TRANSITION': '✅',
-        'ACTION_REQUIRED': '⚠️',
-        'INVALID_SCHEMA': '❌'
-    }.get(status, '❓')
+        "ready": "✅",
+        "action_required": "⚠️",
+        "invalid_schema": "❌",
+    }.get(status, "❓")
 
     console.print(f"\n{status_emoji} [bold]Evaluation Result[/bold]")
     console.print(f"   Current Stage: {current_stage}")
@@ -176,8 +200,13 @@ def print_evaluation_result(result):
                 # It already has indentation and arrow from the gate result
                 console.print(f"       {description}")
 
-    if status == 'READY_FOR_TRANSITION':
-        passed_gates = [gate_name for gate_name, gate_result in stage_result.gate_results.items()
-                       if gate_result.passed]
+    if status == "ready":
+        passed_gates = [
+            gate_name
+            for gate_name, gate_result in stage_result.gate_results.items()
+            if gate_result.passed
+        ]
         if passed_gates:
-            console.print(f"   [green]Passed Gate(s):[/green] {', '.join(passed_gates)}")
+            console.print(
+                f"   [green]Passed Gate(s):[/green] {', '.join(passed_gates)}"
+            )

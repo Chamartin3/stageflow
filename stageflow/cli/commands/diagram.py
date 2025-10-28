@@ -20,9 +20,15 @@ console = Console()
 
 
 def diagram_command(
-    source: Annotated[str, typer.Argument(help="Process source (file path or @registry_name)")],
-    output: Annotated[Path | None, typer.Option("--output", "-o", help="Output file path")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+    source: Annotated[
+        str, typer.Argument(help="Process source (file path or @registry_name)")
+    ],
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Output file path")
+    ] = None,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
 ):
     """Generate process visualization diagram."""
     try:
@@ -32,14 +38,20 @@ def diagram_command(
         if isinstance(process_result, ProcessWithErrors):
             error_msg = f"Cannot generate diagram for invalid process. {process_result.get_error_summary()}"
             if json_output:
-                console.print_json(data={
-                    "error": error_msg,
-                    "validation_errors": process_result.validation_errors
-                })
+                console.print_json(
+                    data={
+                        "error": error_msg,
+                        "validation_errors": process_result.validation_errors,
+                    }
+                )
             else:
-                console.print("[red]❌ Error:[/red] Cannot generate diagram for invalid process")
+                console.print(
+                    "[red]❌ Error:[/red] Cannot generate diagram for invalid process"
+                )
                 console.print(f"   {process_result.get_error_summary()}")
-                console.print(f"   Fix the process first using: stageflow view {source}")
+                console.print(
+                    f"   Fix the process first using: stageflow view {source}"
+                )
             raise typer.Exit(1)
 
         # Type narrowing: at this point, process_result must be Process
@@ -53,7 +65,7 @@ def diagram_command(
                 output = Path(f"{process_name}_diagram.md")
             else:
                 source_path = Path(source)
-                output = source_path.with_suffix('.diagram.md')
+                output = source_path.with_suffix(".diagram.md")
 
         generator = MermaidDiagramGenerator()
         diagram_content = generator.generate_process_diagram(process, style="overview")

@@ -1,6 +1,4 @@
-"""Lock types and validation logic for StageFlow.
-
-"""
+"""Lock types and validation logic for StageFlow."""
 
 import re
 from dataclasses import dataclass
@@ -36,8 +34,9 @@ class LockType(Enum):
     IN_LIST = "in_list"
     NOT_IN_LIST = "not_in_list"
 
-
-    def failure_message(self, property_path: str, actual_value: Any, expected_value: Any = None) -> str:
+    def failure_message(
+        self, property_path: str, actual_value: Any, expected_value: Any = None
+    ) -> str:
         """Generate human-readable failure message for this lock type.
 
         Args:
@@ -73,7 +72,11 @@ class LockType(Enum):
             return f"Property '{property_path}' should contain '{expected_value}' but is '{actual_value}'"
 
         if self == LockType.TYPE_CHECK:
-            expected_type = expected_value if isinstance(expected_value, str) else getattr(expected_value, '__name__', str(expected_value))
+            expected_type = (
+                expected_value
+                if isinstance(expected_value, str)
+                else getattr(expected_value, "__name__", str(expected_value))
+            )
             actual_type = type(actual_value).__name__
             return f"Property '{property_path}' should be of type '{expected_type}' but is '{actual_type}' with value '{actual_value}'"
 
@@ -82,18 +85,21 @@ class LockType(Enum):
                 min_val, max_val = expected_value
                 return f"Property '{property_path}' should be between {min_val} and {max_val} but is {actual_value}"
 
-        return f"Property '{property_path}' failed validation for lock type '{self.value}'"
+        return (
+            f"Property '{property_path}' failed validation for lock type '{self.value}'"
+        )
 
-
-    def validate(self, value: Any, lock_meta:LockMetaData) -> bool:
+    def validate(self, value: Any, lock_meta: LockMetaData) -> bool:
         lock_type = self
         if lock_type == LockType.EXISTS:
-            return value is not None and (not isinstance(value, str) or len(value.strip()) > 0)
+            return value is not None and (
+                not isinstance(value, str) or len(value.strip()) > 0
+            )
 
         if lock_type == LockType.NOT_EMPTY:
             if isinstance(value, str):
                 return len(value.strip()) > 0
-            elif hasattr(value, '__len__'):
+            elif hasattr(value, "__len__"):
                 return len(value) > 0
             else:
                 return value is not None
@@ -121,7 +127,6 @@ class LockType(Enum):
             max_val = lock_meta.get("max_value", 0)
             max_val = float(max_val) if max_val is not None else 0
 
-
             if lock_type == LockType.GREATER_THAN:
                 return float(value) > expected_value
             if lock_type == LockType.LESS_THAN:
@@ -143,12 +148,14 @@ class LockType(Enum):
             try:
                 if isinstance(value, str) and isinstance(expected_value, str):
                     return expected_value in value
-                elif hasattr(value, '__contains__'):
+                elif hasattr(value, "__contains__"):
                     # For collections, check if expected_value is in the collection
                     # or if string representation matches any element
                     # Type ignore needed because value could be various types
-                    return (expected_value in value or  # type: ignore[operator]
-                            str(expected_value) in [str(item) for item in value])  # type: ignore[arg-type]
+                    return (
+                        expected_value in value  # type: ignore[operator]
+                        or str(expected_value) in [str(item) for item in value]
+                    )  # type: ignore[arg-type]
                 else:
                     return False
             except (TypeError, AttributeError):
@@ -161,19 +168,22 @@ class LockType(Enum):
         if lock_type == LockType.NOT_IN_LIST:
             return value not in expected_value
 
-
         if lock_type == LockType.TYPE_CHECK:
             if isinstance(expected_value, str):
                 # Handle string type names
                 type_map = {
-                    'str': str, 'string': str,
-                    'int': int, 'integer': int,
-                    'float': float,
-                    'bool': bool, 'boolean': bool,
-                    'list': list,
-                    'dict': dict, 'dictionary': dict,
-                    'tuple': tuple,
-                    'set': set
+                    "str": str,
+                    "string": str,
+                    "int": int,
+                    "integer": int,
+                    "float": float,
+                    "bool": bool,
+                    "boolean": bool,
+                    "list": list,
+                    "dict": dict,
+                    "dictionary": dict,
+                    "tuple": tuple,
+                    "set": set,
                 }
                 expected_type = type_map.get(expected_value.lower())
                 if expected_type:
@@ -185,7 +195,6 @@ class LockType(Enum):
             else:
                 return False
         raise ValueError(f"Unsupported lock type: {lock_type}")
-
 
 
 @dataclass(frozen=True)
@@ -204,76 +213,94 @@ class LockResult:
     expected_value: Any = None
     error_message: str = ""
 
-class LockDefinitionDict(TypedDict):
+
+class LockDefinitionDict(TypedDict, total=False):
+    """Lock configuration with optional custom error message."""
+
     type: LockType
     property_path: str
     expected_value: str | int | LockMetaData
+    error_message: str
 
 
-class LockShorthandDict(TypedDict):
+class LockShorthandDict(TypedDict, total=False):
     exists: str | None
     is_true: str | None
     is_false: str | None
+    error_message: str
 
 
 LockDefinition = LockDefinitionDict | LockShorthandDict
+
 
 class Lock:
     """
     Lock class for property resolution and validation on Elements.
 
     Combines property path resolution with LockType validation to ensure
-    data integrity and proper access control.
+    data integrity and proper access control. Supports optional custom error messages.
     """
 
     lock_type: LockType
     property_path: str
     expected_value: Any
     validator_name: str | None
+    custom_error_message: str | None
 
-    def __init__(
-        self,
-        config: LockDefinitionDict
-        ) -> None:
+    def __init__(self, config: LockDefinitionDict) -> None:
         lock_type_value = config.get("type")
         if isinstance(lock_type_value, str):
             # Handle case-insensitive lock type names for compatibility
             self.lock_type = LockType(lock_type_value.lower())
         else:
-            self.lock_type = lock_type_value
-        self.property_path = config.get("property_path")
+            self.lock_type = lock_type_value  # type: ignore[assignment]
+        self.property_path = config.get("property_path")  # type: ignore[assignment]
         self.expected_value = config.get("expected_value")
         self.metadata = config.get("metadata", {}) or {}
-
+        self.custom_error_message = config.get("error_message")
 
     def validate(self, element: "Element") -> LockResult:
         try:
             value = element.get_property(self.property_path)
-            lock_meta= LockMetaData(
-                expected_value= self.expected_value,
-                min_value= self.metadata.get("min_value"),
-                max_value= self.metadata.get("max_value")
-        )
-            is_valid = self.lock_type.validate(value, lock_meta)
-            eror_message = "" if is_valid else self.lock_type.failure_message(
-                self.property_path, value, self.expected_value
+            lock_meta = LockMetaData(
+                expected_value=self.expected_value,
+                min_value=self.metadata.get("min_value"),
+                max_value=self.metadata.get("max_value"),
             )
-            return LockResult(
-                    success=is_valid,
-                    property_path=self.property_path,
-                    lock_type=self.lock_type,
-                    actual_value=value,
-                    expected_value=self.expected_value,
-                    error_message=eror_message,
+            is_valid = self.lock_type.validate(value, lock_meta)
+
+            # Generate error message: use custom if provided, otherwise generate
+            if is_valid:
+                error_message = ""
+            elif self.custom_error_message:
+                error_message = self.custom_error_message
+            else:
+                error_message = self.lock_type.failure_message(
+                    self.property_path, value, self.expected_value
                 )
+
+            return LockResult(
+                success=is_valid,
+                property_path=self.property_path,
+                lock_type=self.lock_type,
+                actual_value=value,
+                expected_value=self.expected_value,
+                error_message=error_message,
+            )
         except Exception as e:
+            # Use custom message for exceptions too, if provided
+            if self.custom_error_message:
+                error_message = self.custom_error_message
+            else:
+                error_message = f"Error resolving property: {e}"
+
             return LockResult(
                 success=False,
                 property_path=self.property_path,
                 lock_type=self.lock_type,
                 actual_value=None,
                 expected_value=self.expected_value,
-                error_message=f"Error resolving property: {e}",
+                error_message=error_message,
             )
 
     def to_dict(self) -> LockDefinitionDict:
@@ -283,10 +310,11 @@ class Lock:
             "expected_value": self.expected_value,
         }
 
+
 LockShorhands = {
-        "is_true": (LockType.EQUALS, True),
-        "is_false": (LockType.EQUALS, False),
-        "exists": (LockType.EXISTS, True),
+    "is_true": (LockType.EQUALS, True),
+    "is_false": (LockType.EQUALS, False),
+    "exists": (LockType.EXISTS, True),
 }
 
 
@@ -301,7 +329,7 @@ class LockFactory:
     SHORTHAND_KEYS = ["exists", "is_true", "is_false"]
 
     @classmethod
-    def create(cls, lock_definition:  LockDefinition) -> Lock:
+    def create(cls, lock_definition: LockDefinition) -> Lock:
         if "type" in lock_definition and "property_path" in lock_definition:
             # Create base lock config without metadata (not part of TypedDict)
             lock_config: LockDefinitionDict = {
@@ -309,15 +337,24 @@ class LockFactory:
                 "property_path": lock_definition["property_path"],  # type: ignore[typeddict-item]
                 "expected_value": lock_definition.get("expected_value"),  # type: ignore[typeddict-item]
             }
+            # Add error_message if present
+            if "error_message" in lock_definition:
+                lock_config["error_message"] = lock_definition["error_message"]  # type: ignore[typeddict-item]
+            # Add metadata if present (needed for RANGE locks and others)
+            if "metadata" in lock_definition:
+                lock_config["metadata"] = lock_definition["metadata"]  # type: ignore[typeddict-item]
             return Lock(lock_config)
         else:
             for key in cls.SHORTHAND_KEYS:
                 if key in lock_definition and lock_definition[key] is not None:
                     lock_type, expected_value = LockShorhands[key]
-                    return Lock({
+                    lock_config = {
                         "type": lock_type,
-                        "property_path": lock_definition[key],
+                        "property_path": lock_definition[key],  # type: ignore[assignment]
                         "expected_value": expected_value,
-                    })
+                    }
+                    # Add error_message if present
+                    if "error_message" in lock_definition:
+                        lock_config["error_message"] = lock_definition["error_message"]  # type: ignore[assignment]
+                    return Lock(lock_config)  # type: ignore[arg-type]
         raise ValueError("Invalid lock definition format")
-

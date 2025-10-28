@@ -24,7 +24,9 @@ reg_app = typer.Typer(
 
 @reg_app.command(name="list")
 def list_processes(
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
 ):
     """List all processes in the registry."""
     try:
@@ -42,25 +44,31 @@ def list_processes(
                     description["registry_name"] = process_name
                     process_details.append(description)
                 except Exception as e:
-                    process_details.append({
-                        "registry_name": process_name,
-                        "error": f"Failed to load: {str(e)}",
-                        "valid": False
-                    })
+                    process_details.append(
+                        {
+                            "registry_name": process_name,
+                            "error": f"Failed to load: {str(e)}",
+                            "valid": False,
+                        }
+                    )
 
             result = {
                 "registry_processes": process_details,
-                "total_count": len(processes)
+                "total_count": len(processes),
             }
             console.print_json(data=result)
         else:
             if not processes:
                 console.print("📂 No processes found in registry")
                 console.print(f"   Registry directory: {config.processes_dir}")
-                console.print("   Use 'stageflow reg import' to add processes to registry")
+                console.print(
+                    "   Use 'stageflow reg import' to add processes to registry"
+                )
                 return
 
-            console.print(f"[bold]📂 Registry Processes ({len(processes)} found)[/bold]")
+            console.print(
+                f"[bold]📂 Registry Processes ({len(processes)} found)[/bold]"
+            )
             console.print(f"   Registry directory: {config.processes_dir}\n")
 
             for i, process_name in enumerate(sorted(processes)):
@@ -74,19 +82,23 @@ def list_processes(
                     description = build_process_description(process)
 
                     prefix = "└─" if i == len(processes) - 1 else "├─"
-                    status_icon = "✅" if description['valid'] else "❌"
+                    status_icon = "✅" if description["valid"] else "❌"
 
                     console.print(f"{prefix} {status_icon} @{process_name}")
                     console.print(f"   Name: {description['name']}")
-                    if description['description']:
+                    if description["description"]:
                         console.print(f"   Description: {description['description']}")
                     console.print(f"   Stages: {len(description['stages'])}")
 
-                    if description['consistency_issues']:
+                    if description["consistency_issues"]:
                         if isinstance(process, ProcessWithErrors):
-                            console.print(f"   [red]Issues: {len(description['consistency_issues'])} validation problems[/red]")
+                            console.print(
+                                f"   [red]Issues: {len(description['consistency_issues'])} validation problems[/red]"
+                            )
                         else:
-                            console.print(f"   [yellow]Issues: {len(description['consistency_issues'])} consistency problems[/yellow]")
+                            console.print(
+                                f"   [yellow]Issues: {len(description['consistency_issues'])} consistency problems[/yellow]"
+                            )
 
                     console.print()
 
@@ -96,7 +108,9 @@ def list_processes(
                     console.print("   [red]Status: Invalid (severe error)[/red]")
                     console.print()
 
-            console.print("💡 Use 'stageflow view @process_name' to inspect a specific process")
+            console.print(
+                "💡 Use 'stageflow view @process_name' to inspect a specific process"
+            )
 
     except Exception as e:
         if json_output:
@@ -109,9 +123,16 @@ def list_processes(
 @reg_app.command(name="import")
 def import_process(
     file_path: Annotated[Path, typer.Argument(help="Process file to import")],
-    name: Annotated[str | None, typer.Option("--name", "-n", help="Registry name (defaults to filename)")] = None,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing process")] = False,
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+    name: Annotated[
+        str | None,
+        typer.Option("--name", "-n", help="Registry name (defaults to filename)"),
+    ] = None,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", help="Overwrite existing process")
+    ] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
 ):
     """Import a process file into the registry."""
     try:
@@ -142,14 +163,18 @@ def import_process(
         # Save to registry
         registry.save_process(registry_name, process)
 
-        action = "overwritten" if registry.process_exists(registry_name) and force else "imported"
+        action = (
+            "overwritten"
+            if registry.process_exists(registry_name) and force
+            else "imported"
+        )
 
         if json_output:
             result = {
                 "message": f"Process {action} successfully",
                 "source_file": str(file_path),
                 "registry_name": registry_name,
-                "overwritten": force
+                "overwritten": force,
             }
             console.print_json(data=result)
         else:
@@ -169,7 +194,9 @@ def import_process(
 def export_process(
     name: Annotated[str, typer.Argument(help="Registry process name (without @)")],
     file_path: Annotated[Path, typer.Argument(help="Destination file path")],
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
 ):
     """Export a registry process to a file."""
     try:
@@ -189,7 +216,7 @@ def export_process(
             result = {
                 "message": "Process exported successfully",
                 "registry_name": name,
-                "destination_file": str(file_path)
+                "destination_file": str(file_path),
             }
             console.print_json(data=result)
         else:
@@ -206,8 +233,12 @@ def export_process(
 @reg_app.command(name="delete")
 def delete_process(
     name: Annotated[str, typer.Argument(help="Registry process name (without @)")],
-    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
-    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", help="Skip confirmation")
+    ] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Output in JSON format")
+    ] = False,
 ):
     """Delete a process from the registry."""
     try:
@@ -223,7 +254,7 @@ def delete_process(
         if not json_output and not force:
             confirmed = typer.confirm(
                 f"Are you sure you want to delete process '{name}' from the registry?",
-                default=False
+                default=False,
             )
             if not confirmed:
                 console.print("Deletion cancelled.")
@@ -235,7 +266,7 @@ def delete_process(
             result = {
                 "message": f"Process '{name}' deleted successfully",
                 "process": name,
-                "file": str(process_file_path)
+                "file": str(process_file_path),
             }
             console.print_json(data=result)
         else:

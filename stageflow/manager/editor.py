@@ -9,6 +9,7 @@ from ..stage import StageDefinition
 
 class ProcessEditorError(Exception):
     """Base exception for ProcessEditor operations."""
+
     pass
 
 
@@ -86,7 +87,7 @@ class ProcessEditor:
             raise ValidationFailedError(
                 f"Process validation failed, changes rolled back. Issues: "
                 f"{[issue.description for issue in issues]}",
-                issues
+                issues,
             )
 
         # If validation passes, update dirty flag
@@ -134,7 +135,9 @@ class ProcessEditor:
                 raise
             # Rollback on any other error
             self._restore_backup()
-            raise ProcessEditorError(f"Failed to add stage '{stage_id}': {str(e)}") from e
+            raise ProcessEditorError(
+                f"Failed to add stage '{stage_id}': {str(e)}"
+            ) from e
 
     def remove_stage(self, stage_id: str) -> None:
         """
@@ -165,7 +168,9 @@ class ProcessEditor:
                 raise
             # Rollback on any other error
             self._restore_backup()
-            raise ProcessEditorError(f"Failed to remove stage '{stage_id}': {str(e)}") from e
+            raise ProcessEditorError(
+                f"Failed to remove stage '{stage_id}': {str(e)}"
+            ) from e
 
     def update_stage(self, stage_id: str, config: StageDefinition) -> None:
         """
@@ -213,7 +218,9 @@ class ProcessEditor:
                 raise
             # Rollback on any other error
             self._restore_backup()
-            raise ProcessEditorError(f"Failed to update stage '{stage_id}': {str(e)}") from e
+            raise ProcessEditorError(
+                f"Failed to update stage '{stage_id}': {str(e)}"
+            ) from e
 
     def add_transition(self, from_stage: str, to_stage: str) -> None:
         """
@@ -228,7 +235,9 @@ class ProcessEditor:
             ValidationFailedError: If transition creates consistency issues
         """
         if self._process.get_stage(from_stage) is None:
-            raise ProcessEditorError(f"Source stage '{from_stage}' not found in process")
+            raise ProcessEditorError(
+                f"Source stage '{from_stage}' not found in process"
+            )
 
         if self._process.get_stage(to_stage) is None:
             raise ProcessEditorError(f"Target stage '{to_stage}' not found in process")
@@ -241,7 +250,9 @@ class ProcessEditor:
                 raise
             # Rollback on any other error
             self._restore_backup()
-            raise ProcessEditorError(f"Failed to add transition '{from_stage}' -> '{to_stage}': {str(e)}") from e
+            raise ProcessEditorError(
+                f"Failed to add transition '{from_stage}' -> '{to_stage}': {str(e)}"
+            ) from e
 
     def rollback(self) -> None:
         """
@@ -268,7 +279,7 @@ class ProcessEditor:
             raise ValidationFailedError(
                 f"Cannot sync process with consistency issues: "
                 f"{[issue.description for issue in issues]}",
-                issues
+                issues,
             )
 
         self._create_backup()

@@ -40,7 +40,9 @@ class GateResult:
                 msgs.append(lock_result.error_message)
         return msgs
 
-    def get_contextualized_messages(self, gate_name: str, target_stage: str) -> list[str]:
+    def get_contextualized_messages(
+        self, gate_name: str, target_stage: str
+    ) -> list[str]:
         """Get failure messages with gate context included.
 
         Args:
@@ -75,30 +77,26 @@ class Gate:
     _locks: list[Lock]
 
     def __init__(self, gate_config: GateDefinition, parent_stage: str | None = None):
-        name = gate_config.get('name')
+        name = gate_config.get("name")
         if not name:
             raise ValueError("Gate must have a name")
         self.name = name
-        self.description = gate_config.get('description', '')
-        self.target_stage = gate_config.get('target_stage')
+        self.description = gate_config.get("description", "")
+        self.target_stage = gate_config.get("target_stage")
         self.parent_stage = parent_stage
         locks = [
-            LockFactory.create(lock_def) for lock_def in gate_config.get('locks', [])
+            LockFactory.create(lock_def) for lock_def in gate_config.get("locks", [])
         ]
 
-        self.target_stage = gate_config.get('target_stage')
-        if not locks  or not self.target_stage:
+        self.target_stage = gate_config.get("target_stage")
+        if not locks or not self.target_stage:
             raise ValueError("Gate must have at least one lock and a target stage")
 
         self._locks = locks
 
-
     @classmethod
-    def create(
-            cls, config: GateDefinition
-    ) -> "Gate":
+    def create(cls, config: GateDefinition) -> "Gate":
         return cls(config)
-
 
     def evaluate(self, element: Element) -> GateResult:
         """Evaluate element against all locks using AND logic."""
@@ -148,4 +146,3 @@ class Gate:
             "parent_stage": self.parent_stage,
             "locks": self.lock_to_dict(),
         }
-

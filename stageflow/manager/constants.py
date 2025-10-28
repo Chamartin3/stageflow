@@ -11,29 +11,29 @@ from typing import Final
 # Environment Variable Names
 # =============================================================================
 
-ENV_VAR_PREFIX: Final[str] = 'STAGEFLOW_'
+ENV_VAR_PREFIX: Final[str] = "STAGEFLOW_"
 
 # Core settings
-ENV_PROCESSES_DIR: Final[str] = f'{ENV_VAR_PREFIX}PROCESSES_DIR'
-ENV_DEFAULT_FORMAT: Final[str] = f'{ENV_VAR_PREFIX}DEFAULT_FORMAT'
-ENV_CREATE_DIR: Final[str] = f'{ENV_VAR_PREFIX}CREATE_DIR'
+ENV_PROCESSES_DIR: Final[str] = f"{ENV_VAR_PREFIX}PROCESSES_DIR"
+ENV_DEFAULT_FORMAT: Final[str] = f"{ENV_VAR_PREFIX}DEFAULT_FORMAT"
+ENV_CREATE_DIR: Final[str] = f"{ENV_VAR_PREFIX}CREATE_DIR"
 
 # Backup settings
-ENV_BACKUP_ENABLED: Final[str] = f'{ENV_VAR_PREFIX}BACKUP_ENABLED'
-ENV_BACKUP_DIR: Final[str] = f'{ENV_VAR_PREFIX}BACKUP_DIR'
-ENV_MAX_BACKUPS: Final[str] = f'{ENV_VAR_PREFIX}MAX_BACKUPS'
+ENV_BACKUP_ENABLED: Final[str] = f"{ENV_VAR_PREFIX}BACKUP_ENABLED"
+ENV_BACKUP_DIR: Final[str] = f"{ENV_VAR_PREFIX}BACKUP_DIR"
+ENV_MAX_BACKUPS: Final[str] = f"{ENV_VAR_PREFIX}MAX_BACKUPS"
 
 # Validation settings
-ENV_STRICT_VALIDATION: Final[str] = f'{ENV_VAR_PREFIX}STRICT_VALIDATION'
-ENV_AUTO_FIX_PERMISSIONS: Final[str] = f'{ENV_VAR_PREFIX}AUTO_FIX_PERMISSIONS'
+ENV_STRICT_VALIDATION: Final[str] = f"{ENV_VAR_PREFIX}STRICT_VALIDATION"
+ENV_AUTO_FIX_PERMISSIONS: Final[str] = f"{ENV_VAR_PREFIX}AUTO_FIX_PERMISSIONS"
 
 
 # =============================================================================
 # Default Configuration Values
 # =============================================================================
 
-DEFAULT_PROCESSES_DIR: Final[str] = '~/.stageflow/'
-DEFAULT_FORMAT: Final[str] = 'yaml'
+DEFAULT_PROCESSES_DIR: Final[str] = "~/.stageflow/"
+DEFAULT_FORMAT: Final[str] = "yaml"
 DEFAULT_CREATE_DIR: Final[bool] = True
 DEFAULT_BACKUP_ENABLED: Final[bool] = False
 DEFAULT_MAX_BACKUPS: Final[int] = 5
@@ -45,12 +45,16 @@ DEFAULT_AUTO_FIX_PERMISSIONS: Final[bool] = True
 # File Format Constants
 # =============================================================================
 
-FILE_EXT_YAML: Final[str] = 'yaml'
-FILE_EXT_YML: Final[str] = 'yml'
-FILE_EXT_JSON: Final[str] = 'json'
+FILE_EXT_YAML: Final[str] = "yaml"
+FILE_EXT_YML: Final[str] = "yml"
+FILE_EXT_JSON: Final[str] = "json"
 
 # Supported file extensions for auto-detection
-SUPPORTED_EXTENSIONS: Final[tuple[str, ...]] = (FILE_EXT_YAML, FILE_EXT_YML, FILE_EXT_JSON)
+SUPPORTED_EXTENSIONS: Final[tuple[str, ...]] = (
+    FILE_EXT_YAML,
+    FILE_EXT_YML,
+    FILE_EXT_JSON,
+)
 
 
 # =============================================================================
@@ -58,20 +62,21 @@ SUPPORTED_EXTENSIONS: Final[tuple[str, ...]] = (FILE_EXT_YAML, FILE_EXT_YML, FIL
 # =============================================================================
 
 DEFAULT_DIR_PERMISSIONS: Final[int] = 0o755
-BACKUP_SUBDIR_NAME: Final[str] = '.backups'
+BACKUP_SUBDIR_NAME: Final[str] = ".backups"
 
 
 # =============================================================================
 # Boolean String Parsing
 # =============================================================================
 
-TRUTHY_VALUES: Final[tuple[str, ...]] = ('true', '1', 'yes', 'on')
-FALSY_VALUES: Final[tuple[str, ...]] = ('false', '0', 'no', 'off')
+TRUTHY_VALUES: Final[tuple[str, ...]] = ("true", "1", "yes", "on")
+FALSY_VALUES: Final[tuple[str, ...]] = ("false", "0", "no", "off")
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def get_env_bool(env_var: str, default: bool) -> bool:
     """
@@ -122,6 +127,7 @@ def get_env_str(env_var: str, default: str) -> str:
 # =============================================================================
 # Configuration Value Getters (reads from environment)
 # =============================================================================
+
 
 def get_processes_dir() -> str:
     """Get processes directory from environment or default."""

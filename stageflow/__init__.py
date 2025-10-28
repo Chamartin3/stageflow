@@ -60,7 +60,6 @@ __all__ = [
     "Loader",
     "load_process",
     "__version__",
-
     # Data types and results
     "ProcessDefinition",
     "ProcessElementEvaluationResult",
@@ -72,7 +71,6 @@ __all__ = [
     "LockResult",
     "LockType",
     "Action",
-
     # Utilities
     "create_element",
     "create_element_from_config",

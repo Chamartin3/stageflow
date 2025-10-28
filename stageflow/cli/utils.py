@@ -24,7 +24,6 @@ def handle_error(error: Exception, verbose: bool = False):
         click.echo("Use --verbose for detailed error information", err=True)
 
 
-
 def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> None:
     """
     Safely write content to file with error handling.
@@ -44,7 +43,7 @@ def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> Non
         if verbose:
             click.echo(f"Writing output to {file_path}")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         if verbose:
@@ -59,6 +58,7 @@ def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> Non
     except Exception as e:
         if verbose:
             import traceback
+
             click.echo(f"Unexpected error writing to {file_path}:", err=True)
             click.echo(traceback.format_exc(), err=True)
         raise click.ClickException(f"Failed to write file {file_path}: {e}") from e
