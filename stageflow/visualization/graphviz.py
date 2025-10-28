@@ -23,7 +23,9 @@ class GraphvizDotGenerator:
         """
         self.layout_engine = layout_engine
 
-    def generate_process_diagram(self, process: Process, style: str = "overview", include_details: bool = False) -> str:
+    def generate_process_diagram(
+        self, process: Process, style: str = "overview", include_details: bool = False
+    ) -> str:
         """
         Generate enhanced Graphviz DOT diagram for a process.
 
@@ -53,13 +55,13 @@ class GraphvizDotGenerator:
         lines.append("    // Graph attributes")
         lines.append('    bgcolor="white";')
         lines.append('    fontname="Arial";')
-        lines.append('    fontsize=14;')
+        lines.append("    fontsize=14;")
         lines.append("")
 
         # Add title
         lines.append(f'    label="{process.name} Process Flow";')
         lines.append('    labelloc="t";')
-        lines.append('    fontsize=18;')
+        lines.append("    fontsize=18;")
         lines.append("")
 
         # Default node and edge styling
@@ -88,7 +90,9 @@ class GraphvizDotGenerator:
             label = self._generate_stage_label(stage, style)
             shape, color = self._get_stage_styling(is_initial, is_final)
 
-            lines.append(f'    {node_id} [label="{label}", shape={shape}, fillcolor="{color}"];')
+            lines.append(
+                f'    {node_id} [label="{label}", shape={shape}, fillcolor="{color}"];'
+            )
 
         lines.append("")
 
@@ -111,7 +115,9 @@ class GraphvizDotGenerator:
 
                 edge_label = self._generate_edge_label(stage, style)
                 if edge_label:
-                    lines.append(f'    {current_node} -> {next_node} [label="{edge_label}"];')
+                    lines.append(
+                        f'    {current_node} -> {next_node} [label="{edge_label}"];'
+                    )
                 else:
                     lines.append(f"    {current_node} -> {next_node};")
 
@@ -131,21 +137,25 @@ class GraphvizDotGenerator:
                 lines.append(f'        label="{stage.name} Gates";')
                 lines.append('        style="dashed";')
                 lines.append('        color="gray60";')
-                lines.append('        fontsize=10;')
+                lines.append("        fontsize=10;")
                 lines.append("")
 
                 # Add gate nodes
                 for j, gate in enumerate(stage.gates):
                     gate_node = f"gate_{stage_node}_{j}"
                     gate_label = self._generate_gate_label(gate, style)
-                    lines.append(f'        {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];')
+                    lines.append(
+                        f'        {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];'
+                    )
 
                     # Add lock nodes if gate has locks
-                    if hasattr(gate, '_locks') and gate._locks:
+                    if hasattr(gate, "_locks") and gate._locks:
                         for k, lock in enumerate(gate._locks):
                             lock_node = f"lock_{gate_node}_{k}"
                             lock_label = self._generate_lock_label(lock)
-                            lines.append(f'        {lock_node} [label="{lock_label}", shape=diamond, fillcolor="lightcyan"];')
+                            lines.append(
+                                f'        {lock_node} [label="{lock_label}", shape=diamond, fillcolor="lightcyan"];'
+                            )
                             lines.append(f"        {gate_node} -> {lock_node};")
 
                 lines.append("    }")
@@ -174,7 +184,7 @@ class GraphvizDotGenerator:
         # Add title
         lines.append(f'    label="Stage: {stage.name}";')
         lines.append('    labelloc="t";')
-        lines.append('    fontsize=16;')
+        lines.append("    fontsize=16;")
         lines.append("")
 
         # Default styling
@@ -183,27 +193,35 @@ class GraphvizDotGenerator:
         lines.append("")
 
         # Stage node
-        lines.append(f'    stage [label="{stage.name}", shape=box, fillcolor="lightgreen"];')
+        lines.append(
+            f'    stage [label="{stage.name}", shape=box, fillcolor="lightgreen"];'
+        )
 
         if not stage.gates:
-            lines.append('    nogates [label="No Gates", shape=box, fillcolor="lightgray"];')
+            lines.append(
+                '    nogates [label="No Gates", shape=box, fillcolor="lightgray"];'
+            )
             lines.append("    stage -> nogates;")
         else:
             # Gate nodes
             for i, gate in enumerate(stage.gates):
                 gate_node = f"gate_{i}"
                 gate_label = self._generate_gate_label(gate, "full")
-                lines.append(f'    {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];')
+                lines.append(
+                    f'    {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];'
+                )
                 lines.append(f"    stage -> {gate_node};")
 
-                if include_locks and hasattr(gate, 'components') and gate.components:
+                if include_locks and hasattr(gate, "components") and gate.components:
                     # Lock nodes
                     for j, component in enumerate(gate.components):
-                        if hasattr(component, 'lock'):
+                        if hasattr(component, "lock"):
                             lock = component.lock
                             lock_node = f"lock_{i}_{j}"
                             lock_label = self._generate_lock_label(lock)
-                            lines.append(f'    {lock_node} [label="{lock_label}", shape=diamond, fillcolor="lightcyan"];')
+                            lines.append(
+                                f'    {lock_node} [label="{lock_label}", shape=diamond, fillcolor="lightcyan"];'
+                            )
                             lines.append(f"    {gate_node} -> {lock_node};")
 
         lines.append("}")
@@ -261,7 +279,9 @@ class GraphvizDotGenerator:
         for i, gate in enumerate(gates):
             gate_node = f"gate_{i}"
             gate_label = self._generate_gate_label(gate, "detailed")
-            lines.append(f'    {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];')
+            lines.append(
+                f'    {gate_node} [label="{gate_label}", shape=hexagon, fillcolor="lightyellow"];'
+            )
 
         return "\n".join(lines)
 
@@ -312,7 +332,7 @@ class GraphvizDotGenerator:
             parts = [stage.name]
             if stage.gates:
                 parts.append(f"{len(stage.gates)} gate(s)")
-            if hasattr(stage, 'schema') and stage.schema:
+            if hasattr(stage, "schema") and stage.schema:
                 parts.append("Schema validation")
             return "\\n".join(parts)
 
@@ -323,9 +343,17 @@ class GraphvizDotGenerator:
         elif not stage.gates:
             return "auto"
         elif len(stage.gates) == 1:
-            return stage.gates[0].name if style == "detailed" else f"{stage.gates[0].name}\\n({self._get_gate_summary(stage.gates[0])})"
+            return (
+                stage.gates[0].name
+                if style == "detailed"
+                else f"{stage.gates[0].name}\\n({self._get_gate_summary(stage.gates[0])})"
+            )
         else:
-            return f"{len(stage.gates)} gates" if style == "detailed" else f"{len(stage.gates)} gates\\n(all required)"
+            return (
+                f"{len(stage.gates)} gates"
+                if style == "detailed"
+                else f"{len(stage.gates)} gates\\n(all required)"
+            )
 
     def _generate_gate_label(self, gate: Any, style: str) -> str:
         """Generate appropriate label for a gate."""
@@ -341,7 +369,7 @@ class GraphvizDotGenerator:
     def _generate_lock_label(self, lock: Any) -> str:
         """Generate label for a lock."""
         label = f"{lock.property_path}\\n{lock.lock_type.value}"
-        if hasattr(lock, 'expected_value') and lock.expected_value is not None:
+        if hasattr(lock, "expected_value") and lock.expected_value is not None:
             label += f"\\n= {lock.expected_value}"
         return label
 
@@ -356,11 +384,15 @@ class GraphvizDotGenerator:
 
     def _get_gate_summary(self, gate: Any) -> str:
         """Get a summary of gate composition."""
-        if not hasattr(gate, 'components') or not gate.components:
+        if not hasattr(gate, "components") or not gate.components:
             return "No components"
 
-        lock_count = sum(1 for comp in gate.components if hasattr(comp, 'lock'))
-        gate_count = sum(1 for comp in gate.components if hasattr(comp, 'name') and not hasattr(comp, 'lock'))
+        lock_count = sum(1 for comp in gate.components if hasattr(comp, "lock"))
+        gate_count = sum(
+            1
+            for comp in gate.components
+            if hasattr(comp, "name") and not hasattr(comp, "lock")
+        )
 
         parts = []
         if lock_count > 0:
@@ -372,18 +404,20 @@ class GraphvizDotGenerator:
 
     def _get_lock_count(self, gate: Any) -> int:
         """Get the number of locks in a gate."""
-        if not hasattr(gate, 'components') or not gate.components:
+        if not hasattr(gate, "components") or not gate.components:
             return 0
-        return sum(1 for comp in gate.components if hasattr(comp, 'lock'))
+        return sum(1 for comp in gate.components if hasattr(comp, "lock"))
 
 
 # Maintain backward compatibility
 class GraphvizGenerator(GraphvizDotGenerator):
     """Legacy alias for GraphvizDotGenerator."""
+
     pass
 
 
 # Also maintain the legacy class name for compatibility
 class GraphVizGenerator(GraphvizDotGenerator):
     """Legacy alias for GraphvizDotGenerator with original naming."""
+
     pass

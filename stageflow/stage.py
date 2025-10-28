@@ -14,10 +14,11 @@ class ActionDefinition(TypedDict):
     description: str
     related_properties: list[str]
 
+
 class ActionType(StrEnum):
-    UPDATE = "update" # The opject needs to update properties to meet gate requirements
-    TRANSITION = "transition" # The object is ready to transition
-    EXCECUTE = "execute" # An external action is required to meet gate requirements
+    UPDATE = "update"  # The opject needs to update properties to meet gate requirements
+    TRANSITION = "transition"  # The object is ready to transition
+    EXCECUTE = "execute"  # An external action is required to meet gate requirements
 
 
 @dataclass(frozen=True)
@@ -29,10 +30,11 @@ class Action:
     action_type: ActionType
     target_stage: str | None = None
 
+
 class StageStatus(StrEnum):
-    INVALID_SCHEMA = "invalid_schema" # The element is missing required properties for this stage | scoping
-    READY_FOR_TRANSITION = "ready" # A gate has passed and the element can transition to the next stage | done
-    ACTION_REQUIRED = "action_required" # The element has not met gate requirements and requires action | in progress
+    INVALID_SCHEMA = "invalid_schema"  # The element is missing required properties for this stage | scoping
+    READY_FOR_TRANSITION = "ready"  # A gate has passed and the element can transition to the next stage | done
+    ACTION_REQUIRED = "action_required"  # The element has not met gate requirements and requires action | in progress
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,7 @@ class StageObjectPropertyDefinition(TypedDict):
 
 ExpectedObjectSchmema = dict[str, StageObjectPropertyDefinition | None] | None
 
+
 class StageDefinition(TypedDict):
     """TypedDict for stage definition."""
 
@@ -61,6 +64,7 @@ class StageDefinition(TypedDict):
     expected_properties: ExpectedObjectSchmema
     is_final: bool
 
+
 class Stage:
     """
     Individual validation stage with schema and gates.
@@ -68,6 +72,7 @@ class Stage:
     Stages represent discrete validation points in a process, each with
     their own schema requirements and composed gate validation logic.
     """
+
     name: str
     gates: tuple[Gate, ...]
     stage_actions: list[ActionDefinition]
@@ -89,10 +94,13 @@ class Stage:
         self.description = config.get("description", "")
 
         # Define gates and required properties from those gates
-        gates_definition:list[GateDefinition] = [{
-            **gate_def,
-            "parent_stage": self._id,
-        } for gate_def in config.get("gates", [])]
+        gates_definition: list[GateDefinition] = [
+            {
+                **gate_def,
+                "parent_stage": self._id,
+            }
+            for gate_def in config.get("gates", [])
+        ]
         self.is_final = config.get("is_final", False)
         # Allow stages without gates if they are final or if they are terminal states
         # (We'll validate terminal states at the process level where we have full context)
@@ -101,7 +109,9 @@ class Stage:
             # if this stage is referenced as a target by other gates
             pass
         self.gates = tuple(Gate(definition) for definition in gates_definition)
-        self._evaluated_paths = [path for gate in self.gates for path in gate.required_paths]
+        self._evaluated_paths = [
+            path for gate in self.gates for path in gate.required_paths
+        ]
 
         # Validate action definitions
         actions = config.get("expected_actions", [])
@@ -128,9 +138,11 @@ class Stage:
 
         for prop_path in self._evaluated_paths:
             nested = shape
-            for part in prop_path.split('.'):
+            for part in prop_path.split("."):
                 if nested is None or part not in nested:
-                    raise ValueError(f"Gate property '{prop_path}' is not defined in stage '{self.name}' schema")
+                    raise ValueError(
+                        f"Gate property '{prop_path}' is not defined in stage '{self.name}' schema"
+                    )
                 nested = nested[part]
 
     def _validate_actions(self, actions: list[ActionDefinition]) -> None:
@@ -139,7 +151,9 @@ class Stage:
             properties = action.get("related_properties", [])
             for prop in properties:
                 if prop not in self._evaluated_paths:
-                    raise ValueError(f"Action property '{prop}' is not evaluated by any gate in stage '{self.name}'")
+                    raise ValueError(
+                        f"Action property '{prop}' is not evaluated by any gate in stage '{self.name}'"
+                    )
 
     def _validate_gate_targets(self) -> None:
         """Validate that no two gates target the same stage."""
@@ -147,10 +161,14 @@ class Stage:
         gate_names = []
 
         for gate in self.gates:
-            if hasattr(gate, 'target_stage') and gate.target_stage:
+            if hasattr(gate, "target_stage") and gate.target_stage:
                 if gate.target_stage in target_stages:
                     # Find which gates have the same target
-                    duplicate_gates = [gate_names[i] for i, target in enumerate(target_stages) if target == gate.target_stage]
+                    duplicate_gates = [
+                        gate_names[i]
+                        for i, target in enumerate(target_stages)
+                        if target == gate.target_stage
+                    ]
                     duplicate_gates.append(gate.name)
 
                     raise ValueError(
@@ -161,7 +179,6 @@ class Stage:
                 target_stages.append(gate.target_stage)
                 gate_names.append(gate.name)
 
-
     def _get_missing_properties(self, element: Element) -> dict[str, Any]:
         """Contains the requies propesties."""
         missing = {}
@@ -170,7 +187,6 @@ class Stage:
                 suggested = definition.get("default") if definition else None
                 missing[prop_path] = suggested
         return missing
-
 
     def evaluate(self, element: Element) -> StageEvaluationResult:
         """
@@ -185,11 +201,14 @@ class Stage:
         missing_properties = self._get_missing_properties(element)
         schema_valid = len(missing_properties) == 0
         if not schema_valid:
-            actions = [Action(
-                description=f"Add missing property '{prop}' with suggested default '{default}'",
-                related_properties=[prop],
-                action_type=ActionType.UPDATE,
-            ) for prop, default in missing_properties.items()]
+            actions = [
+                Action(
+                    description=f"Add missing property '{prop}' with suggested default '{default}'",
+                    related_properties=[prop],
+                    action_type=ActionType.UPDATE,
+                )
+                for prop, default in missing_properties.items()
+            ]
 
             return StageEvaluationResult(
                 status=StageStatus.INVALID_SCHEMA,
@@ -209,7 +228,7 @@ class Stage:
                 return StageEvaluationResult(
                     status=StageStatus.READY_FOR_TRANSITION,
                     gate_results={gate.name: gate_result},
-                    sugested_action=[transition_action]
+                    sugested_action=[transition_action],
                 )
             gate_evaluation_results[gate.name] = gate_result
 
@@ -228,20 +247,21 @@ class Stage:
             if gate_result and not gate_result.success:
                 # Get contextualized messages for this gate
                 contextualized_msgs = gate_result.get_contextualized_messages(
-                    gate_name=gate.name,
-                    target_stage=gate.target_stage
+                    gate_name=gate.name, target_stage=gate.target_stage
                 )
                 # Add each message as an action
                 for message in contextualized_msgs:
-                    gate_actions.append(Action(
-                        description=message,
-                        related_properties=[],
-                        action_type=ActionType.EXCECUTE,
-                    ))
+                    gate_actions.append(
+                        Action(
+                            description=message,
+                            related_properties=[],
+                            action_type=ActionType.EXCECUTE,
+                        )
+                    )
         return StageEvaluationResult(
             status=StageStatus.ACTION_REQUIRED,
             gate_results=gate_evaluation_results,
-            sugested_action=gate_actions
+            sugested_action=gate_actions,
         )
 
     def get_schema(self) -> ExpectedObjectSchmema:
@@ -252,6 +272,7 @@ class Stage:
             Schema includes type information from expected_properties.
         """
         import copy
+
         return copy.deepcopy(self._base_schema)
 
     # Serialization
@@ -265,4 +286,3 @@ class Stage:
             "expected_properties": self._base_schema,
             "is_final": self.is_final,
         }
-

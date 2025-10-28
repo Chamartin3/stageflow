@@ -19,6 +19,7 @@ class ProcessTemplate(str, Enum):
 
     Each template provides a pre-configured process structure for common workflows.
     """
+
     BASIC = "basic"
     APPROVAL = "approval"
     ONBOARDING = "onboarding"
@@ -58,10 +59,14 @@ def get_template_path(template: ProcessTemplate | str) -> Path:
     elif isinstance(template, str):
         if not ProcessTemplate.is_valid(template):
             available = ", ".join(ProcessTemplate.list_templates())
-            raise ValueError(f"Invalid template '{template}'. Available templates: {available}")
+            raise ValueError(
+                f"Invalid template '{template}'. Available templates: {available}"
+            )
         template_name = template
     else:
-        raise TypeError(f"template must be ProcessTemplate or str, not {type(template).__name__}")
+        raise TypeError(
+            f"template must be ProcessTemplate or str, not {type(template).__name__}"
+        )
 
     template_dir = Path(__file__).parent
     template_path = template_dir / f"{template_name}.yaml"
@@ -89,15 +94,14 @@ def load_template(template: ProcessTemplate | str) -> dict[str, Any]:
     template_path = get_template_path(template)
 
     yaml = YAML()
-    with template_path.open('r') as f:
+    with template_path.open("r") as f:
         template_data = yaml.load(f)
 
     return template_data
 
 
 def generate_process_from_template(
-    process_name: str,
-    template: ProcessTemplate | str = ProcessTemplate.BASIC
+    process_name: str, template: ProcessTemplate | str = ProcessTemplate.BASIC
 ) -> dict[str, Any]:
     """
     Generate a complete process schema from a template.
@@ -128,7 +132,7 @@ def generate_process_from_template(
         "description": description,
         "stages": schema["stages"],
         "initial_stage": schema["initial_stage"],
-        "final_stage": schema["final_stage"]
+        "final_stage": schema["final_stage"],
     }
 
     return result
@@ -139,5 +143,5 @@ __all__ = [
     "ProcessTemplate",
     "get_template_path",
     "load_template",
-    "generate_process_from_template"
+    "generate_process_from_template",
 ]

@@ -20,6 +20,7 @@ from .config import ManagerConfig, ProcessFileFormat
 
 class ProcessRegistryError(Exception):
     """Exception raised for process registry operations."""
+
     pass
 
 
@@ -39,7 +40,7 @@ class ProcessRegistry:
             config: Manager configuration containing directory and format settings
         """
         self.config = config
-        self._yaml = YAML(typ='safe', pure=True)
+        self._yaml = YAML(typ="safe", pure=True)
         self._yaml.preserve_quotes = True
         self._yaml.indent(mapping=2, sequence=4, offset=2)
 
@@ -62,7 +63,11 @@ class ProcessRegistry:
 
         try:
             for file_path in self.config.processes_dir.iterdir():
-                if file_path.is_file() and file_path.suffix.lower() in ['.yaml', '.yml', '.json']:
+                if file_path.is_file() and file_path.suffix.lower() in [
+                    ".yaml",
+                    ".yml",
+                    ".json",
+                ]:
                     process_names.add(file_path.stem)
         except OSError as e:
             raise ProcessRegistryError(f"Failed to list processes: {e}") from e
@@ -84,7 +89,7 @@ class ProcessRegistry:
 
         try:
             # Try to find the process with any supported extension
-            for ext in ['yaml', 'yml', 'json']:
+            for ext in ["yaml", "yml", "json"]:
                 file_path = self.config.processes_dir / f"{process_name}.{ext}"
                 if file_path.exists() and file_path.is_file():
                     return True
@@ -106,7 +111,7 @@ class ProcessRegistry:
             return None
 
         # Try to find existing file with any extension
-        for ext in ['yaml', 'yml', 'json']:
+        for ext in ["yaml", "yml", "json"]:
             file_path = self.config.processes_dir / f"{process_name}.{ext}"
             if file_path.exists():
                 return file_path
@@ -136,7 +141,9 @@ class ProcessRegistry:
         try:
             return load_process(file_path)
         except LoadError as e:
-            raise ProcessRegistryError(f"Failed to load process '{process_name}': {e}") from e
+            raise ProcessRegistryError(
+                f"Failed to load process '{process_name}': {e}"
+            ) from e
 
     def load_process_data(self, process_name: str) -> ProcessDefinition:
         """
@@ -163,25 +170,31 @@ class ProcessRegistry:
             process = load_process(file_path)
             # Ensure required stages exist
             if not process.initial_stage or not process.final_stage:
-                raise ProcessRegistryError(f"Process '{process_name}' missing required initial or final stage")
+                raise ProcessRegistryError(
+                    f"Process '{process_name}' missing required initial or final stage"
+                )
 
             # For now, return a basic dict - this method may need to be updated
             # based on how ProcessDefinition is used
             return {
-                'name': process.name,
-                'description': process.description,
-                'stages': {},  # This would need proper extraction
-                'initial_stage': process.initial_stage._id,
-                'final_stage': process.final_stage._id
+                "name": process.name,
+                "description": process.description,
+                "stages": {},  # This would need proper extraction
+                "initial_stage": process.initial_stage._id,
+                "final_stage": process.final_stage._id,
             }
         except LoadError as e:
-            raise ProcessRegistryError(f"Failed to load process data '{process_name}': {e}") from e
+            raise ProcessRegistryError(
+                f"Failed to load process data '{process_name}': {e}"
+            ) from e
 
-    def save_process(self,
-                    process_name: str,
-                    process_data: Process | ProcessDefinition | dict,
-                    format_override: ProcessFileFormat | None = None,
-                    create_backup: bool | None = None) -> Path:
+    def save_process(
+        self,
+        process_name: str,
+        process_data: Process | ProcessDefinition | dict,
+        format_override: ProcessFileFormat | None = None,
+        create_backup: bool | None = None,
+    ) -> Path:
         """
         Save a process to the registry.
 
@@ -210,7 +223,9 @@ class ProcessRegistry:
         target_path = self.config.get_process_file_path(process_name, format_override)
 
         # Create backup if needed
-        should_backup = create_backup if create_backup is not None else self.config.backup_enabled
+        should_backup = (
+            create_backup if create_backup is not None else self.config.backup_enabled
+        )
         if should_backup and target_path.exists():
             self._create_backup(process_name)
 
@@ -220,22 +235,26 @@ class ProcessRegistry:
             data_dict = self._extract_process_data(process_data)
         elif isinstance(process_data, dict):
             # Use dict directly, ensure it has process wrapper
-            if 'process' in process_data:
+            if "process" in process_data:
                 data_dict = process_data
             else:
-                data_dict = {'process': process_data}
+                data_dict = {"process": process_data}
         else:
             # Assume it's ProcessDefinition (dict-like)
-            data_dict = {'process': process_data}
+            data_dict = {"process": process_data}
 
         # Save the file
         try:
             self._write_process_file(target_path, data_dict)
             return target_path
         except Exception as e:
-            raise ProcessRegistryError(f"Failed to save process '{process_name}': {e}") from e
+            raise ProcessRegistryError(
+                f"Failed to save process '{process_name}': {e}"
+            ) from e
 
-    def delete_process(self, process_name: str, create_backup: bool | None = None) -> bool:
+    def delete_process(
+        self, process_name: str, create_backup: bool | None = None
+    ) -> bool:
         """
         Delete a process from the registry.
 
@@ -254,7 +273,9 @@ class ProcessRegistry:
             return False
 
         # Create backup if needed
-        should_backup = create_backup if create_backup is not None else self.config.backup_enabled
+        should_backup = (
+            create_backup if create_backup is not None else self.config.backup_enabled
+        )
         if should_backup:
             self._create_backup(process_name)
 
@@ -262,7 +283,9 @@ class ProcessRegistry:
             file_path.unlink()
             return True
         except OSError as e:
-            raise ProcessRegistryError(f"Failed to delete process '{process_name}': {e}") from e
+            raise ProcessRegistryError(
+                f"Failed to delete process '{process_name}': {e}"
+            ) from e
 
     def get_process_info(self, process_name: str) -> dict[str, Any]:
         """
@@ -284,15 +307,19 @@ class ProcessRegistry:
         try:
             stat = file_path.stat()
             return {
-                'name': process_name,
-                'file_path': str(file_path),
-                'format': 'yaml' if file_path.suffix.lower() in ['.yaml', '.yml'] else 'json',
-                'size_bytes': stat.st_size,
-                'modified_time': datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                'created_time': datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                "name": process_name,
+                "file_path": str(file_path),
+                "format": "yaml"
+                if file_path.suffix.lower() in [".yaml", ".yml"]
+                else "json",
+                "size_bytes": stat.st_size,
+                "modified_time": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "created_time": datetime.fromtimestamp(stat.st_ctime).isoformat(),
             }
         except OSError as e:
-            raise ProcessRegistryError(f"Failed to get process info for '{process_name}': {e}") from e
+            raise ProcessRegistryError(
+                f"Failed to get process info for '{process_name}': {e}"
+            ) from e
 
     def list_process_info(self) -> list[dict[str, Any]]:
         """
@@ -356,7 +383,7 @@ class ProcessRegistry:
             backup_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
             # Remove excess files
-            for old_backup in backup_files[self.config.max_backups:]:
+            for old_backup in backup_files[self.config.max_backups :]:
                 old_backup.unlink()
 
         except OSError:
@@ -372,61 +399,70 @@ class ProcessRegistry:
             stages_def = {}
             for stage in process.stages:
                 stage_data = {
-                    'name': stage.name,
-                    'description': stage.description or '',
-                    'gates': [],
-                    'expected_actions': [
+                    "name": stage.name,
+                    "description": stage.description or "",
+                    "gates": [],
+                    "expected_actions": [
                         {
-                            'description': action.description,
-                            'related_properties': action.related_properties
+                            "description": action.description,
+                            "related_properties": action.related_properties,
                         }
                         for action in stage.stage_actions
-                    ] if stage.stage_actions else [],
-                    'is_final': stage.is_final
+                    ]
+                    if stage.stage_actions
+                    else [],
+                    "is_final": stage.is_final,
                 }
 
                 # Convert gates
                 for gate in stage.gates:
                     gate_data = {
-                        'name': gate.name,
-                        'description': gate.description or '',
-                        'target_stage': gate.target_stage,
-                        'locks': []
+                        "name": gate.name,
+                        "description": gate.description or "",
+                        "target_stage": gate.target_stage,
+                        "locks": [],
                     }
 
                     # Convert locks
                     for lock in gate.locks:
                         lock_data = {
-                            'type': lock.lock_type.value,
-                            'property_path': lock.property_path
+                            "type": lock.lock_type.value,
+                            "property_path": lock.property_path,
                         }
-                        if hasattr(lock, 'expected_value') and lock.expected_value is not None:
-                            lock_data['expected_value'] = lock.expected_value
-                        gate_data['locks'].append(lock_data)
+                        if (
+                            hasattr(lock, "expected_value")
+                            and lock.expected_value is not None
+                        ):
+                            lock_data["expected_value"] = lock.expected_value
+                        gate_data["locks"].append(lock_data)
 
-                    stage_data['gates'].append(gate_data)
+                    stage_data["gates"].append(gate_data)
 
                 stages_def[stage._id] = stage_data
 
             process_def = {
-                'name': process.name,
-                'description': process.description or '',
-                'stages': stages_def,
-                'initial_stage': process.initial_stage._id,
-                'final_stage': process.final_stage._id
+                "name": process.name,
+                "description": process.description or "",
+                "stages": stages_def,
+                "initial_stage": process.initial_stage._id,
+                "final_stage": process.final_stage._id,
             }
 
-            return {'process': process_def}
+            return {"process": process_def}
 
         except Exception as e:
             raise ProcessRegistryError(f"Failed to extract process data: {e}") from e
 
     def _write_process_file(self, file_path: Path, data: dict[str, Any]) -> None:
         """Write process data to file in the appropriate format."""
-        file_format = ProcessFileFormat.YAML if file_path.suffix.lower() in ['.yaml', '.yml'] else ProcessFileFormat.JSON
+        file_format = (
+            ProcessFileFormat.YAML
+            if file_path.suffix.lower() in [".yaml", ".yml"]
+            else ProcessFileFormat.JSON
+        )
 
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 if file_format == ProcessFileFormat.YAML:
                     self._yaml.dump(data, f)
                 else:
@@ -453,9 +489,30 @@ class ProcessRegistry:
             return False
 
         # Check for reserved names (Windows)
-        reserved_names = {'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4',
-                         'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2',
-                         'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'}
+        reserved_names = {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "COM2",
+            "COM3",
+            "COM4",
+            "COM5",
+            "COM6",
+            "COM7",
+            "COM8",
+            "COM9",
+            "LPT1",
+            "LPT2",
+            "LPT3",
+            "LPT4",
+            "LPT5",
+            "LPT6",
+            "LPT7",
+            "LPT8",
+            "LPT9",
+        }
         if process_name.upper() in reserved_names:
             return False
 
@@ -467,7 +524,9 @@ class ProcessRegistry:
 
     def __str__(self) -> str:
         """String representation of the registry."""
-        process_count = len(self.list_processes()) if self.config.is_valid_processes_dir() else 0
+        process_count = (
+            len(self.list_processes()) if self.config.is_valid_processes_dir() else 0
+        )
         return f"ProcessRegistry(dir='{self.config.processes_dir}', processes={process_count})"
 
     def __repr__(self) -> str:

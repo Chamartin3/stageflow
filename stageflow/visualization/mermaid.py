@@ -18,7 +18,9 @@ class MermaidDiagramGenerator:
         """Initialize Mermaid generator."""
         self.node_counter = 0
 
-    def generate_process_diagram(self, process: Process, style: str = "overview", include_details: bool = False) -> str:
+    def generate_process_diagram(
+        self, process: Process, style: str = "overview", include_details: bool = False
+    ) -> str:
         """
         Generate Mermaid flowchart for a process with enhanced visualization.
 
@@ -58,8 +60,16 @@ class MermaidDiagramGenerator:
             stage_label = self._generate_stage_label(stage, style)
 
             # Determine stage type for styling
-            is_initial = (stage_name == process.initial_stage._id) if process.initial_stage else (i == 0)
-            is_final = (stage_name == process.final_stage._id) if process.final_stage else (i == len(stage_order) - 1)
+            is_initial = (
+                (stage_name == process.initial_stage._id)
+                if process.initial_stage
+                else (i == 0)
+            )
+            is_final = (
+                (stage_name == process.final_stage._id)
+                if process.final_stage
+                else (i == len(stage_order) - 1)
+            )
 
             if is_initial:
                 lines.append(f"    {node_id}[{stage_label}]")
@@ -78,7 +88,7 @@ class MermaidDiagramGenerator:
 
             # Generate transitions for each gate from this stage
             for gate in stage.gates:
-                if hasattr(gate, 'target_stage') and gate.target_stage:
+                if hasattr(gate, "target_stage") and gate.target_stage:
                     target_stage_name = gate.target_stage
                     # Only create transition if target stage exists in our nodes
                     if target_stage_name in stage_nodes:
@@ -87,7 +97,9 @@ class MermaidDiagramGenerator:
                         # Generate transition label based on gate
                         gate_label = self._generate_gate_label(gate, style)
                         if gate_label and style in ["detailed", "full"]:
-                            lines.append(f"    {current_node} -->|{gate_label}| {target_node}")
+                            lines.append(
+                                f"    {current_node} -->|{gate_label}| {target_node}"
+                            )
                         else:
                             lines.append(f"    {current_node} --> {target_node}")
 
@@ -101,7 +113,7 @@ class MermaidDiagramGenerator:
                     continue
 
                 stage_node = stage_nodes[stage_name]
-                lines.append(f"    subgraph G{stage_node} [\"Gates for {stage.name}\"]")
+                lines.append(f'    subgraph G{stage_node} ["Gates for {stage.name}"]')
 
                 for j, gate in enumerate(stage.gates):
                     gate_node = f"G{stage_node}_{j}"
@@ -109,14 +121,23 @@ class MermaidDiagramGenerator:
                     lines.append(f"        {gate_node}[{gate_label}]")
 
                     # Add lock details if gate has locks
-                    if hasattr(gate, '_locks') and gate._locks:
+                    if hasattr(gate, "_locks") and gate._locks:
                         try:
                             # Ensure locks is iterable (handles Mock objects)
-                            lock_list = list(gate._locks) if hasattr(gate._locks, '__iter__') else []
+                            lock_list = (
+                                list(gate._locks)
+                                if hasattr(gate._locks, "__iter__")
+                                else []
+                            )
                             for k, lock in enumerate(lock_list):
                                 lock_node = f"L{gate_node}_{k}"
-                                lock_label = f"{lock.property_path}\\n{lock.lock_type.value}"
-                                if hasattr(lock, 'expected_value') and lock.expected_value is not None:
+                                lock_label = (
+                                    f"{lock.property_path}\\n{lock.lock_type.value}"
+                                )
+                                if (
+                                    hasattr(lock, "expected_value")
+                                    and lock.expected_value is not None
+                                ):
                                     lock_label += f"\\n= {lock.expected_value}"
                                 lines.append(f"        {lock_node}[{lock_label}]")
                                 lines.append(f"        {gate_node} --> {lock_node}")
@@ -161,11 +182,14 @@ class MermaidDiagramGenerator:
                 lines.append(f"    {gate_node}[{gate_label}]")
                 lines.append(f"    Stage --> {gate_node}")
 
-                if include_locks and hasattr(gate, 'locks') and gate.locks:
+                if include_locks and hasattr(gate, "locks") and gate.locks:
                     for j, lock in enumerate(gate.locks):
                         lock_node = f"L{i}_{j}"
                         lock_desc = f"{lock.property}<br/>{lock.type.value}"
-                        if hasattr(lock, 'expected_value') and lock.expected_value is not None:
+                        if (
+                            hasattr(lock, "expected_value")
+                            and lock.expected_value is not None
+                        ):
                             lock_desc += f"<br/>Expected: {lock.expected_value}"
                         lines.append(f"    {lock_node}[{lock_desc}]")
                         lines.append(f"    {gate_node} --> {lock_node}")
@@ -186,7 +210,7 @@ class MermaidDiagramGenerator:
 
         # Apply lock styling
         for i, gate in enumerate(stage.gates):
-            if hasattr(gate, 'locks') and gate.locks:
+            if hasattr(gate, "locks") and gate.locks:
                 for j in range(len(gate.locks)):
                     lines.append(f"    class L{i}_{j} lock")
 
@@ -222,12 +246,12 @@ class MermaidDiagramGenerator:
                 if i == 0:
                     lines.append(f"    Start --> {gate_node}")
                 else:
-                    prev_gate = f"G{i-1}"
+                    prev_gate = f"G{i - 1}"
                     lines.append(f"    {prev_gate} --> {gate_node}")
 
         lines.append("    End([Evaluation Complete])")
         if gates:
-            last_gate = f"G{len(gates)-1}"
+            last_gate = f"G{len(gates) - 1}"
             lines.append(f"    {last_gate} --> End")
         else:
             lines.append("    NoGates --> End")
@@ -294,7 +318,7 @@ flowchart TD
             parts = [stage.name]
             if stage.gates:
                 parts.append(f"{len(stage.gates)} gate(s)")
-            if hasattr(stage, 'schema') and stage.schema:
+            if hasattr(stage, "schema") and stage.schema:
                 parts.append("Schema required")
             return "<br/>".join(parts)
 
@@ -305,7 +329,11 @@ flowchart TD
         elif not stage.gates:
             return "auto"
         elif len(stage.gates) == 1:
-            gate_name = list(stage.gates.keys())[0] if isinstance(stage.gates, dict) else stage.gates[0].name
+            gate_name = (
+                list(stage.gates.keys())[0]
+                if isinstance(stage.gates, dict)
+                else stage.gates[0].name
+            )
             if style == "detailed":
                 return gate_name
             else:  # full
@@ -318,7 +346,7 @@ flowchart TD
 
     def _generate_gate_label(self, gate: Any, style: str) -> str:
         """Generate appropriate label for a gate."""
-        gate_name = gate if isinstance(gate, str) else getattr(gate, 'name', str(gate))
+        gate_name = gate if isinstance(gate, str) else getattr(gate, "name", str(gate))
 
         if style == "overview":
             return gate_name
@@ -333,12 +361,16 @@ flowchart TD
             return "No gates"
         return f"{len(stage.gates)} gates"
 
-    def _generate_styling(self, stage_nodes: dict[str, str], process: Process, style: str) -> list[str]:
+    def _generate_styling(
+        self, stage_nodes: dict[str, str], process: Process, style: str
+    ) -> list[str]:
         """Generate comprehensive styling for the diagram."""
         lines = []
         lines.append("")
         lines.append("    %% Styling")
-        lines.append("    classDef initial fill:#e1f5fe,stroke:#01579b,stroke-width:2px")
+        lines.append(
+            "    classDef initial fill:#e1f5fe,stroke:#01579b,stroke-width:2px"
+        )
         lines.append("    classDef final fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px")
         lines.append("    classDef stage fill:#f3e5f5,stroke:#7b1fa2")
         lines.append("    classDef gate fill:#fff3e0,stroke:#ef6c00")
@@ -352,8 +384,16 @@ flowchart TD
                 node_id = stage_nodes[stage_name]
 
                 # Check actual initial and final stages from process
-                is_initial = (stage_name == process.initial_stage._id) if process.initial_stage else (i == 0)
-                is_final = (stage_name == process.final_stage._id) if process.final_stage else (i == len(stage_order) - 1)
+                is_initial = (
+                    (stage_name == process.initial_stage._id)
+                    if process.initial_stage
+                    else (i == 0)
+                )
+                is_final = (
+                    (stage_name == process.final_stage._id)
+                    if process.final_stage
+                    else (i == len(stage_order) - 1)
+                )
 
                 if is_initial:
                     lines.append(f"    class {node_id} initial")
@@ -368,4 +408,5 @@ flowchart TD
 # Maintain backward compatibility
 class MermaidGenerator(MermaidDiagramGenerator):
     """Legacy alias for MermaidDiagramGenerator."""
+
     pass

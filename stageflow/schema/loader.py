@@ -22,17 +22,20 @@ from stageflow.stage import (
 
 class LoadError(Exception):
     """Exception raised when loading fails."""
+
     pass
 
 
 class LoaderValidationError(Exception):
     """Exception raised during validation within the loader conversion process."""
+
     pass
 
 
 @dataclass
 class ProcessWithErrors:
     """Container for processes that failed validation but still need to be workable."""
+
     name: str
     description: str
     file_path: str | Path
@@ -72,7 +75,7 @@ class FileReader:
         # Handle relative paths: use STAGEFLOW_ACTUAL_CWD if set (for CLI wrapper),
         # otherwise resolve relative to current working directory
         if not file_path.is_absolute():
-            actual_cwd = os.environ.get('STAGEFLOW_ACTUAL_CWD')
+            actual_cwd = os.environ.get("STAGEFLOW_ACTUAL_CWD")
             if actual_cwd:
                 file_path = Path(actual_cwd) / file_path
             else:
@@ -82,18 +85,22 @@ class FileReader:
             raise LoadError(f"File not found: {file_path}")
 
         try:
-            with open(file_path, encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 suffix = file_path.suffix.lower()
-                if suffix in ['.yml', '.yaml']:
+                if suffix in [".yml", ".yaml"]:
                     try:
                         return FileReader._parse_yaml(f)
                     except Exception as e:
-                        raise LoadError(f"Error parsing YAML in {file_path}: {e}") from e
-                elif suffix == '.json':
+                        raise LoadError(
+                            f"Error parsing YAML in {file_path}: {e}"
+                        ) from e
+                elif suffix == ".json":
                     try:
                         return FileReader._parse_json(f)
                     except json.JSONDecodeError as e:
-                        raise LoadError(f"Error parsing JSON in {file_path}: {e}") from e
+                        raise LoadError(
+                            f"Error parsing JSON in {file_path}: {e}"
+                        ) from e
                 else:
                     raise LoadError(f"Unsupported file format: {file_path.suffix}")
 
@@ -105,7 +112,7 @@ class FileReader:
     @staticmethod
     def _parse_yaml(file_handle) -> dict:
         """Parse YAML content."""
-        yaml = YAML(typ='safe', pure=True)
+        yaml = YAML(typ="safe", pure=True)
         return yaml.load(file_handle)
 
     @staticmethod
@@ -141,13 +148,13 @@ def load_process(file_path: str | Path) -> Process:
             raise LoadError("File must contain a dictionary")
 
         # Handle both new format with 'process' key and legacy format without it
-        if 'process' in data:
+        if "process" in data:
             # New format: {'process': {...process definition...}}
-            process_config = data['process']
+            process_config = data["process"]
         else:
             # Legacy format: {...process definition directly at root...}
             # Check if this looks like a process definition by checking for required fields
-            required_process_fields = ['name', 'stages', 'initial_stage', 'final_stage']
+            required_process_fields = ["name", "stages", "initial_stage", "final_stage"]
             if all(field in data for field in required_process_fields):
                 process_config = data
             else:
@@ -202,26 +209,31 @@ def load_process_graceful(file_path: str | Path) -> Process | ProcessWithErrors:
                     raise  # Re-raise original error for parsing issues
 
                 # Handle both new format with 'process' key and legacy format without it
-                if 'process' in data:
-                    process_config = data['process']
+                if "process" in data:
+                    process_config = data["process"]
                 else:
-                    required_process_fields = ['name', 'stages', 'initial_stage', 'final_stage']
+                    required_process_fields = [
+                        "name",
+                        "stages",
+                        "initial_stage",
+                        "final_stage",
+                    ]
                     if all(field in data for field in required_process_fields):
                         process_config = data
                     else:
                         raise  # Re-raise original error
 
                 # Extract basic info
-                name = process_config.get('name', 'Unknown Process')
-                description = process_config.get('description', '')
+                name = process_config.get("name", "Unknown Process")
+                description = process_config.get("description", "")
 
                 # Collect validation errors
                 errors = []
 
                 # Check stages structure
-                stages = process_config.get('stages', {})
-                initial_stage = process_config.get('initial_stage', '')
-                final_stage = process_config.get('final_stage', '')
+                stages = process_config.get("stages", {})
+                initial_stage = process_config.get("initial_stage", "")
+                final_stage = process_config.get("final_stage", "")
 
                 if not stages:
                     errors.append("No stages defined")
@@ -231,19 +243,23 @@ def load_process_graceful(file_path: str | Path) -> Process | ProcessWithErrors:
                     stage_names = set(stages.keys())
 
                     if initial_stage and initial_stage not in stage_names:
-                        available = ', '.join(sorted(stage_names))
-                        errors.append(f"initial_stage '{initial_stage}' not found. Available stages: {available}")
+                        available = ", ".join(sorted(stage_names))
+                        errors.append(
+                            f"initial_stage '{initial_stage}' not found. Available stages: {available}"
+                        )
 
                     if final_stage and final_stage not in stage_names:
-                        available = ', '.join(sorted(stage_names))
-                        errors.append(f"final_stage '{final_stage}' not found. Available stages: {available}")
+                        available = ", ".join(sorted(stage_names))
+                        errors.append(
+                            f"final_stage '{final_stage}' not found. Available stages: {available}"
+                        )
 
                 return ProcessWithErrors(
                     name=name,
                     description=description,
                     file_path=file_path,
                     raw_config=process_config,
-                    validation_errors=errors
+                    validation_errors=errors,
                 )
 
             except Exception:
@@ -252,9 +268,6 @@ def load_process_graceful(file_path: str | Path) -> Process | ProcessWithErrors:
         else:
             # Re-raise for non-validation errors
             raise
-
-
-
 
 
 def load_element(file_path: str | Path) -> Element:
@@ -345,31 +358,38 @@ def _convert_process_config(config: dict[str, Any]) -> ProcessDefinition:
     """
     # Only validate fields if this is called from load_process (has all required fields)
     # The _convert_process_config function can be called with partial configs for testing
-    if all(field in config for field in ['name', 'stages', 'initial_stage', 'final_stage']):
+    if all(
+        field in config for field in ["name", "stages", "initial_stage", "final_stage"]
+    ):
         _validate_process_structure(config)
 
     converted: dict[str, Any] = dict(config)
 
     # Pass through stage_prop if present
-    if 'stage_prop' in config:
-        converted['stage_prop'] = config['stage_prop']
+    if "stage_prop" in config:
+        converted["stage_prop"] = config["stage_prop"]
 
-    if 'stages' in config:
-        if not isinstance(config['stages'], dict):
-            raise LoaderValidationError("'stages' must be a dictionary with stage IDs as keys")
+    if "stages" in config:
+        if not isinstance(config["stages"], dict):
+            raise LoaderValidationError(
+                "'stages' must be a dictionary with stage IDs as keys"
+            )
 
         converted_stages: dict[str, StageDefinition] = {}
-        for stage_id, stage_data in config['stages'].items():
+        for stage_id, stage_data in config["stages"].items():
             if not isinstance(stage_data, dict):
                 raise LoaderValidationError(f"Stage '{stage_id}' must be a dictionary")
 
             converted_stage = _convert_stage_config(stage_id, stage_data)
             converted_stages[stage_id] = converted_stage
 
-        converted['stages'] = converted_stages
+        converted["stages"] = converted_stages
 
     # Validate final structure matches ProcessDefinition only if we have all required fields
-    if all(field in converted for field in ['name', 'stages', 'initial_stage', 'final_stage']):
+    if all(
+        field in converted
+        for field in ["name", "stages", "initial_stage", "final_stage"]
+    ):
         _validate_process_definition(converted)
 
     return converted  # type: ignore
@@ -377,7 +397,11 @@ def _convert_process_config(config: dict[str, Any]) -> ProcessDefinition:
 
 # Schema Integration Functions
 
-def add_schema_to_yaml_output(process_dict: dict[str, Any], schema_url: str = "https://stageflow.dev/schemas/process.json") -> dict[str, Any]:
+
+def add_schema_to_yaml_output(
+    process_dict: dict[str, Any],
+    schema_url: str = "https://stageflow.dev/schemas/process.json",
+) -> dict[str, Any]:
     """
     Add JSON Schema reference to process dictionary for YAML output.
 
@@ -395,9 +419,12 @@ def add_schema_to_yaml_output(process_dict: dict[str, Any], schema_url: str = "h
     return result
 
 
-def save_process_with_schema(process: Process, file_path: str | Path,
-                           include_schema: bool = True,
-                           schema_url: str = "https://stageflow.dev/schemas/process.json") -> None:
+def save_process_with_schema(
+    process: Process,
+    file_path: str | Path,
+    include_schema: bool = True,
+    schema_url: str = "https://stageflow.dev/schemas/process.json",
+) -> None:
     """
     Save a Process object to YAML file with optional schema reference.
 
@@ -432,7 +459,7 @@ def save_process_with_schema(process: Process, file_path: str | Path,
     yaml.width = 120
     yaml.indent(mapping=2, sequence=4, offset=2)
 
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         yaml.dump(output_dict, f)
 
 
@@ -489,7 +516,9 @@ def save_process_with_local_schema(process: Process, file_path: str | Path) -> N
     local_schema = get_local_schema_path()
     if local_schema.exists():
         schema_url = f"file://{local_schema.absolute()}"
-        save_process_with_schema(process, file_path, include_schema=True, schema_url=schema_url)
+        save_process_with_schema(
+            process, file_path, include_schema=True, schema_url=schema_url
+        )
     else:
         # Fallback to no schema if local file doesn't exist
         save_process_with_schema(process, file_path, include_schema=False)
@@ -497,25 +526,37 @@ def save_process_with_local_schema(process: Process, file_path: str | Path) -> N
 
 def _validate_process_structure(config: dict[str, Any]) -> None:
     """Validate basic process structure requirements."""
-    required_fields = ['name', 'stages', 'initial_stage', 'final_stage']
+    required_fields = ["name", "stages", "initial_stage", "final_stage"]
 
     for field in required_fields:
         if field not in config:
-            raise LoaderValidationError(f"Required field '{field}' is missing from process definition")
+            raise LoaderValidationError(
+                f"Required field '{field}' is missing from process definition"
+            )
 
-    if not isinstance(config['name'], str) or not config['name'].strip():
+    if not isinstance(config["name"], str) or not config["name"].strip():
         raise LoaderValidationError("Process 'name' must be a non-empty string")
 
-    if not isinstance(config['initial_stage'], str) or not config['initial_stage'].strip():
-        raise LoaderValidationError("Process 'initial_stage' must be a non-empty string")
+    if (
+        not isinstance(config["initial_stage"], str)
+        or not config["initial_stage"].strip()
+    ):
+        raise LoaderValidationError(
+            "Process 'initial_stage' must be a non-empty string"
+        )
 
-    if not isinstance(config['final_stage'], str) or not config['final_stage'].strip():
+    if not isinstance(config["final_stage"], str) or not config["final_stage"].strip():
         raise LoaderValidationError("Process 'final_stage' must be a non-empty string")
 
     # Validate stage_prop if present
-    if 'stage_prop' in config:
-        if not isinstance(config['stage_prop'], str) or not config['stage_prop'].strip():
-            raise LoaderValidationError("Process 'stage_prop' must be a non-empty string")
+    if "stage_prop" in config:
+        if (
+            not isinstance(config["stage_prop"], str)
+            or not config["stage_prop"].strip()
+        ):
+            raise LoaderValidationError(
+                "Process 'stage_prop' must be a non-empty string"
+            )
 
 
 def _convert_stage_config(stage_id: str, stage_data: dict[str, Any]) -> StageDefinition:
@@ -523,36 +564,38 @@ def _convert_stage_config(stage_id: str, stage_data: dict[str, Any]) -> StageDef
     converted_stage = dict(stage_data)
 
     # Add name field
-    if 'name' not in converted_stage:
-        converted_stage['name'] = stage_id
+    if "name" not in converted_stage:
+        converted_stage["name"] = stage_id
 
     # Validate and convert gates
-    if 'gates' in converted_stage:
-        gates_data = converted_stage['gates']
-        converted_stage['gates'] = _convert_gates_config(stage_id, gates_data)
+    if "gates" in converted_stage:
+        gates_data = converted_stage["gates"]
+        converted_stage["gates"] = _convert_gates_config(stage_id, gates_data)
     else:
-        converted_stage['gates'] = []
+        converted_stage["gates"] = []
 
     # Add default fields with proper types
-    if 'description' not in converted_stage:
-        converted_stage['description'] = ''
-    if 'expected_actions' not in converted_stage:
-        converted_stage['expected_actions'] = []
-    if 'expected_properties' not in converted_stage:
-        converted_stage['expected_properties'] = None
-    if 'is_final' not in converted_stage:
-        converted_stage['is_final'] = False
+    if "description" not in converted_stage:
+        converted_stage["description"] = ""
+    if "expected_actions" not in converted_stage:
+        converted_stage["expected_actions"] = []
+    if "expected_properties" not in converted_stage:
+        converted_stage["expected_properties"] = None
+    if "is_final" not in converted_stage:
+        converted_stage["is_final"] = False
 
     # Validate expected_actions if present and properly structured
-    if converted_stage['expected_actions']:
+    if converted_stage["expected_actions"]:
         # Check if all items are dictionaries (proper ActionDefinition format)
-        if all(isinstance(action, dict) for action in converted_stage['expected_actions']):
-            _validate_expected_actions(converted_stage['expected_actions'], stage_id)
+        if all(
+            isinstance(action, dict) for action in converted_stage["expected_actions"]
+        ):
+            _validate_expected_actions(converted_stage["expected_actions"], stage_id)
         # Otherwise, assume it's legacy format (list of strings) and allow it
 
     # Validate expected_properties if present
-    if converted_stage['expected_properties'] is not None:
-        _validate_expected_properties(converted_stage['expected_properties'], stage_id)
+    if converted_stage["expected_properties"] is not None:
+        _validate_expected_properties(converted_stage["expected_properties"], stage_id)
 
     return converted_stage  # type: ignore
 
@@ -565,21 +608,27 @@ def _convert_gates_config(stage_id: str, gates_data: Any) -> list[GateDefinition
         # Convert dict format to list format
         for gate_name, gate_config in gates_data.items():
             if not isinstance(gate_config, dict):
-                raise LoaderValidationError(f"Gate '{gate_name}' in stage '{stage_id}' must be a dictionary")
+                raise LoaderValidationError(
+                    f"Gate '{gate_name}' in stage '{stage_id}' must be a dictionary"
+                )
 
             gate_def = dict(gate_config)
-            gate_def['name'] = gate_name
-            gate_def['parent_stage'] = stage_id
+            gate_def["name"] = gate_name
+            gate_def["parent_stage"] = stage_id
 
             # Add description if missing
-            if 'description' not in gate_def:
-                gate_def['description'] = ''
+            if "description" not in gate_def:
+                gate_def["description"] = ""
 
             # Validate and convert locks
-            if 'locks' not in gate_def:
-                raise LoaderValidationError(f"Gate '{gate_name}' in stage '{stage_id}' must have 'locks' field")
+            if "locks" not in gate_def:
+                raise LoaderValidationError(
+                    f"Gate '{gate_name}' in stage '{stage_id}' must have 'locks' field"
+                )
 
-            gate_def['locks'] = _convert_locks_config(gate_def['locks'], gate_name, stage_id)
+            gate_def["locks"] = _convert_locks_config(
+                gate_def["locks"], gate_name, stage_id
+            )
             _validate_gate_definition(gate_def, stage_id)
             gates_list.append(gate_def)  # type: ignore
 
@@ -587,40 +636,56 @@ def _convert_gates_config(stage_id: str, gates_data: Any) -> list[GateDefinition
         # Already a list, validate each gate
         for i, gate_config in enumerate(gates_data):
             if not isinstance(gate_config, dict):
-                raise LoaderValidationError(f"Gate {i} in stage '{stage_id}' must be a dictionary")
+                raise LoaderValidationError(
+                    f"Gate {i} in stage '{stage_id}' must be a dictionary"
+                )
 
             gate_def = dict(gate_config)
-            if 'parent_stage' not in gate_def:
-                gate_def['parent_stage'] = stage_id
-            if 'description' not in gate_def:
-                gate_def['description'] = ''
+            if "parent_stage" not in gate_def:
+                gate_def["parent_stage"] = stage_id
+            if "description" not in gate_def:
+                gate_def["description"] = ""
 
-            if 'name' not in gate_def:
-                raise LoaderValidationError(f"Gate {i} in stage '{stage_id}' must have a 'name' field")
+            if "name" not in gate_def:
+                raise LoaderValidationError(
+                    f"Gate {i} in stage '{stage_id}' must have a 'name' field"
+                )
 
             # Validate and convert locks
-            if 'locks' not in gate_def:
-                raise LoaderValidationError(f"Gate '{gate_def['name']}' in stage '{stage_id}' must have 'locks' field")
+            if "locks" not in gate_def:
+                raise LoaderValidationError(
+                    f"Gate '{gate_def['name']}' in stage '{stage_id}' must have 'locks' field"
+                )
 
-            gate_def['locks'] = _convert_locks_config(gate_def['locks'], gate_def['name'], stage_id)
+            gate_def["locks"] = _convert_locks_config(
+                gate_def["locks"], gate_def["name"], stage_id
+            )
             _validate_gate_definition(gate_def, stage_id)
             gates_list.append(gate_def)  # type: ignore
     else:
-        raise LoaderValidationError(f"Gates in stage '{stage_id}' must be a dictionary or list")
+        raise LoaderValidationError(
+            f"Gates in stage '{stage_id}' must be a dictionary or list"
+        )
 
     return gates_list
 
 
-def _convert_locks_config(locks_data: Any, gate_name: str, stage_id: str) -> list[LockDefinition]:
+def _convert_locks_config(
+    locks_data: Any, gate_name: str, stage_id: str
+) -> list[LockDefinition]:
     """Convert and validate locks configuration."""
     if not isinstance(locks_data, list):
-        raise LoaderValidationError(f"Locks in gate '{gate_name}' (stage '{stage_id}') must be a list")
+        raise LoaderValidationError(
+            f"Locks in gate '{gate_name}' (stage '{stage_id}') must be a list"
+        )
 
     converted_locks: list[LockDefinition] = []
 
     for i, lock_config in enumerate(locks_data):
         if not isinstance(lock_config, dict):
-            raise LoaderValidationError(f"Lock {i} in gate '{gate_name}' (stage '{stage_id}') must be a dictionary")
+            raise LoaderValidationError(
+                f"Lock {i} in gate '{gate_name}' (stage '{stage_id}') must be a dictionary"
+            )
 
         validated_lock = _validate_lock_definition(lock_config, i, gate_name, stage_id)
         converted_locks.append(validated_lock)
@@ -628,16 +693,29 @@ def _convert_locks_config(locks_data: Any, gate_name: str, stage_id: str) -> lis
     return converted_locks
 
 
-def _validate_lock_definition(lock_config: dict[str, Any], lock_index: int, gate_name: str, stage_id: str) -> LockDefinition:
+def _validate_lock_definition(
+    lock_config: dict[str, Any], lock_index: int, gate_name: str, stage_id: str
+) -> LockDefinition:
     """Validate a single lock definition."""
     location = f"lock {lock_index} in gate '{gate_name}' (stage '{stage_id}')"
 
     # Define all possible shorthand keys (lock type names from LockType enum)
     # Must match exactly with LockType enum values
     shorthand_keys = {
-        'exists', 'equals', 'greater_than', 'less_than', 'contains', 'regex',
-        'type_check', 'range', 'length', 'not_empty', 'in_list', 'not_in_list',
-        'is_true', 'is_false'  # These are special shorthand forms
+        "exists",
+        "equals",
+        "greater_than",
+        "less_than",
+        "contains",
+        "regex",
+        "type_check",
+        "range",
+        "length",
+        "not_empty",
+        "in_list",
+        "not_in_list",
+        "is_true",
+        "is_false",  # These are special shorthand forms
     }
 
     # Check for shorthand format
@@ -646,21 +724,25 @@ def _validate_lock_definition(lock_config: dict[str, Any], lock_index: int, gate
     if provided_shorthand_keys:
         # Validate shorthand format
         if len(provided_shorthand_keys) != 1:
-            raise LoaderValidationError(f"Shorthand lock at {location} must have exactly one shorthand key. Found: {provided_shorthand_keys}")
+            raise LoaderValidationError(
+                f"Shorthand lock at {location} must have exactly one shorthand key. Found: {provided_shorthand_keys}"
+            )
 
         # Convert shorthand to full format
         shorthand_key = next(iter(provided_shorthand_keys))
         return _convert_shorthand_lock(lock_config, shorthand_key, location)
 
     # Validate full format
-    if 'type' not in lock_config:
+    if "type" not in lock_config:
         raise LoaderValidationError(f"Lock at {location} must have 'type' field")
 
-    if 'property_path' not in lock_config:
-        raise LoaderValidationError(f"Lock at {location} must have 'property_path' field")
+    if "property_path" not in lock_config:
+        raise LoaderValidationError(
+            f"Lock at {location} must have 'property_path' field"
+        )
 
     # Validate lock type
-    lock_type_str = lock_config['type']
+    lock_type_str = lock_config["type"]
     try:
         if isinstance(lock_type_str, str):
             # Convert string to LockType enum to validate it
@@ -669,20 +751,29 @@ def _validate_lock_definition(lock_config: dict[str, Any], lock_index: int, gate
             raise LoaderValidationError(f"Lock type at {location} must be a string")
     except ValueError as e:
         valid_types = [t.value for t in LockType]
-        raise LoaderValidationError(f"Invalid lock type '{lock_type_str}' at {location}. Valid types: {valid_types}") from e
+        raise LoaderValidationError(
+            f"Invalid lock type '{lock_type_str}' at {location}. Valid types: {valid_types}"
+        ) from e
 
     # Validate property_path
-    if not isinstance(lock_config['property_path'], str) or not lock_config['property_path'].strip():
-        raise LoaderValidationError(f"Lock property_path at {location} must be a non-empty string")
+    if (
+        not isinstance(lock_config["property_path"], str)
+        or not lock_config["property_path"].strip()
+    ):
+        raise LoaderValidationError(
+            f"Lock property_path at {location} must be a non-empty string"
+        )
 
     return lock_config  # type: ignore
 
 
-def _convert_shorthand_lock(lock_config: dict[str, Any], shorthand_key: str, location: str) -> LockDefinition:
+def _convert_shorthand_lock(
+    lock_config: dict[str, Any], shorthand_key: str, location: str
+) -> LockDefinition:
     """Convert shorthand lock format to full format."""
 
     # Handle simple shorthand formats where the value is the property path
-    if shorthand_key in ('exists', 'is_true', 'is_false'):
+    if shorthand_key in ("exists", "is_true", "is_false"):
         # These are handled by LockFactory directly, pass them through
         return lock_config  # type: ignore
 
@@ -691,22 +782,21 @@ def _convert_shorthand_lock(lock_config: dict[str, Any], shorthand_key: str, loc
 
     if isinstance(shorthand_value, str):
         # Simple format: key: "property_path"
-        converted_lock = {
-            'type': shorthand_key,
-            'property_path': shorthand_value
-        }
+        converted_lock = {"type": shorthand_key, "property_path": shorthand_value}
     elif isinstance(shorthand_value, dict):
         # Complex format: key: {property_path: "path", expected_value: value}
-        if 'property_path' not in shorthand_value:
-            raise LoaderValidationError(f"Shorthand lock at {location} missing 'property_path'")
+        if "property_path" not in shorthand_value:
+            raise LoaderValidationError(
+                f"Shorthand lock at {location} missing 'property_path'"
+            )
 
         converted_lock = {
-            'type': shorthand_key,
-            'property_path': shorthand_value['property_path']
+            "type": shorthand_key,
+            "property_path": shorthand_value["property_path"],
         }
 
-        if 'expected_value' in shorthand_value:
-            converted_lock['expected_value'] = shorthand_value['expected_value']
+        if "expected_value" in shorthand_value:
+            converted_lock["expected_value"] = shorthand_value["expected_value"]
     else:
         raise LoaderValidationError(
             f"Shorthand lock at {location} has invalid value type. "
@@ -718,72 +808,106 @@ def _convert_shorthand_lock(lock_config: dict[str, Any], shorthand_key: str, loc
 
 def _validate_gate_definition(gate_def: dict[str, Any], stage_id: str) -> None:
     """Validate gate definition structure."""
-    required_fields = ['name', 'target_stage', 'parent_stage', 'locks']
+    required_fields = ["name", "target_stage", "parent_stage", "locks"]
 
     for field in required_fields:
         if field not in gate_def:
-            raise LoaderValidationError(f"Gate '{gate_def.get('name', 'unnamed')}' in stage '{stage_id}' missing required field '{field}'")
+            raise LoaderValidationError(
+                f"Gate '{gate_def.get('name', 'unnamed')}' in stage '{stage_id}' missing required field '{field}'"
+            )
 
-    if not isinstance(gate_def['name'], str) or not gate_def['name'].strip():
-        raise LoaderValidationError(f"Gate name in stage '{stage_id}' must be a non-empty string")
+    if not isinstance(gate_def["name"], str) or not gate_def["name"].strip():
+        raise LoaderValidationError(
+            f"Gate name in stage '{stage_id}' must be a non-empty string"
+        )
 
-    if not isinstance(gate_def['target_stage'], str) or not gate_def['target_stage'].strip():
-        raise LoaderValidationError(f"Gate '{gate_def['name']}' target_stage must be a non-empty string")
+    if (
+        not isinstance(gate_def["target_stage"], str)
+        or not gate_def["target_stage"].strip()
+    ):
+        raise LoaderValidationError(
+            f"Gate '{gate_def['name']}' target_stage must be a non-empty string"
+        )
 
 
 def _validate_expected_actions(actions: Any, stage_id: str) -> None:
     """Validate expected_actions structure."""
     if not isinstance(actions, list):
-        raise LoaderValidationError(f"expected_actions in stage '{stage_id}' must be a list")
+        raise LoaderValidationError(
+            f"expected_actions in stage '{stage_id}' must be a list"
+        )
 
     for i, action in enumerate(actions):
         if not isinstance(action, dict):
-            raise LoaderValidationError(f"Action {i} in stage '{stage_id}' must be a dictionary")
+            raise LoaderValidationError(
+                f"Action {i} in stage '{stage_id}' must be a dictionary"
+            )
 
-        if 'description' not in action:
-            raise LoaderValidationError(f"Action {i} in stage '{stage_id}' must have 'description' field")
+        if "description" not in action:
+            raise LoaderValidationError(
+                f"Action {i} in stage '{stage_id}' must have 'description' field"
+            )
 
-        if 'related_properties' not in action:
-            raise LoaderValidationError(f"Action {i} in stage '{stage_id}' must have 'related_properties' field")
+        if "related_properties" not in action:
+            raise LoaderValidationError(
+                f"Action {i} in stage '{stage_id}' must have 'related_properties' field"
+            )
 
-        if not isinstance(action['related_properties'], list):
-            raise LoaderValidationError(f"Action {i} 'related_properties' in stage '{stage_id}' must be a list")
+        if not isinstance(action["related_properties"], list):
+            raise LoaderValidationError(
+                f"Action {i} 'related_properties' in stage '{stage_id}' must be a list"
+            )
 
 
 def _validate_expected_properties(properties: Any, stage_id: str) -> None:
     """Validate expected_properties structure."""
     if not isinstance(properties, dict):
-        raise LoaderValidationError(f"expected_properties in stage '{stage_id}' must be a dictionary")
+        raise LoaderValidationError(
+            f"expected_properties in stage '{stage_id}' must be a dictionary"
+        )
 
     for prop_name, prop_def in properties.items():
         if prop_def is not None and not isinstance(prop_def, dict):
-            raise LoaderValidationError(f"Property '{prop_name}' definition in stage '{stage_id}' must be a dictionary or None")
+            raise LoaderValidationError(
+                f"Property '{prop_name}' definition in stage '{stage_id}' must be a dictionary or None"
+            )
 
         if isinstance(prop_def, dict):
-            if 'type' in prop_def and prop_def['type'] is not None and not isinstance(prop_def['type'], str):
-                raise LoaderValidationError(f"Property '{prop_name}' type in stage '{stage_id}' must be a string or None")
+            if (
+                "type" in prop_def
+                and prop_def["type"] is not None
+                and not isinstance(prop_def["type"], str)
+            ):
+                raise LoaderValidationError(
+                    f"Property '{prop_name}' type in stage '{stage_id}' must be a string or None"
+                )
 
 
 def _validate_process_definition(converted: dict[str, Any]) -> None:
     """Final validation that the converted config matches ProcessDefinition structure."""
-    required_fields = ['name', 'stages', 'initial_stage', 'final_stage']
+    required_fields = ["name", "stages", "initial_stage", "final_stage"]
 
     for field in required_fields:
         if field not in converted:
-            raise LoaderValidationError(f"Final process definition missing required field '{field}'")
+            raise LoaderValidationError(
+                f"Final process definition missing required field '{field}'"
+            )
 
     # Add description if missing
-    if 'description' not in converted:
-        converted['description'] = ''
+    if "description" not in converted:
+        converted["description"] = ""
 
     # Validate stages exist for initial and final stage references
-    stages = converted.get('stages', {})
-    initial_stage = converted.get('initial_stage')
-    final_stage = converted.get('final_stage')
+    stages = converted.get("stages", {})
+    initial_stage = converted.get("initial_stage")
+    final_stage = converted.get("final_stage")
 
     if initial_stage not in stages:
-        raise LoaderValidationError(f"initial_stage '{initial_stage}' not found in stages definition")
+        raise LoaderValidationError(
+            f"initial_stage '{initial_stage}' not found in stages definition"
+        )
 
     if final_stage not in stages:
-        raise LoaderValidationError(f"final_stage '{final_stage}' not found in stages definition")
-
+        raise LoaderValidationError(
+            f"final_stage '{final_stage}' not found in stages definition"
+        )

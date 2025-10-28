@@ -199,8 +199,6 @@ def compare_process_versions(process1: Process, process2: Process) -> dict[str, 
     raise NotImplementedError("compare_process_versions is not yet implemented")
 
 
-
-
 # ============================================================================
 # DEPRECATED: Template functionality has moved to stageflow.templates module
 # ============================================================================
@@ -227,7 +225,9 @@ PROCESS_TEMPLATES = {
 }
 
 
-def generate_default_process_schema(process_name: str, template_type: str = DEFAULT_TEMPLATE) -> dict[str, Any]:
+def generate_default_process_schema(
+    process_name: str, template_type: str = DEFAULT_TEMPLATE
+) -> dict[str, Any]:
     """
     Generate a default process schema based on template type.
 
@@ -254,7 +254,7 @@ def generate_default_process_schema(process_name: str, template_type: str = DEFA
         "generate_default_process_schema is deprecated. "
         "Use stageflow.templates.generate_process_from_template instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     return generate_process_from_template(process_name, template_type)

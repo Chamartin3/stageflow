@@ -21,21 +21,25 @@ logger = logging.getLogger(__name__)
 
 class ProcessManagerError(Exception):
     """Base exception for ProcessManager operations"""
+
     pass
 
 
 class ProcessNotFoundError(ProcessManagerError):
     """Raised when a requested process is not found"""
+
     pass
 
 
 class ProcessValidationError(ProcessManagerError):
     """Raised when process validation fails"""
+
     pass
 
 
 class ProcessSyncError(ProcessManagerError):
     """Raised when process synchronization fails"""
+
     pass
 
 
@@ -69,7 +73,6 @@ class ProcessManager:
         self._pending_changes: set[str] = set()
         self._last_sync: datetime | None = None
 
-
     @property
     def config(self) -> ManagerConfig:
         """Get the current configuration."""
@@ -95,7 +98,9 @@ class ProcessManager:
         """Get the last synchronization timestamp."""
         return self._last_sync
 
-    def list_processes(self, include_metadata: bool = False) -> list[str] | dict[str, Any]:
+    def list_processes(
+        self, include_metadata: bool = False
+    ) -> list[str] | dict[str, Any]:
         """
         List all processes (both file-based and in-memory).
 
@@ -130,32 +135,34 @@ class ProcessManager:
                     metadata = self._registry.get_process_info(name)
                     result[name] = {
                         **metadata,
-                        'has_pending_changes': name in self._pending_changes,
-                        'has_active_editor': name in self._editors,
-                        'is_file_based': True,
+                        "has_pending_changes": name in self._pending_changes,
+                        "has_active_editor": name in self._editors,
+                        "is_file_based": True,
                     }
                 else:
                     # In-memory only process
                     result[name] = {
-                        'name': name,
-                        'has_pending_changes': name in self._pending_changes,
-                        'has_active_editor': name in self._editors,
-                        'is_file_based': False,
+                        "name": name,
+                        "has_pending_changes": name in self._pending_changes,
+                        "has_active_editor": name in self._editors,
+                        "is_file_based": False,
                     }
             except Exception:
                 # Skip processes that can't be accessed
                 result[name] = {
-                    'name': name,
-                    'has_pending_changes': name in self._pending_changes,
-                    'has_active_editor': name in self._editors,
-                    'is_file_based': name in file_based_processes,
+                    "name": name,
+                    "has_pending_changes": name in self._pending_changes,
+                    "has_active_editor": name in self._editors,
+                    "is_file_based": name in file_based_processes,
                 }
 
         return result
 
     def process_exists(self, process_name: str) -> bool:
         """Check if a process exists (either in registry or in-memory)."""
-        return self._registry.process_exists(process_name) or process_name in self._editors
+        return (
+            self._registry.process_exists(process_name) or process_name in self._editors
+        )
 
     def edit_process(self, process_name: str) -> ProcessEditor:
         """Get or create a ProcessEditor for the specified process."""
@@ -226,9 +233,13 @@ class ProcessManager:
         try:
             return self._registry.load_process(process_name)
         except Exception as e:
-            raise ProcessNotFoundError(f"Process '{process_name}' not found: {e}") from e
+            raise ProcessNotFoundError(
+                f"Process '{process_name}' not found: {e}"
+            ) from e
 
-    def get_process_editor(self, process_name: str, create_if_missing: bool = False) -> ProcessEditor:
+    def get_process_editor(
+        self, process_name: str, create_if_missing: bool = False
+    ) -> ProcessEditor:
         """
         Get or create a ProcessEditor for the specified process.
 
@@ -252,14 +263,20 @@ class ProcessManager:
             if not create_if_missing:
                 raise
             # For create_if_missing, we need a valid process, not None
-            raise ProcessManagerError(f"Cannot create editor for non-existent process '{process_name}' - process creation not implemented in get_process_editor") from None
+            raise ProcessManagerError(
+                f"Cannot create editor for non-existent process '{process_name}' - process creation not implemented in get_process_editor"
+            ) from None
 
         editor = ProcessEditor(process)
         self._editors[process_name] = editor
         return editor
 
-    def create_process(self, process_name: str, process_config: dict[str, Any],
-                      save_immediately: bool = True) -> ProcessEditor:
+    def create_process(
+        self,
+        process_name: str,
+        process_config: dict[str, Any],
+        save_immediately: bool = True,
+    ) -> ProcessEditor:
         """
         Create a new process with the given configuration.
 
@@ -283,6 +300,7 @@ class ProcessManager:
             from typing import cast
 
             from stageflow.process import ProcessDefinition
+
             process = Process(cast(ProcessDefinition, process_config))
 
             # Create editor
@@ -339,8 +357,9 @@ class ProcessManager:
             logger.error(f"Failed to remove process '{process_name}': {e}")
             raise ProcessManagerError(f"Process removal failed: {e}") from e
 
-    def export_process(self, process_name: str, export_path: Path,
-                      format_override: str | None = None) -> Path:
+    def export_process(
+        self, process_name: str, export_path: Path, format_override: str | None = None
+    ) -> Path:
         """
         Export a process to an external file.
 
@@ -369,7 +388,7 @@ class ProcessManager:
             else:
                 # Infer from file extension
                 ext = export_path.suffix.lower()
-                target_format = 'yaml' if ext in ['.yaml', '.yml'] else 'json'
+                target_format = "yaml" if ext in [".yaml", ".yml"] else "json"
 
             # Extract process data
             data_dict = self._registry._extract_process_data(process)
@@ -382,9 +401,9 @@ class ProcessManager:
 
             from ruamel.yaml import YAML
 
-            with open(export_path, 'w', encoding='utf-8') as f:
-                if target_format == 'yaml':
-                    yaml = YAML(typ='safe', pure=True)
+            with open(export_path, "w", encoding="utf-8") as f:
+                if target_format == "yaml":
+                    yaml = YAML(typ="safe", pure=True)
                     yaml.preserve_quotes = True
                     yaml.indent(mapping=2, sequence=4, offset=2)
                     yaml.dump(data_dict, f)
@@ -398,8 +417,12 @@ class ProcessManager:
             logger.error(f"Failed to export process '{process_name}': {e}")
             raise ProcessManagerError(f"Export failed: {e}") from e
 
-    def import_process(self, import_path: Path, process_name: str | None = None,
-                      overwrite: bool = False) -> str:
+    def import_process(
+        self,
+        import_path: Path,
+        process_name: str | None = None,
+        overwrite: bool = False,
+    ) -> str:
         """
         Import a process from an external file into the registry.
 
@@ -429,6 +452,7 @@ class ProcessManager:
 
             # Load process from external file
             from stageflow.schema import load_process
+
             process = load_process(import_path)
 
             # Save to registry
@@ -441,7 +465,9 @@ class ProcessManager:
             logger.error(f"Failed to import process from {import_path}: {e}")
             raise ProcessManagerError(f"Import failed: {e}") from e
 
-    def has_pending_changes(self, process_name: str | None = None) -> bool | dict[str, bool]:
+    def has_pending_changes(
+        self, process_name: str | None = None
+    ) -> bool | dict[str, bool]:
         """
         Check if processes have pending changes.
 
@@ -543,18 +569,17 @@ class ProcessManager:
         active_editors = len(self._editors)
 
         return {
-            'total_processes': total_processes,
-            'pending_changes': pending_count,
-            'active_editors': active_editors,
-            'processes_directory': str(self._config.processes_dir),
-            'last_sync': self._last_sync.isoformat() if self._last_sync else None,
-            'config': {
-                'default_format': self._config.default_format.value,
-                'backup_enabled': self._config.backup_enabled,
-                'strict_validation': self._config.strict_validation
-            }
+            "total_processes": total_processes,
+            "pending_changes": pending_count,
+            "active_editors": active_editors,
+            "processes_directory": str(self._config.processes_dir),
+            "last_sync": self._last_sync.isoformat() if self._last_sync else None,
+            "config": {
+                "default_format": self._config.default_format.value,
+                "backup_enabled": self._config.backup_enabled,
+                "strict_validation": self._config.strict_validation,
+            },
         }
-
 
     def __enter__(self):
         """Context manager entry."""
@@ -569,6 +594,8 @@ class ProcessManager:
                 logger.error(f"Failed to sync pending changes on exit: {e}")
 
     def __repr__(self) -> str:
-        return (f"ProcessManager(processes={len(self._registry.list_processes())}, "
-                f"pending={len(self._pending_changes)}, "
-                f"editors={len(self._editors)})")
+        return (
+            f"ProcessManager(processes={len(self._registry.list_processes())}, "
+            f"pending={len(self._pending_changes)}, "
+            f"editors={len(self._editors)})"
+        )

@@ -22,10 +22,12 @@ class ProcessDefinition(TypedDict):
 
     name: str
     description: str
-    stages: dict[str,StageDefinition]
+    stages: dict[str, StageDefinition]
     initial_stage: str
     final_stage: str
-    stage_prop: NotRequired[str]  # Optional: property path to extract current stage from element
+    stage_prop: NotRequired[
+        str
+    ]  # Optional: property path to extract current stage from element
 
 
 class ProcessElementEvaluationResult(TypedDict):
@@ -47,25 +49,27 @@ class PathSearch:
         self.target = target
 
     def get_path(
-            self,
-            current: str,
-            foward:bool=True,
-            visited: set[str] | None = None
-            ) -> set[str] | None:
-
+        self, current: str, foward: bool = True, visited: set[str] | None = None
+    ) -> set[str] | None:
         visited = set(visited) if visited else set()
         visited.add(current)
         if current == self.target:
             return visited
-        posible_paths = [
-            to_stage for from_stage, to_stage in self.transitions
-            if from_stage == current and to_stage not in visited
-        ] if foward else [
-            from_stage for from_stage, to_stage in self.transitions
-            if to_stage == current and from_stage not in visited
-        ]
+        posible_paths = (
+            [
+                to_stage
+                for from_stage, to_stage in self.transitions
+                if from_stage == current and to_stage not in visited
+            ]
+            if foward
+            else [
+                from_stage
+                for from_stage, to_stage in self.transitions
+                if to_stage == current and from_stage not in visited
+            ]
+        )
         if not posible_paths:
-            return None # Dead end
+            return None  # Dead end
 
         for path in posible_paths:
             result = self.get_path(path, foward, visited)
@@ -74,10 +78,9 @@ class PathSearch:
         return None
 
 
-
-
 class ProcessIssueTypes(StrEnum):
     """Enumeration of process consistency issues types."""
+
     MISSING_STAGE = "missing_stage"
     INVALID_TRANSITION = "invalid_transition"
     DEAD_END_STAGE = "dead_end_stage"
@@ -88,11 +91,13 @@ class ProcessIssueTypes(StrEnum):
     MULTIPLE_GATES_SAME_TARGET = "multiple_gates_same_target"
     SELF_REFERENCING_GATE = "self_referencing_gate"
 
+
 @dataclass(frozen=True)
 class ConsistencyIssue:
     issue_type: ProcessIssueTypes
     description: str
     stages: list[str] = field(default_factory=list)
+
 
 class ProcessConsistencyChecker:
     """Check process configuration for consistency issues."""
@@ -100,12 +105,12 @@ class ProcessConsistencyChecker:
     issues: list[ConsistencyIssue]
 
     def __init__(
-            self,
-            stages: list[Stage],
-            transitions: list[tuple[str, str]],
-            initial_stage: Stage,
-            final_stage: Stage
-        ):
+        self,
+        stages: list[Stage],
+        transitions: list[tuple[str, str]],
+        initial_stage: Stage,
+        final_stage: Stage,
+    ):
         self.stages = stages
         self.transitions = transitions
         self.initial_stage = initial_stage
@@ -128,7 +133,7 @@ class ProcessConsistencyChecker:
         self._check_logical_conflicts()
         self._check_multiple_gates_same_target()
 
-    def _get_path_to_final(self, stage:Stage) -> list[Stage]:
+    def _get_path_to_final(self, stage: Stage) -> list[Stage]:
         """Get path from given stage to final stage."""
         if not self.final_stage:
             return []
@@ -159,7 +164,7 @@ class ProcessConsistencyChecker:
                 issue = ConsistencyIssue(
                     issue_type=ProcessIssueTypes.DEAD_END_STAGE,
                     description=f"Stage '{stage.name}' cannot reach final stage '{self.final_stage.name}'",
-                    stages=[stage.name]
+                    stages=[stage.name],
                 )
                 self.issues.append(issue)
 
@@ -174,7 +179,7 @@ class ProcessConsistencyChecker:
                     issue = ConsistencyIssue(
                         issue_type=ProcessIssueTypes.UNREACHABLE_STAGE,
                         description=f"Stage '{stage.name}' is unreachable from initial stage '{self.initial_stage.name}'",
-                        stages=[stage.name]
+                        stages=[stage.name],
                     )
                     self.issues.append(issue)
 
@@ -186,7 +191,7 @@ class ProcessConsistencyChecker:
                 issue = ConsistencyIssue(
                     issue_type=ProcessIssueTypes.INVALID_TRANSITION,
                     description=f"Transition from '{from_stage}' to '{to_stage}' involves non-existent stage(s)",
-                    stages=[from_stage, to_stage]
+                    stages=[from_stage, to_stage],
                 )
                 self.issues.append(issue)
 
@@ -205,7 +210,7 @@ class ProcessConsistencyChecker:
                 issue = ConsistencyIssue(
                     issue_type=ProcessIssueTypes.ORPHANED_STAGE,
                     description=f"Stage '{stage.name}' has no gates, is not marked as final, and is not referenced by any other stage",
-                    stages=[stage.name]
+                    stages=[stage.name],
                 )
                 self.issues.append(issue)
 
@@ -213,11 +218,11 @@ class ProcessConsistencyChecker:
         """Identify gates that reference their own stage (self-loops)."""
         for stage in self.stages:
             for gate in stage.gates:
-                if hasattr(gate, 'target_stage') and gate.target_stage == stage._id:
+                if hasattr(gate, "target_stage") and gate.target_stage == stage._id:
                     issue = ConsistencyIssue(
                         issue_type=ProcessIssueTypes.SELF_REFERENCING_GATE,
                         description=f"Gate '{gate.name}' in stage '{stage.name}' references the same stage, creating a self-loop. This can lead to infinite loops and should be avoided",
-                        stages=[stage.name]
+                        stages=[stage.name],
                     )
                     self.issues.append(issue)
 
@@ -231,7 +236,9 @@ class ProcessConsistencyChecker:
             rec_stack.add(stage_id)
 
             # Get all outgoing transitions from this stage
-            outgoing = [target for source, target in self.transitions if source == stage_id]
+            outgoing = [
+                target for source, target in self.transitions if source == stage_id
+            ]
 
             for neighbor in outgoing:
                 if neighbor not in visited:
@@ -242,7 +249,7 @@ class ProcessConsistencyChecker:
                     issue = ConsistencyIssue(
                         issue_type=ProcessIssueTypes.CIRCULAR_DEPENDENCY,
                         description="Circular dependency detected: stages can transition in a cycle without reaching the final stage",
-                        stages=list(rec_stack)
+                        stages=list(rec_stack),
                     )
                     self.issues.append(issue)
                     return True
@@ -279,7 +286,7 @@ class ProcessConsistencyChecker:
                 issue = ConsistencyIssue(
                     issue_type=ProcessIssueTypes.LOGICAL_CONFLICT,
                     description=f"Gate '{gate.name}' in stage '{stage.name}' has conflicting conditions for property '{prop_path}': {conflicts}",
-                    stages=[stage.name]
+                    stages=[stage.name],
                 )
                 self.issues.append(issue)
 
@@ -295,7 +302,9 @@ class ProcessConsistencyChecker:
             values = [lock.expected_value for lock in equals_locks]
             unique_values = set(values)
             if len(unique_values) > 1:
-                conflicts.append(f"multiple EQUALS conditions ({', '.join(map(str, unique_values))})")
+                conflicts.append(
+                    f"multiple EQUALS conditions ({', '.join(map(str, unique_values))})"
+                )
 
         # Check for numeric range conflicts
         gt_locks = [lock for lock in locks if lock.lock_type == LockType.GREATER_THAN]
@@ -308,7 +317,9 @@ class ProcessConsistencyChecker:
                 for gt_lock in gt_locks:
                     if isinstance(gt_lock.expected_value, (int, float)):
                         if equals_val <= gt_lock.expected_value:
-                            conflicts.append(f"EQUALS {equals_val} conflicts with GREATER_THAN {gt_lock.expected_value}")
+                            conflicts.append(
+                                f"EQUALS {equals_val} conflicts with GREATER_THAN {gt_lock.expected_value}"
+                            )
 
         # Check EQUALS vs LESS_THAN conflicts
         for equals_lock in equals_locks:
@@ -317,7 +328,9 @@ class ProcessConsistencyChecker:
                 for lt_lock in lt_locks:
                     if isinstance(lt_lock.expected_value, (int, float)):
                         if equals_val >= lt_lock.expected_value:
-                            conflicts.append(f"EQUALS {equals_val} conflicts with LESS_THAN {lt_lock.expected_value}")
+                            conflicts.append(
+                                f"EQUALS {equals_val} conflicts with LESS_THAN {lt_lock.expected_value}"
+                            )
 
         # Check GREATER_THAN vs LESS_THAN conflicts
         for gt_lock in gt_locks:
@@ -325,7 +338,9 @@ class ProcessConsistencyChecker:
                 for lt_lock in lt_locks:
                     if isinstance(lt_lock.expected_value, (int, float)):
                         if gt_lock.expected_value >= lt_lock.expected_value:
-                            conflicts.append(f"GREATER_THAN {gt_lock.expected_value} conflicts with LESS_THAN {lt_lock.expected_value}")
+                            conflicts.append(
+                                f"GREATER_THAN {gt_lock.expected_value} conflicts with LESS_THAN {lt_lock.expected_value}"
+                            )
 
         return "; ".join(conflicts) if conflicts else ""
 
@@ -336,16 +351,20 @@ class ProcessConsistencyChecker:
             gate_names = []
 
             for gate in stage.gates:
-                if hasattr(gate, 'target_stage') and gate.target_stage:
+                if hasattr(gate, "target_stage") and gate.target_stage:
                     if gate.target_stage in target_stages:
                         # Find which gates have the same target
-                        duplicate_gates = [gate_names[i] for i, target in enumerate(target_stages) if target == gate.target_stage]
+                        duplicate_gates = [
+                            gate_names[i]
+                            for i, target in enumerate(target_stages)
+                            if target == gate.target_stage
+                        ]
                         duplicate_gates.append(gate.name)
 
                         issue = ConsistencyIssue(
                             issue_type=ProcessIssueTypes.MULTIPLE_GATES_SAME_TARGET,
                             description=f"Stage '{stage.name}' has multiple gates targeting the same stage '{gate.target_stage}': "
-                                       f"{', '.join(duplicate_gates)}. Consider combining these gates into a single gate with multiple locks."
+                            f"{', '.join(duplicate_gates)}. Consider combining these gates into a single gate with multiple locks.",
                         )
                         self.issues.append(issue)
 
@@ -385,16 +404,22 @@ class Process:
         self._set_stages(stages_definition, initial_stage, final_stage)
         self.checker = self._get_consistency_checker()
 
-    def _set_stages(self, stage_definition:dict[str,StageDefinition], initial:str, final:str) -> None:
+    def _set_stages(
+        self, stage_definition: dict[str, StageDefinition], initial: str, final: str
+    ) -> None:
         """Validate stages configurations."""
         if not stage_definition or len(stage_definition) < 2:
             raise ValueError("Process must have at least two stages")
 
         index = stage_definition.keys()
         if not initial or initial not in index:
-            raise ValueError(f"Process must have a valid initial stage ('{initial}' not found)")
+            raise ValueError(
+                f"Process must have a valid initial stage ('{initial}' not found)"
+            )
         if not final or final not in index:
-            raise ValueError(f"Process must have a valid final stage ('{final}' not found)")
+            raise ValueError(
+                f"Process must have a valid final stage ('{final}' not found)"
+            )
 
         if len(set(index)) != len(index):
             raise ValueError("Process stages must have unique names")
@@ -404,7 +429,7 @@ class Process:
         for name in index:
             stage_config = stage_definition[name]
             is_final = name == final
-            stage_config['is_final'] = is_final
+            stage_config["is_final"] = is_final
             self._add_stage(name, stage_config)
         begin = self.get_stage(initial)
         end = self.get_stage(final)
@@ -438,11 +463,11 @@ class Process:
             stages=self.stages,
             transitions=self._transition_map,
             initial_stage=self.initial_stage,
-            final_stage=self.final_stage
+            final_stage=self.final_stage,
         )
 
     # Path finding methods
-    def _get_path_to_final(self, stage:Stage) -> list[Stage]:
+    def _get_path_to_final(self, stage: Stage) -> list[Stage]:
         """Get path from given stage to final stage."""
         search = PathSearch(self._transition_map, self.final_stage._id)
         path_ids = search.get_path(stage._id) or []
@@ -453,7 +478,7 @@ class Process:
         """Get a path of previous stages leading to the current stage."""
         search = PathSearch(self._transition_map, self.initial_stage._id)
         previous_ids = search.get_path(current_stage._id, foward=False) or []
-        stages =  [self.get_stage(stage_id) for stage_id in previous_ids]
+        stages = [self.get_stage(stage_id) for stage_id in previous_ids]
         return [stage for stage in stages if stage]
 
     def _find_route(self, from_stage_id: str, to_stage_id: str) -> list[str] | None:
@@ -486,7 +511,7 @@ class Process:
             stage = self.get_stage(stage_id)
             if stage:
                 for gate in stage.gates:
-                    if hasattr(gate, 'target_stage') and gate.target_stage:
+                    if hasattr(gate, "target_stage") and gate.target_stage:
                         collect_stages(gate.target_stage)
 
         # Start from initial stage
@@ -521,7 +546,8 @@ class Process:
         self.stages.remove(stage)
         self._stage_index.remove(stage._id)
         self._transition_map = [
-            (from_stage, to_stage) for from_stage, to_stage in self._transition_map
+            (from_stage, to_stage)
+            for from_stage, to_stage in self._transition_map
             if from_stage != stage._id and to_stage != stage._id
         ]
         self.checker = self._get_consistency_checker()
@@ -531,7 +557,9 @@ class Process:
         self._transition_map.append((from_stage, to_stage))
         self.checker = self._get_consistency_checker()
 
-    def get_schema(self, stage_name: str, partial: bool = True) -> ExpectedObjectSchmema:
+    def get_schema(
+        self, stage_name: str, partial: bool = True
+    ) -> ExpectedObjectSchmema:
         """Get schema definition for specified stage.
 
         Args:
@@ -570,9 +598,7 @@ class Process:
 
     # Element evaluation methods
     def _extract_current_stage(
-        self,
-        element: Element,
-        stage_override: str | None = None
+        self, element: Element, stage_override: str | None = None
     ) -> str:
         """
         Determine the current stage for evaluation.
@@ -616,7 +642,7 @@ class Process:
 
                 # Validate stage exists in process
                 if not self.get_stage(extracted_value):
-                    available_stages = ', '.join(sorted(self._stage_index))
+                    available_stages = ", ".join(sorted(self._stage_index))
                     raise ValueError(
                         f"Stage '{extracted_value}' extracted from property "
                         f"'{self.stage_prop}' is not a valid stage. "
@@ -636,7 +662,9 @@ class Process:
         # Priority 3: Default to initial_stage
         return self.initial_stage._id
 
-    def evaluate(self, element: Element, current_stage_name: str | None = None) -> ProcessElementEvaluationResult:
+    def evaluate(
+        self, element: Element, current_stage_name: str | None = None
+    ) -> ProcessElementEvaluationResult:
         """
         Determine if the element is ready to transition from the current stage.
 
@@ -656,7 +684,9 @@ class Process:
             ValueError: If process is inconsistent or stage extraction fails
         """
         if self.checker.valid is False:
-            raise ValueError("Cannot evaluate element in an inconsistent process configuration")
+            raise ValueError(
+                "Cannot evaluate element in an inconsistent process configuration"
+            )
 
         # Determine current stage using precedence order
         stage_name = self._extract_current_stage(element, current_stage_name)
@@ -673,18 +703,21 @@ class Process:
         previous_stage_results: list[StageEvaluationResult] = [
             stage.evaluate(element) for stage in previous_stages
         ]
-        previus_stage_fails = [ res
-            for res  in previous_stage_results
+        previus_stage_fails = [
+            res
+            for res in previous_stage_results
             if res.status != StageStatus.READY_FOR_TRANSITION
         ]
         regresion = len(previus_stage_fails) > 0
         return ProcessElementEvaluationResult(
             stage=current_stage._id,
             stage_result=current_stage_result,
-            regression=regresion
+            regression=regresion,
         )
 
-    def evaluate_batch(self, elements: list[Element]) -> list[ProcessElementEvaluationResult]:
+    def evaluate_batch(
+        self, elements: list[Element]
+    ) -> list[ProcessElementEvaluationResult]:
         """Evaluate multiple elements in batch."""
         return [self.evaluate(element) for element in elements]
 
