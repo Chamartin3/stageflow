@@ -32,9 +32,18 @@ class TestLockType:
         """Verify LockType enum contains all 12 expected lock types."""
         # Arrange
         expected_lock_types = {
-            "EXISTS", "EQUALS", "GREATER_THAN", "LESS_THAN", "CONTAINS",
-            "REGEX", "TYPE_CHECK", "RANGE", "LENGTH", "NOT_EMPTY",
-            "IN_LIST", "NOT_IN_LIST"
+            "EXISTS",
+            "EQUALS",
+            "GREATER_THAN",
+            "LESS_THAN",
+            "CONTAINS",
+            "REGEX",
+            "TYPE_CHECK",
+            "RANGE",
+            "LENGTH",
+            "NOT_EMPTY",
+            "IN_LIST",
+            "NOT_IN_LIST",
         }
 
         # Act
@@ -59,7 +68,7 @@ class TestLockType:
             LockType.LENGTH: "length",
             LockType.NOT_EMPTY: "not_empty",
             LockType.IN_LIST: "in_list",
-            LockType.NOT_IN_LIST: "not_in_list"
+            LockType.NOT_IN_LIST: "not_in_list",
         }
 
         # Act & Assert
@@ -252,7 +261,9 @@ class TestLockTypeFailureMessages:
         """Verify unknown lock types generate generic failure message."""
         # Arrange
         # This tests the fallback case in the failure_message method
-        lock_type = LockType.LENGTH  # Using LENGTH which doesn't have a specific message
+        lock_type = (
+            LockType.LENGTH
+        )  # Using LENGTH which doesn't have a specific message
         property_path = "text"
         actual_value = "short"
 
@@ -271,11 +282,7 @@ class TestLockTypeValidation:
     @pytest.fixture
     def sample_lock_meta(self) -> LockMetaData:
         """Create sample lock metadata for testing."""
-        return LockMetaData(
-            expected_value="test_value",
-            min_value=0,
-            max_value=100
-        )
+        return LockMetaData(expected_value="test_value", min_value=0, max_value=100)
 
     def test_exists_validation_with_valid_values(self):
         """Verify EXISTS validation passes for non-None, non-empty values."""
@@ -288,7 +295,7 @@ class TestLockTypeValidation:
             False,
             ["list", "with", "items"],
             {"key": "value"},
-            " \t non-whitespace \n "  # String with content after stripping
+            " \t non-whitespace \n ",  # String with content after stripping
         ]
 
         for value in test_cases:
@@ -306,7 +313,7 @@ class TestLockTypeValidation:
             None,
             "",
             "   ",  # Whitespace-only string
-            "\t\n  \r"  # Various whitespace characters
+            "\t\n  \r",  # Various whitespace characters
         ]
 
         for value in test_cases:
@@ -314,7 +321,9 @@ class TestLockTypeValidation:
             result = lock_type.validate(value, {})
 
             # Assert
-            assert result is False, f"EXISTS validation should have failed for value: {repr(value)}"
+            assert result is False, (
+                f"EXISTS validation should have failed for value: {repr(value)}"
+            )
 
     def test_not_empty_validation_with_strings(self):
         """Verify NOT_EMPTY validation works correctly for strings."""
@@ -427,9 +436,18 @@ class TestLockTypeValidation:
         phone_pattern = r"^\+?[\d\s\-\(\)]+$"
 
         # Act & Assert
-        assert lock_type.validate("user@example.com", {"expected_value": email_pattern}) is True
-        assert lock_type.validate("+1-234-567-8900", {"expected_value": phone_pattern}) is True
-        assert lock_type.validate("invalid-email", {"expected_value": email_pattern}) is False
+        assert (
+            lock_type.validate("user@example.com", {"expected_value": email_pattern})
+            is True
+        )
+        assert (
+            lock_type.validate("+1-234-567-8900", {"expected_value": phone_pattern})
+            is True
+        )
+        assert (
+            lock_type.validate("invalid-email", {"expected_value": email_pattern})
+            is False
+        )
         assert lock_type.validate("abc@", {"expected_value": email_pattern}) is False
 
     def test_regex_validation_with_non_string_values(self):
@@ -468,9 +486,16 @@ class TestLockTypeValidation:
         lock_type = LockType.CONTAINS
 
         # Act & Assert
-        assert lock_type.validate(["apple", "banana", "cherry"], {"expected_value": "banana"}) is True
+        assert (
+            lock_type.validate(
+                ["apple", "banana", "cherry"], {"expected_value": "banana"}
+            )
+            is True
+        )
         assert lock_type.validate({"a": 1, "b": 2}, {"expected_value": "b"}) is True
-        assert lock_type.validate([1, 2, 3], {"expected_value": "2"}) is True  # String conversion
+        assert (
+            lock_type.validate([1, 2, 3], {"expected_value": "2"}) is True
+        )  # String conversion
         assert lock_type.validate([1, 2, 3], {"expected_value": "4"}) is False
 
     def test_contains_validation_with_invalid_types(self):
@@ -596,7 +621,9 @@ class TestLockTypeValidation:
             # Verify each lock type has proper validation logic
             try:
                 # Use a simple test case for each lock type
-                result = lock_type.validate("test_value", {"expected_value": "test_value"})
+                result = lock_type.validate(
+                    "test_value", {"expected_value": "test_value"}
+                )
                 assert isinstance(result, bool)
             except Exception as e:
                 # If an exception occurs, it should be a known validation error,
@@ -621,7 +648,7 @@ class TestLockResult:
             lock_type=lock_type,
             actual_value=actual_value,
             expected_value=None,
-            error_message=""
+            error_message="",
         )
 
         # Assert
@@ -648,7 +675,7 @@ class TestLockResult:
             lock_type=lock_type,
             actual_value=actual_value,
             expected_value=expected_value,
-            error_message=error_message
+            error_message=error_message,
         )
 
         # Assert
@@ -668,20 +695,21 @@ class TestLockResult:
             lock_type=LockType.EXISTS,
             actual_value="value",
             expected_value=None,
-            error_message=""
+            error_message="",
         )
 
         # Act & Assert
-        with pytest.raises((AttributeError, FrozenInstanceError), match="can't set attribute|cannot assign to field"):
+        with pytest.raises(
+            (AttributeError, FrozenInstanceError),
+            match="can't set attribute|cannot assign to field",
+        ):
             result.success = False
 
     def test_lock_result_default_values(self):
         """Verify LockResult has appropriate default values."""
         # Arrange & Act
         result = LockResult(
-            success=True,
-            property_path="test",
-            lock_type=LockType.EXISTS
+            success=True, property_path="test", lock_type=LockType.EXISTS
         )
 
         # Assert
@@ -703,19 +731,15 @@ class TestLock:
                 "first_name": "John",
                 "last_name": "Doe",
                 "age": 25,
-                "bio": "Software developer with 5 years of experience"
+                "bio": "Software developer with 5 years of experience",
             },
-            "preferences": {
-                "theme": "dark",
-                "notifications": True,
-                "language": "en"
-            },
+            "preferences": {"theme": "dark", "notifications": True, "language": "en"},
             "scores": [85, 92, 78, 96],
             "metadata": {
                 "created_at": "2024-01-01T10:00:00Z",
                 "last_login": None,
-                "is_verified": True
-            }
+                "is_verified": True,
+            },
         }
         return DictElement(data)
 
@@ -725,7 +749,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "user.email",
-            "expected_value": None
+            "expected_value": None,
         }
 
         # Act
@@ -743,7 +767,7 @@ class TestLock:
             "type": LockType.EQUALS,
             "property_path": "status",
             "expected_value": "active",
-            "metadata": {"min_value": 0, "max_value": 100}
+            "metadata": {"min_value": 0, "max_value": 100},
         }
 
         # Act
@@ -761,7 +785,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "test",
-            "expected_value": None
+            "expected_value": None,
         }
 
         # Act
@@ -776,7 +800,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "email",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -797,7 +821,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "nonexistent.property",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -818,7 +842,7 @@ class TestLock:
         config = {
             "type": LockType.EQUALS,
             "property_path": "preferences.theme",
-            "expected_value": "dark"
+            "expected_value": "dark",
         }
         lock = Lock(config)
 
@@ -836,7 +860,7 @@ class TestLock:
         config = {
             "type": LockType.EQUALS,
             "property_path": "preferences.theme",
-            "expected_value": "light"
+            "expected_value": "light",
         }
         lock = Lock(config)
 
@@ -856,7 +880,7 @@ class TestLock:
         config = {
             "type": LockType.REGEX,
             "property_path": "email",
-            "expected_value": email_pattern
+            "expected_value": email_pattern,
         }
         lock = Lock(config)
 
@@ -875,7 +899,7 @@ class TestLock:
             "type": LockType.RANGE,
             "property_path": "profile.age",
             "expected_value": None,
-            "metadata": {"min_value": 18, "max_value": 65}
+            "metadata": {"min_value": 18, "max_value": 65},
         }
         lock = Lock(config)
 
@@ -893,7 +917,7 @@ class TestLock:
             "type": LockType.RANGE,
             "property_path": "profile.age",
             "expected_value": None,
-            "metadata": {"min_value": 30, "max_value": 65}
+            "metadata": {"min_value": 30, "max_value": 65},
         }
         lock = Lock(config)
 
@@ -910,7 +934,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "profile.first_name",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -930,7 +954,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "test.property",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -951,7 +975,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "test.property",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -969,7 +993,7 @@ class TestLock:
         config = {
             "type": LockType.EQUALS,
             "property_path": "user.status",
-            "expected_value": "active"
+            "expected_value": "active",
         }
         lock = Lock(config)
 
@@ -980,7 +1004,7 @@ class TestLock:
         assert result == {
             "property_path": "user.status",
             "type": LockType.EQUALS,
-            "expected_value": "active"
+            "expected_value": "active",
         }
 
     def test_lock_has_typo_in_error_message_variable(self, sample_element):
@@ -989,7 +1013,7 @@ class TestLock:
         config = {
             "type": LockType.EXISTS,
             "property_path": "missing.property",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -1012,7 +1036,7 @@ class TestLockFactory:
         lock_definition = {
             "type": LockType.EQUALS,
             "property_path": "user.status",
-            "expected_value": "active"
+            "expected_value": "active",
         }
 
         # Act
@@ -1027,9 +1051,7 @@ class TestLockFactory:
     def test_lock_factory_create_with_exists_shorthand(self):
         """Verify LockFactory creates Lock from 'exists' shorthand."""
         # Arrange
-        lock_definition = {
-            "exists": "user.email"
-        }
+        lock_definition = {"exists": "user.email"}
 
         # Act
         lock = LockFactory.create(lock_definition)
@@ -1043,9 +1065,7 @@ class TestLockFactory:
     def test_lock_factory_create_with_is_true_shorthand(self):
         """Verify LockFactory creates Lock from 'is_true' shorthand."""
         # Arrange
-        lock_definition = {
-            "is_true": "user.is_verified"
-        }
+        lock_definition = {"is_true": "user.is_verified"}
 
         # Act
         lock = LockFactory.create(lock_definition)
@@ -1059,9 +1079,7 @@ class TestLockFactory:
     def test_lock_factory_create_with_is_false_shorthand(self):
         """Verify LockFactory creates Lock from 'is_false' shorthand."""
         # Arrange
-        lock_definition = {
-            "is_false": "user.is_suspended"
-        }
+        lock_definition = {"is_false": "user.is_suspended"}
 
         # Act
         lock = LockFactory.create(lock_definition)
@@ -1092,7 +1110,7 @@ class TestLockFactory:
         # Arrange
         lock_definition = {
             "exists": None,
-            "is_true": "some.property"  # This should be used
+            "is_true": "some.property",  # This should be used
         }
 
         # Act
@@ -1133,7 +1151,7 @@ class TestLockFactory:
             "type": LockType.REGEX,
             "property_path": "user.email",
             "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
-            "exists": "user.name"  # This should be ignored
+            "exists": "user.name",  # This should be ignored
         }
 
         # Act
@@ -1159,20 +1177,13 @@ class TestLockIntegration:
                     "email": "alice@example.com",
                     "age": 28,
                     "skills": ["Python", "JavaScript", "SQL"],
-                    "certifications": {
-                        "aws": True,
-                        "kubernetes": False
-                    }
+                    "certifications": {"aws": True, "kubernetes": False},
                 },
                 "settings": {
                     "theme": "dark",
                     "language": "en-US",
-                    "notifications": {
-                        "email": True,
-                        "push": False,
-                        "sms": True
-                    }
-                }
+                    "notifications": {"email": True, "push": False, "sms": True},
+                },
             },
             "account": {
                 "type": "premium",
@@ -1182,15 +1193,15 @@ class TestLockIntegration:
                 "subscription": {
                     "plan": "professional",
                     "expires_at": "2024-06-15T08:30:00Z",
-                    "auto_renew": True
-                }
+                    "auto_renew": True,
+                },
             },
             "metrics": {
                 "login_count": 142,
                 "projects_created": 15,
                 "last_activity": "2024-01-20T14:22:00Z",
-                "performance_score": 94.5
-            }
+                "performance_score": 94.5,
+            },
         }
         return DictElement(data)
 
@@ -1199,37 +1210,149 @@ class TestLockIntegration:
         # Arrange
         locks_and_expectations = [
             # EXISTS locks
-            ({"type": LockType.EXISTS, "property_path": "user.id", "expected_value": None}, True),
-            ({"type": LockType.EXISTS, "property_path": "user.profile.email", "expected_value": None}, True),
-            ({"type": LockType.EXISTS, "property_path": "nonexistent.path", "expected_value": None}, False),
-
+            (
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "user.id",
+                    "expected_value": None,
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "user.profile.email",
+                    "expected_value": None,
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "nonexistent.path",
+                    "expected_value": None,
+                },
+                False,
+            ),
             # EQUALS locks
-            ({"type": LockType.EQUALS, "property_path": "user.settings.theme", "expected_value": "dark"}, True),
-            ({"type": LockType.EQUALS, "property_path": "account.type", "expected_value": "basic"}, False),
-
+            (
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "user.settings.theme",
+                    "expected_value": "dark",
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "account.type",
+                    "expected_value": "basic",
+                },
+                False,
+            ),
             # GREATER_THAN locks
-            ({"type": LockType.GREATER_THAN, "property_path": "user.profile.age", "expected_value": 25}, True),
-            ({"type": LockType.GREATER_THAN, "property_path": "account.balance", "expected_value": 2000}, False),
-
+            (
+                {
+                    "type": LockType.GREATER_THAN,
+                    "property_path": "user.profile.age",
+                    "expected_value": 25,
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.GREATER_THAN,
+                    "property_path": "account.balance",
+                    "expected_value": 2000,
+                },
+                False,
+            ),
             # REGEX locks
-            ({"type": LockType.REGEX, "property_path": "user.profile.email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}, True),
-            ({"type": LockType.REGEX, "property_path": "user.id", "expected_value": r"^usr_\d+$"}, True),
-
+            (
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "user.profile.email",
+                    "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "user.id",
+                    "expected_value": r"^usr_\d+$",
+                },
+                True,
+            ),
             # IN_LIST locks
-            ({"type": LockType.IN_LIST, "property_path": "account.type", "expected_value": ["basic", "premium", "enterprise"]}, True),
-            ({"type": LockType.IN_LIST, "property_path": "user.settings.language", "expected_value": ["en-US", "es-ES", "fr-FR"]}, True),
-
+            (
+                {
+                    "type": LockType.IN_LIST,
+                    "property_path": "account.type",
+                    "expected_value": ["basic", "premium", "enterprise"],
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.IN_LIST,
+                    "property_path": "user.settings.language",
+                    "expected_value": ["en-US", "es-ES", "fr-FR"],
+                },
+                True,
+            ),
             # CONTAINS locks
-            ({"type": LockType.CONTAINS, "property_path": "user.profile.skills", "expected_value": "Python"}, True),
-            ({"type": LockType.CONTAINS, "property_path": "user.profile.name", "expected_value": "Johnson"}, True),
-
+            (
+                {
+                    "type": LockType.CONTAINS,
+                    "property_path": "user.profile.skills",
+                    "expected_value": "Python",
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.CONTAINS,
+                    "property_path": "user.profile.name",
+                    "expected_value": "Johnson",
+                },
+                True,
+            ),
             # TYPE_CHECK locks
-            ({"type": LockType.TYPE_CHECK, "property_path": "metrics.login_count", "expected_value": "int"}, True),
-            ({"type": LockType.TYPE_CHECK, "property_path": "account.subscription.auto_renew", "expected_value": "bool"}, True),
-
+            (
+                {
+                    "type": LockType.TYPE_CHECK,
+                    "property_path": "metrics.login_count",
+                    "expected_value": "int",
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.TYPE_CHECK,
+                    "property_path": "account.subscription.auto_renew",
+                    "expected_value": "bool",
+                },
+                True,
+            ),
             # LENGTH locks
-            ({"type": LockType.LENGTH, "property_path": "user.profile.skills", "expected_value": 3}, True),
-            ({"type": LockType.LENGTH, "property_path": "user.id", "expected_value": 7}, True),
+            (
+                {
+                    "type": LockType.LENGTH,
+                    "property_path": "user.profile.skills",
+                    "expected_value": 3,
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.LENGTH,
+                    "property_path": "user.id",
+                    "expected_value": 7,
+                },
+                True,
+            ),
         ]
 
         # Act & Assert
@@ -1252,19 +1375,24 @@ class TestLockIntegration:
             ({"exists": "missing.property"}, False),
             ({"is_true": "account.subscription.auto_renew"}, True),
             ({"is_false": "user.profile.certifications.kubernetes"}, True),
-
             # Full definition syntax
-            ({
-                "type": LockType.RANGE,
-                "property_path": "metrics.performance_score",
-                "expected_value": None,
-                "metadata": {"min_value": 80, "max_value": 100}
-            }, True),
-            ({
-                "type": LockType.NOT_IN_LIST,
-                "property_path": "account.type",
-                "expected_value": ["basic", "trial"]
-            }, True),
+            (
+                {
+                    "type": LockType.RANGE,
+                    "property_path": "metrics.performance_score",
+                    "expected_value": None,
+                    "metadata": {"min_value": 80, "max_value": 100},
+                },
+                True,
+            ),
+            (
+                {
+                    "type": LockType.NOT_IN_LIST,
+                    "property_path": "account.type",
+                    "expected_value": ["basic", "trial"],
+                },
+                True,
+            ),
         ]
 
         # Act & Assert
@@ -1283,13 +1411,29 @@ class TestLockIntegration:
         # Arrange
         edge_case_locks = [
             # Array index access (if element supports it)
-            Lock({"type": LockType.EXISTS, "property_path": "user.profile.skills[0]", "expected_value": None}),
-
+            Lock(
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "user.profile.skills[0]",
+                    "expected_value": None,
+                }
+            ),
             # Deeply nested properties
-            Lock({"type": LockType.EXISTS, "property_path": "user.settings.notifications.email", "expected_value": None}),
-
+            Lock(
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "user.settings.notifications.email",
+                    "expected_value": None,
+                }
+            ),
             # Properties with None values
-            Lock({"type": LockType.EXISTS, "property_path": "account.last_payment", "expected_value": None}),
+            Lock(
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "account.last_payment",
+                    "expected_value": None,
+                }
+            ),
         ]
 
         # Act & Assert
@@ -1303,7 +1447,13 @@ class TestLockIntegration:
         """Test performance characteristics with multiple validations."""
         # Arrange
         locks = [
-            Lock({"type": LockType.EXISTS, "property_path": "user.profile.skills", "expected_value": None})
+            Lock(
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "user.profile.skills",
+                    "expected_value": None,
+                }
+            )
             for _ in range(100)
         ]
 
@@ -1322,18 +1472,21 @@ class TestLockIntegration:
 class TestLockTypeEdgeCases:
     """Test suite for edge cases and boundary conditions in lock validation."""
 
-    @pytest.mark.parametrize("value,expected", [
-        ("", False),
-        ("   ", False),
-        ("\t\n\r", False),
-        ("a", True),
-        ("  content  ", True),
-        (0, True),
-        (False, True),
-        (None, False),
-        ([], True),
-        ({}, True),
-    ])
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("", False),
+            ("   ", False),
+            ("\t\n\r", False),
+            ("a", True),
+            ("  content  ", True),
+            (0, True),
+            (False, True),
+            (None, False),
+            ([], True),
+            ({}, True),
+        ],
+    )
     def test_exists_validation_edge_cases(self, value, expected):
         """Test EXISTS validation with various edge case values."""
         # Arrange
@@ -1345,16 +1498,21 @@ class TestLockTypeEdgeCases:
         # Assert
         assert result == expected
 
-    @pytest.mark.parametrize("value,min_val,max_val,expected", [
-        (50, 0, 100, True),
-        (0, 0, 100, True),
-        (100, 0, 100, True),
-        (-1, 0, 100, False),
-        (101, 0, 100, False),
-        (50.5, 50, 51, True),
-        ("50", 40, 60, True),  # String should be converted to float
-    ])
-    def test_range_validation_boundary_conditions(self, value, min_val, max_val, expected):
+    @pytest.mark.parametrize(
+        "value,min_val,max_val,expected",
+        [
+            (50, 0, 100, True),
+            (0, 0, 100, True),
+            (100, 0, 100, True),
+            (-1, 0, 100, False),
+            (101, 0, 100, False),
+            (50.5, 50, 51, True),
+            ("50", 40, 60, True),  # String should be converted to float
+        ],
+    )
+    def test_range_validation_boundary_conditions(
+        self, value, min_val, max_val, expected
+    ):
         """Test RANGE validation with boundary conditions."""
         # Arrange
         lock_type = LockType.RANGE
@@ -1366,17 +1524,22 @@ class TestLockTypeEdgeCases:
         # Assert
         assert result == expected
 
-    @pytest.mark.parametrize("collection,expected_value,expected_result", [
-        ("hello world", "world", True),
-        ("hello world", "missing", False),
-        (["a", "b", "c"], "b", True),
-        (["a", "b", "c"], "d", False),
-        ({"key": "value"}, "key", True),
-        ({"key": "value"}, "missing", False),
-        (123, "1", False),  # Invalid type
-        (None, "test", False),  # None value
-    ])
-    def test_contains_validation_with_various_types(self, collection, expected_value, expected_result):
+    @pytest.mark.parametrize(
+        "collection,expected_value,expected_result",
+        [
+            ("hello world", "world", True),
+            ("hello world", "missing", False),
+            (["a", "b", "c"], "b", True),
+            (["a", "b", "c"], "d", False),
+            ({"key": "value"}, "key", True),
+            ({"key": "value"}, "missing", False),
+            (123, "1", False),  # Invalid type
+            (None, "test", False),  # None value
+        ],
+    )
+    def test_contains_validation_with_various_types(
+        self, collection, expected_value, expected_result
+    ):
         """Test CONTAINS validation with various collection types."""
         # Arrange
         lock_type = LockType.CONTAINS
@@ -1394,13 +1557,19 @@ class TestLockTypeEdgeCases:
         lock_type = LockType.REGEX
         test_cases = [
             # Email validation
-            ("user@example.com", r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", True),
-            ("invalid.email", r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", False),
-
+            (
+                "user@example.com",
+                r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+                True,
+            ),
+            (
+                "invalid.email",
+                r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+                False,
+            ),
             # Phone number validation
             ("+1-555-123-4567", r"^\+?[\d\s\-\(\)]+$", True),
             ("abc-def-ghij", r"^\+?[\d\s\-\(\)]+$", False),
-
             # URL validation
             ("https://example.com/path", r"^https?://[^\s/$.?#].[^\s]*$", True),
             ("not-a-url", r"^https?://[^\s/$.?#].[^\s]*$", False),
@@ -1448,21 +1617,21 @@ class TestLockSystemIntegration:
                 "age": 32,
                 "department": "Engineering",
                 "skills": ["Python", "Docker", "Kubernetes", "AWS"],
-                "certification_count": 4
+                "certification_count": 4,
             },
             "employment": {
                 "status": "active",
                 "start_date": "2020-03-15",
                 "salary": 95000,
                 "is_manager": True,
-                "direct_reports": 3
+                "direct_reports": 3,
             },
             "access": {
                 "level": "senior",
                 "permissions": ["read", "write", "admin"],
                 "last_login": "2024-01-20T09:15:00Z",
-                "failed_login_attempts": 0
-            }
+                "failed_login_attempts": 0,
+            },
         }
         element = DictElement(user_data)
 
@@ -1472,70 +1641,64 @@ class TestLockSystemIntegration:
             {"exists": "id"},
             {"exists": "email"},
             {"exists": "profile.first_name"},
-
             # Format validations
             {
                 "type": LockType.REGEX,
                 "property_path": "email",
-                "expected_value": r"^[^@]+@[^@]+\.[^@]+$"
+                "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
             },
             {
                 "type": LockType.REGEX,
                 "property_path": "id",
-                "expected_value": r"^usr_\d+$"
+                "expected_value": r"^usr_\d+$",
             },
-
             # Business rule validations
             {
                 "type": LockType.IN_LIST,
                 "property_path": "employment.status",
-                "expected_value": ["active", "inactive", "pending"]
+                "expected_value": ["active", "inactive", "pending"],
             },
             {
                 "type": LockType.GREATER_THAN,
                 "property_path": "profile.age",
-                "expected_value": 18
+                "expected_value": 18,
             },
             {
                 "type": LockType.RANGE,
                 "property_path": "employment.salary",
                 "expected_value": None,
-                "metadata": {"min_value": 30000, "max_value": 200000}
+                "metadata": {"min_value": 30000, "max_value": 200000},
             },
-
             # Collection validations
             {
                 "type": LockType.CONTAINS,
                 "property_path": "access.permissions",
-                "expected_value": "read"
+                "expected_value": "read",
             },
             {
                 "type": LockType.LENGTH,
                 "property_path": "profile.skills",
-                "expected_value": 4
+                "expected_value": 4,
             },
-
             # Type checks
             {
                 "type": LockType.TYPE_CHECK,
                 "property_path": "employment.is_manager",
-                "expected_value": "bool"
+                "expected_value": "bool",
             },
             {
                 "type": LockType.TYPE_CHECK,
                 "property_path": "access.failed_login_attempts",
-                "expected_value": "int"
+                "expected_value": "int",
             },
-
             # Boolean checks using shorthand
             {"is_true": "employment.is_manager"},
-
             # Security validations
             {
                 "type": LockType.LESS_THAN,
                 "property_path": "access.failed_login_attempts",
-                "expected_value": 5
-            }
+                "expected_value": 5,
+            },
         ]
 
         # Act - Validate all rules
@@ -1547,13 +1710,10 @@ class TestLockSystemIntegration:
 
         # Assert - All validations should pass
         failed_validations = [
-            (rule, result) for rule, result in results
-            if not result.success
+            (rule, result) for rule, result in results if not result.success
         ]
 
-        assert len(failed_validations) == 0, (
-            f"Failed validations: {failed_validations}"
-        )
+        assert len(failed_validations) == 0, f"Failed validations: {failed_validations}"
 
         # Verify specific results
         assert len(results) == len(validation_rules)
@@ -1566,7 +1726,7 @@ class TestLockSystemIntegration:
             "user": {
                 "email": "invalid-email-format",
                 "age": "not-a-number",
-                "status": "unknown_status"
+                "status": "unknown_status",
             }
         }
         element = DictElement(problematic_data)
@@ -1575,23 +1735,23 @@ class TestLockSystemIntegration:
             {
                 "type": LockType.REGEX,
                 "property_path": "user.email",
-                "expected_value": r"^[^@]+@[^@]+\.[^@]+$"
+                "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
             },
             {
                 "type": LockType.TYPE_CHECK,
                 "property_path": "user.age",
-                "expected_value": "int"
+                "expected_value": "int",
             },
             {
                 "type": LockType.IN_LIST,
                 "property_path": "user.status",
-                "expected_value": ["active", "inactive", "pending"]
+                "expected_value": ["active", "inactive", "pending"],
             },
             {
                 "type": LockType.EXISTS,
                 "property_path": "user.missing_field",
-                "expected_value": None
-            }
+                "expected_value": None,
+            },
         ]
 
         # Act
@@ -1621,7 +1781,9 @@ class TestLockSystemIntegration:
         status_error = next(r for r in error_results if "status" in r.property_path)
         assert "should be one of" in status_error.error_message
 
-        missing_error = next(r for r in error_results if "missing_field" in r.property_path)
+        missing_error = next(
+            r for r in error_results if "missing_field" in r.property_path
+        )
         assert "required but missing" in missing_error.error_message
 
 
@@ -1635,7 +1797,7 @@ class TestLockDocumentedIssues:
         config = {
             "type": LockType.EXISTS,
             "property_path": "missing",
-            "expected_value": None
+            "expected_value": None,
         }
         lock = Lock(config)
 
@@ -1655,7 +1817,7 @@ class TestLockDocumentedIssues:
         config = {
             "type": LockType.EQUALS,
             "property_path": "test",
-            "expected_value": "test_value"
+            "expected_value": "test_value",
         }
 
         # Act

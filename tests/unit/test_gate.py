@@ -25,7 +25,7 @@ class TestGateDefinition:
             "description": "Test gate description",
             "target_stage": "next_stage",
             "parent_stage": "current_stage",
-            "locks": []
+            "locks": [],
         }
 
         # Act & Assert
@@ -57,12 +57,10 @@ class TestGateResult:
             success=False,
             property_path="test.path",
             lock_type=LockType.EXISTS,
-            error_message="Test error message"
+            error_message="Test error message",
         )
         passed_lock_result = LockResult(
-            success=True,
-            property_path="valid.path",
-            lock_type=LockType.EXISTS
+            success=True, property_path="valid.path", lock_type=LockType.EXISTS
         )
 
         # Act
@@ -70,7 +68,7 @@ class TestGateResult:
             success=False,
             success_rate=0.5,
             failed=[failed_lock_result],
-            passed=[passed_lock_result]
+            passed=[passed_lock_result],
         )
 
         # Assert
@@ -88,27 +86,23 @@ class TestGateResult:
                 success=False,
                 property_path="field1",
                 lock_type=LockType.EXISTS,
-                error_message="Field1 is required"
+                error_message="Field1 is required",
             ),
             LockResult(
                 success=False,
                 property_path="field2",
                 lock_type=LockType.REGEX,
-                error_message="Field2 format invalid"
+                error_message="Field2 format invalid",
             ),
             LockResult(
                 success=False,
                 property_path="field3",
                 lock_type=LockType.EQUALS,
-                error_message=""  # Empty error message
-            )
+                error_message="",  # Empty error message
+            ),
         ]
 
-        result = GateResult(
-            success=False,
-            failed=failed_lock_results,
-            passed=[]
-        )
+        result = GateResult(success=False, failed=failed_lock_results, passed=[])
 
         # Act
         messages = result.messages
@@ -122,16 +116,10 @@ class TestGateResult:
         """Verify messages property returns empty list when no failures."""
         # Arrange
         passed_lock_result = LockResult(
-            success=True,
-            property_path="valid.path",
-            lock_type=LockType.EXISTS
+            success=True, property_path="valid.path", lock_type=LockType.EXISTS
         )
 
-        result = GateResult(
-            success=True,
-            failed=[],
-            passed=[passed_lock_result]
-        )
+        result = GateResult(success=True, failed=[], passed=[passed_lock_result])
 
         # Act
         messages = result.messages
@@ -161,8 +149,12 @@ class TestGateInitialization:
             "target_stage": "verified_user",
             "parent_stage": "new_user",
             "locks": [
-                {"type": LockType.EXISTS, "property_path": "email", "expected_value": None}
-            ]
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "email",
+                    "expected_value": None,
+                }
+            ],
         }
 
         # Act
@@ -184,10 +176,22 @@ class TestGateInitialization:
             "target_stage": "active_user",
             "parent_stage": "pending_user",
             "locks": [
-                {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
-                {"type": LockType.EXISTS, "property_path": "profile.first_name", "expected_value": None},
-                {"type": LockType.EQUALS, "property_path": "verification.email_verified", "expected_value": True}
-            ]
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "email",
+                    "expected_value": None,
+                },
+                {
+                    "type": LockType.EXISTS,
+                    "property_path": "profile.first_name",
+                    "expected_value": None,
+                },
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "verification.email_verified",
+                    "expected_value": True,
+                },
+            ],
         }
 
         # Act
@@ -209,8 +213,8 @@ class TestGateInitialization:
             "locks": [
                 {"exists": "email"},
                 {"exists": "user_id"},
-                {"is_true": "active"}
-            ]
+                {"is_true": "active"},
+            ],
         }
 
         # Act
@@ -229,7 +233,7 @@ class TestGateInitialization:
             "description": "Test gate",
             "target_stage": "next_stage",
             "parent_stage": "current_stage",
-            "locks": [{"exists": "email"}]
+            "locks": [{"exists": "email"}],
         }
 
         # Act & Assert
@@ -244,11 +248,13 @@ class TestGateInitialization:
             "description": "Test gate",
             "target_stage": "",
             "parent_stage": "current_stage",
-            "locks": [{"exists": "email"}]
+            "locks": [{"exists": "email"}],
         }
 
         # Act & Assert
-        with pytest.raises(ValueError, match="Gate must have at least one lock and a target stage"):
+        with pytest.raises(
+            ValueError, match="Gate must have at least one lock and a target stage"
+        ):
             Gate(gate_config)
 
     def test_gate_initialization_no_locks_raises_value_error(self):
@@ -259,11 +265,13 @@ class TestGateInitialization:
             "description": "Test gate",
             "target_stage": "next_stage",
             "parent_stage": "current_stage",
-            "locks": []
+            "locks": [],
         }
 
         # Act & Assert
-        with pytest.raises(ValueError, match="Gate must have at least one lock and a target stage"):
+        with pytest.raises(
+            ValueError, match="Gate must have at least one lock and a target stage"
+        ):
             Gate(gate_config)
 
     def test_gate_initialization_with_optional_description(self):
@@ -274,7 +282,7 @@ class TestGateInitialization:
             "description": "",
             "target_stage": "next_stage",
             "parent_stage": "current_stage",
-            "locks": [{"exists": "field"}]
+            "locks": [{"exists": "field"}],
         }
 
         # Act
@@ -297,7 +305,7 @@ class TestGateClassMethods:
             "description": "Created via factory method",
             "target_stage": "next_stage",
             "parent_stage": "current_stage",
-            "locks": [{"exists": "email"}]
+            "locks": [{"exists": "email"}],
         }
 
         # Act
@@ -317,7 +325,7 @@ class TestGateClassMethods:
             "description": "Test",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [{"exists": "field"}]
+            "locks": [{"exists": "field"}],
         }
 
         # Act
@@ -336,39 +344,33 @@ class TestGateEvaluation:
     @pytest.fixture
     def valid_element(self) -> DictElement:
         """Create a valid element for testing."""
-        return DictElement({
-            "email": "user@example.com",
-            "user_id": "user123",
-            "profile": {
-                "first_name": "John",
-                "last_name": "Doe",
-                "age": 25
-            },
-            "verification": {
-                "email_verified": True,
-                "phone_verified": False
-            },
-            "status": "active",
-            "score": 85
-        })
+        return DictElement(
+            {
+                "email": "user@example.com",
+                "user_id": "user123",
+                "profile": {"first_name": "John", "last_name": "Doe", "age": 25},
+                "verification": {"email_verified": True, "phone_verified": False},
+                "status": "active",
+                "score": 85,
+            }
+        )
 
     @pytest.fixture
     def invalid_element(self) -> DictElement:
         """Create an invalid element for testing."""
-        return DictElement({
-            "user_id": "user456",
-            # Missing email
-            "profile": {
-                "first_name": "Jane"
-                # Missing last_name
-            },
-            "verification": {
-                "email_verified": False,
-                "phone_verified": False
-            },
-            "status": "inactive",
-            "score": 45
-        })
+        return DictElement(
+            {
+                "user_id": "user456",
+                # Missing email
+                "profile": {
+                    "first_name": "Jane"
+                    # Missing last_name
+                },
+                "verification": {"email_verified": False, "phone_verified": False},
+                "status": "inactive",
+                "score": 45,
+            }
+        )
 
     @pytest.fixture
     def simple_gate(self) -> Gate:
@@ -378,7 +380,7 @@ class TestGateEvaluation:
             "description": "Check email exists",
             "target_stage": "email_verified",
             "parent_stage": "new_user",
-            "locks": [{"exists": "email"}]
+            "locks": [{"exists": "email"}],
         }
         return Gate(gate_config)
 
@@ -394,12 +396,18 @@ class TestGateEvaluation:
                 {"exists": "email"},
                 {"exists": "profile.first_name"},
                 {"exists": "profile.last_name"},
-                {"type": LockType.EQUALS, "property_path": "verification.email_verified", "expected_value": True}
-            ]
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "verification.email_verified",
+                    "expected_value": True,
+                },
+            ],
         }
         return Gate(gate_config)
 
-    def test_gate_evaluation_single_lock_success(self, simple_gate: Gate, valid_element: DictElement):
+    def test_gate_evaluation_single_lock_success(
+        self, simple_gate: Gate, valid_element: DictElement
+    ):
         """Verify gate evaluation succeeds when single lock passes."""
         # Arrange & Act
         result = simple_gate.evaluate(valid_element)
@@ -411,7 +419,9 @@ class TestGateEvaluation:
         assert len(result.failed) == 0
         assert result.messages == []
 
-    def test_gate_evaluation_single_lock_failure(self, simple_gate: Gate, invalid_element: DictElement):
+    def test_gate_evaluation_single_lock_failure(
+        self, simple_gate: Gate, invalid_element: DictElement
+    ):
         """Verify gate evaluation fails when single lock fails."""
         # Arrange & Act
         result = simple_gate.evaluate(invalid_element)
@@ -424,7 +434,9 @@ class TestGateEvaluation:
         assert len(result.messages) == 1
         assert "email" in result.messages[0]
 
-    def test_gate_evaluation_multiple_locks_all_pass(self, complex_gate: Gate, valid_element: DictElement):
+    def test_gate_evaluation_multiple_locks_all_pass(
+        self, complex_gate: Gate, valid_element: DictElement
+    ):
         """Verify gate evaluation succeeds when all locks pass (AND logic)."""
         # Arrange & Act
         result = complex_gate.evaluate(valid_element)
@@ -436,7 +448,9 @@ class TestGateEvaluation:
         assert len(result.failed) == 0
         assert result.messages == []
 
-    def test_gate_evaluation_multiple_locks_some_fail(self, complex_gate: Gate, invalid_element: DictElement):
+    def test_gate_evaluation_multiple_locks_some_fail(
+        self, complex_gate: Gate, invalid_element: DictElement
+    ):
         """Verify gate evaluation fails when any lock fails (AND logic)."""
         # Arrange & Act
         result = complex_gate.evaluate(invalid_element)
@@ -451,10 +465,12 @@ class TestGateEvaluation:
     def test_gate_evaluation_and_logic_enforced(self):
         """Verify gate evaluation enforces AND logic - all locks must pass."""
         # Arrange
-        element = DictElement({
-            "email": "test@example.com",  # This will pass
-            "age": 15  # This will fail (less than 18)
-        })
+        element = DictElement(
+            {
+                "email": "test@example.com",  # This will pass
+                "age": 15,  # This will fail (less than 18)
+            }
+        )
 
         gate_config: GateDefinition = {
             "name": "adult_user",
@@ -463,8 +479,12 @@ class TestGateEvaluation:
             "parent_stage": "unverified",
             "locks": [
                 {"exists": "email"},  # Will pass
-                {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18}  # Will fail
-            ]
+                {
+                    "type": LockType.GREATER_THAN,
+                    "property_path": "age",
+                    "expected_value": 18,
+                },  # Will fail
+            ],
         }
         gate = Gate(gate_config)
 
@@ -480,13 +500,15 @@ class TestGateEvaluation:
     def test_gate_evaluation_with_various_lock_types(self):
         """Verify gate evaluation works with different lock types."""
         # Arrange
-        element = DictElement({
-            "email": "valid@example.com",
-            "age": 25,
-            "status": "active",
-            "tier": "premium",  # Single value for IN_LIST test
-            "score": 85.5
-        })
+        element = DictElement(
+            {
+                "email": "valid@example.com",
+                "age": 25,
+                "status": "active",
+                "tier": "premium",  # Single value for IN_LIST test
+                "score": 85.5,
+            }
+        )
 
         gate_config: GateDefinition = {
             "name": "comprehensive_check",
@@ -494,12 +516,32 @@ class TestGateEvaluation:
             "target_stage": "validated",
             "parent_stage": "unvalidated",
             "locks": [
-                {"type": LockType.REGEX, "property_path": "email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"},
-                {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18},
-                {"type": LockType.EQUALS, "property_path": "status", "expected_value": "active"},
-                {"type": LockType.IN_LIST, "property_path": "tier", "expected_value": ["premium", "verified", "basic"]},
-                {"type": LockType.GREATER_THAN, "property_path": "score", "expected_value": 80}
-            ]
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "email",
+                    "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+                },
+                {
+                    "type": LockType.GREATER_THAN,
+                    "property_path": "age",
+                    "expected_value": 18,
+                },
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "status",
+                    "expected_value": "active",
+                },
+                {
+                    "type": LockType.IN_LIST,
+                    "property_path": "tier",
+                    "expected_value": ["premium", "verified", "basic"],
+                },
+                {
+                    "type": LockType.GREATER_THAN,
+                    "property_path": "score",
+                    "expected_value": 80,
+                },
+            ],
         }
         gate = Gate(gate_config)
 
@@ -530,13 +572,9 @@ class TestGateEvaluation:
     def test_gate_evaluation_with_null_values(self):
         """Verify gate evaluation handles null/None values correctly."""
         # Arrange
-        element = DictElement({
-            "email": None,
-            "profile": {
-                "first_name": "John",
-                "last_name": None
-            }
-        })
+        element = DictElement(
+            {"email": None, "profile": {"first_name": "John", "last_name": None}}
+        )
 
         gate_config: GateDefinition = {
             "name": "null_check",
@@ -546,8 +584,8 @@ class TestGateEvaluation:
             "locks": [
                 {"exists": "email"},  # Should fail (None value)
                 {"exists": "profile.first_name"},  # Should pass
-                {"exists": "profile.last_name"}  # Should fail (None value)
-            ]
+                {"exists": "profile.last_name"},  # Should fail (None value)
+            ],
         }
         gate = Gate(gate_config)
 
@@ -556,7 +594,7 @@ class TestGateEvaluation:
 
         # Assert
         assert result.success is False
-        assert result.success_rate == pytest.approx(1.0/3.0, rel=1e-2)
+        assert result.success_rate == pytest.approx(1.0 / 3.0, rel=1e-2)
         assert len(result.passed) == 1
         assert len(result.failed) == 2
 
@@ -576,12 +614,18 @@ class TestGateProperties:
                 {"exists": "user.email"},
                 {"exists": "profile.details.name"},
                 {"exists": "verification.status"},
-                {"type": LockType.EQUALS, "property_path": "settings.active", "expected_value": True}
-            ]
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "settings.active",
+                    "expected_value": True,
+                },
+            ],
         }
         return Gate(gate_config)
 
-    def test_required_paths_property_returns_all_lock_paths(self, multi_path_gate: Gate):
+    def test_required_paths_property_returns_all_lock_paths(
+        self, multi_path_gate: Gate
+    ):
         """Verify required_paths property returns all unique paths from locks."""
         # Arrange & Act
         required_paths = multi_path_gate.required_paths
@@ -591,7 +635,7 @@ class TestGateProperties:
             "user.email",
             "profile.details.name",
             "verification.status",
-            "settings.active"
+            "settings.active",
         }
         assert required_paths == expected_paths
 
@@ -605,9 +649,17 @@ class TestGateProperties:
             "parent_stage": "unvalidated",
             "locks": [
                 {"exists": "email"},
-                {"type": LockType.REGEX, "property_path": "email", "expected_value": r".*@.*"},
-                {"type": LockType.NOT_EMPTY, "property_path": "email", "expected_value": None}
-            ]
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "email",
+                    "expected_value": r".*@.*",
+                },
+                {
+                    "type": LockType.NOT_EMPTY,
+                    "property_path": "email",
+                    "expected_value": None,
+                },
+            ],
         }
         gate = Gate(gate_config)
 
@@ -627,7 +679,7 @@ class TestGateProperties:
             "description": "Test",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [{"exists": "dummy"}]  # Required to pass validation
+            "locks": [{"exists": "dummy"}],  # Required to pass validation
         }
         gate = Gate(gate_config)
         gate._locks = []  # Manually set to empty for this test
@@ -660,8 +712,12 @@ class TestGateProperties:
             "target_stage": "next",
             "parent_stage": "current",
             "locks": [
-                {"type": LockType.EQUALS, "property_path": "status", "expected_value": "active"}
-            ]
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "status",
+                    "expected_value": "active",
+                }
+            ],
         }
         gate = Gate(gate_config)
 
@@ -687,7 +743,7 @@ class TestGateErrorHandling:
             "description": "Test error handling",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [{"exists": "field"}]
+            "locks": [{"exists": "field"}],
         }
         gate = Gate(gate_config)
 
@@ -714,7 +770,7 @@ class TestGateErrorHandling:
             "parent_stage": "current",
             "locks": [
                 {"invalid_key": "invalid_value"}  # Invalid lock definition
-            ]
+            ],
         }
 
         # Act & Assert
@@ -729,7 +785,7 @@ class TestGateErrorHandling:
             "description": "Test corruption handling",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [{"exists": "field"}]
+            "locks": [{"exists": "field"}],
         }
         gate = Gate(gate_config)
         element = DictElement({"field": "value"})
@@ -751,7 +807,7 @@ class TestGateErrorHandling:
             "name": "minimal_gate",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [{"exists": "field"}]
+            "locks": [{"exists": "field"}],
             # Missing description
         }
 
@@ -771,18 +827,14 @@ class TestGateErrorHandling:
             "description": "Test success rate",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [
-                {"exists": "field1"},
-                {"exists": "field2"},
-                {"exists": "field3"}
-            ]
+            "locks": [{"exists": "field1"}, {"exists": "field2"}, {"exists": "field3"}],
         }
         gate = Gate(gate_config)
 
         # Test case 1: 2 out of 3 locks pass
         element_partial = DictElement({"field1": "value", "field2": "value"})
         result_partial = gate.evaluate(element_partial)
-        assert result_partial.success_rate == pytest.approx(2.0/3.0, rel=1e-2)
+        assert result_partial.success_rate == pytest.approx(2.0 / 3.0, rel=1e-2)
 
         # Test case 2: 0 out of 3 locks pass
         element_none = DictElement({})
@@ -790,7 +842,9 @@ class TestGateErrorHandling:
         assert result_none.success_rate == 0.0
 
         # Test case 3: 3 out of 3 locks pass
-        element_all = DictElement({"field1": "value", "field2": "value", "field3": "value"})
+        element_all = DictElement(
+            {"field1": "value", "field2": "value", "field3": "value"}
+        )
         result_all = gate.evaluate(element_all)
         assert result_all.success_rate == 1.0
 
@@ -809,8 +863,12 @@ class TestGateIntegration:
             "locks": [
                 {"exists": "email"},
                 {"is_true": "active"},
-                {"type": LockType.REGEX, "property_path": "phone", "expected_value": r"^\+?\d{10,15}$"}
-            ]
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "phone",
+                    "expected_value": r"^\+?\d{10,15}$",
+                },
+            ],
         }
 
         # Act
@@ -829,29 +887,31 @@ class TestGateIntegration:
     def test_gate_evaluation_with_real_element_data(self):
         """Verify Gate evaluation works with realistic element data."""
         # Arrange
-        realistic_element = DictElement({
-            "user": {
-                "id": "usr_abc123",
-                "email": "john.doe@company.com",
-                "profile": {
-                    "firstName": "John",
-                    "lastName": "Doe",
-                    "dateOfBirth": "1990-05-15",
-                    "phoneNumber": "+1-555-123-4567"
+        realistic_element = DictElement(
+            {
+                "user": {
+                    "id": "usr_abc123",
+                    "email": "john.doe@company.com",
+                    "profile": {
+                        "firstName": "John",
+                        "lastName": "Doe",
+                        "dateOfBirth": "1990-05-15",
+                        "phoneNumber": "+1-555-123-4567",
+                    },
+                    "account": {
+                        "status": "active",
+                        "tier": "premium",
+                        "verified": True,
+                        "lastLoginAt": "2024-01-20T14:30:00Z",
+                    },
                 },
-                "account": {
-                    "status": "active",
-                    "tier": "premium",
-                    "verified": True,
-                    "lastLoginAt": "2024-01-20T14:30:00Z"
-                }
-            },
-            "metadata": {
-                "createdAt": "2024-01-01T10:00:00Z",
-                "updatedAt": "2024-01-20T14:30:00Z",
-                "version": 2
+                "metadata": {
+                    "createdAt": "2024-01-01T10:00:00Z",
+                    "updatedAt": "2024-01-20T14:30:00Z",
+                    "version": 2,
+                },
             }
-        })
+        )
 
         gate_config: GateDefinition = {
             "name": "user_validation",
@@ -862,10 +922,22 @@ class TestGateIntegration:
                 {"exists": "user.email"},
                 {"exists": "user.profile.firstName"},
                 {"exists": "user.profile.lastName"},
-                {"type": LockType.EQUALS, "property_path": "user.account.status", "expected_value": "active"},
-                {"type": LockType.EQUALS, "property_path": "user.account.verified", "expected_value": True},
-                {"type": LockType.REGEX, "property_path": "user.email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}
-            ]
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "user.account.status",
+                    "expected_value": "active",
+                },
+                {
+                    "type": LockType.EQUALS,
+                    "property_path": "user.account.verified",
+                    "expected_value": True,
+                },
+                {
+                    "type": LockType.REGEX,
+                    "property_path": "user.email",
+                    "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+                },
+            ],
         }
         gate = Gate(gate_config)
 
@@ -879,14 +951,19 @@ class TestGateIntegration:
         assert len(result.failed) == 0
         assert result.messages == []
 
-    @pytest.mark.parametrize("element_data,expected_success,expected_failure_count", [
-        ({"email": "valid@test.com", "active": True}, True, 0),
-        ({"email": "valid@test.com", "active": False}, False, 1),
-        ({"email": "", "active": True}, False, 1),
-        ({"active": True}, False, 1),
-        ({}, False, 2),
-    ])
-    def test_gate_evaluation_parametrized_scenarios(self, element_data, expected_success, expected_failure_count):
+    @pytest.mark.parametrize(
+        "element_data,expected_success,expected_failure_count",
+        [
+            ({"email": "valid@test.com", "active": True}, True, 0),
+            ({"email": "valid@test.com", "active": False}, False, 1),
+            ({"email": "", "active": True}, False, 1),
+            ({"active": True}, False, 1),
+            ({}, False, 2),
+        ],
+    )
+    def test_gate_evaluation_parametrized_scenarios(
+        self, element_data, expected_success, expected_failure_count
+    ):
         """Test gate evaluation with various element data scenarios."""
         # Arrange
         gate_config: GateDefinition = {
@@ -894,10 +971,7 @@ class TestGateIntegration:
             "description": "Parametrized test gate",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [
-                {"exists": "email"},
-                {"is_true": "active"}
-            ]
+            "locks": [{"exists": "email"}, {"is_true": "active"}],
         }
         gate = Gate(gate_config)
         element = DictElement(element_data)
@@ -930,7 +1004,7 @@ class TestGatePerformance:
             "description": "Test with many locks",
             "target_stage": "performance_validated",
             "parent_stage": "performance_pending",
-            "locks": locks
+            "locks": locks,
         }
         gate = Gate(gate_config)
         element = DictElement(element_data)
@@ -951,15 +1025,7 @@ class TestGatePerformance:
         # Arrange
         deep_element_data = {
             "level1": {
-                "level2": {
-                    "level3": {
-                        "level4": {
-                            "level5": {
-                                "deep_value": "found"
-                            }
-                        }
-                    }
-                }
+                "level2": {"level3": {"level4": {"level5": {"deep_value": "found"}}}}
             }
         }
 
@@ -968,9 +1034,7 @@ class TestGatePerformance:
             "description": "Test deep property access",
             "target_stage": "deep_validated",
             "parent_stage": "deep_pending",
-            "locks": [
-                {"exists": "level1.level2.level3.level4.level5.deep_value"}
-            ]
+            "locks": [{"exists": "level1.level2.level3.level4.level5.deep_value"}],
         }
         gate = Gate(gate_config)
         element = DictElement(deep_element_data)
@@ -996,7 +1060,7 @@ class TestGateEdgeCases:
             "description": "Test immutability",
             "target_stage": "next",
             "parent_stage": "current",
-            "locks": [{"exists": "field"}]
+            "locks": [{"exists": "field"}],
         }
         gate = Gate(gate_config)
         len(gate._locks)
@@ -1023,8 +1087,12 @@ class TestGateEdgeCases:
             "parent_stage": "current",
             "locks": [
                 {"exists": "email"},
-                {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18}
-            ]
+                {
+                    "type": LockType.GREATER_THAN,
+                    "property_path": "age",
+                    "expected_value": 18,
+                },
+            ],
         }
         gate = Gate(gate_config)
         element = DictElement({"email": "test@example.com", "age": 25})
@@ -1047,12 +1115,12 @@ class TestGateEdgeCases:
         element_data = {
             "user data": {
                 "email-address": "test@example.com",
-                "full.name.with.dots": "John Doe"
+                "full.name.with.dots": "John Doe",
             },
             "metadata": {
                 "key with spaces": "value",
-                "key[with]brackets": "another value"
-            }
+                "key[with]brackets": "another value",
+            },
         }
         element = DictElement(element_data)
 
@@ -1063,8 +1131,8 @@ class TestGateEdgeCases:
             "parent_stage": "current",
             "locks": [
                 {"exists": "user data.email-address"},
-                {"exists": "metadata.key with spaces"}
-            ]
+                {"exists": "metadata.key with spaces"},
+            ],
         }
         gate = Gate(gate_config)
 

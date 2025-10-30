@@ -2,7 +2,7 @@
 
 import pytest
 
-from stageflow import Element
+from stageflow import DictElement
 from stageflow.process import Process, ProcessDefinition
 
 
@@ -22,44 +22,48 @@ class TestStageExtractionPrecedence:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_middle",
-                        "target_stage": "middle",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_middle",
+                            "target_stage": "middle",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "middle": {
                     "name": "Middle",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "middle",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "middle",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with status="middle"
-        element = Element({"status": "middle", "data": "test"})
+        element = DictElement({"status": "middle", "data": "test"})
 
         # Call evaluate with explicit stage override "start"
         result = process.evaluate(element, "start")
 
         # Assert current_stage is "start" (not "middle" from element)
-        assert result['stage'] == "start"
+        assert result["stage"] == "start"
 
     def test_auto_extraction_when_no_override(self):
         """Auto-extraction should work when no explicit stage provided."""
@@ -73,44 +77,48 @@ class TestStageExtractionPrecedence:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_middle",
-                        "target_stage": "middle",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_middle",
+                            "target_stage": "middle",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "middle": {
                     "name": "Middle",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "middle",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "middle",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with status="middle"
-        element = Element({"status": "middle", "data": "test"})
+        element = DictElement({"status": "middle", "data": "test"})
 
         # Call evaluate without explicit stage
         result = process.evaluate(element)
 
         # Assert current_stage is "middle" (from auto-extraction)
-        assert result['stage'] == "middle"
+        assert result["stage"] == "middle"
 
     def test_initial_stage_fallback(self):
         """Should fall back to initial_stage when no extraction configured."""
@@ -124,33 +132,35 @@ class TestStageExtractionPrecedence:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with any data (status field should be ignored)
-        element = Element({"status": "middle", "data": "test"})
+        element = DictElement({"status": "middle", "data": "test"})
 
         # Call evaluate without explicit stage
         result = process.evaluate(element)
 
         # Assert current_stage is initial_stage
-        assert result['stage'] == "start"
+        assert result["stage"] == "start"
 
 
 class TestStageExtractionValidation:
@@ -168,27 +178,29 @@ class TestStageExtractionValidation:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element without "status" property
-        element = Element({"data": "test"})
+        element = DictElement({"data": "test"})
 
         # Should raise ValueError with helpful message
         with pytest.raises(ValueError) as exc_info:
@@ -208,27 +220,29 @@ class TestStageExtractionValidation:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with status=123 (integer)
-        element = Element({"status": 123})
+        element = DictElement({"status": 123})
 
         # Should raise ValueError
         with pytest.raises(ValueError) as exc_info:
@@ -249,27 +263,29 @@ class TestStageExtractionValidation:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with status="nonexistent_stage"
-        element = Element({"status": "nonexistent_stage"})
+        element = DictElement({"status": "nonexistent_stage"})
 
         # Should raise ValueError with list of available stages
         with pytest.raises(ValueError) as exc_info:
@@ -293,50 +309,53 @@ class TestStageExtractionValidation:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_middle",
-                        "target_stage": "middle",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_middle",
+                            "target_stage": "middle",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "middle": {
                     "name": "Middle",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "middle",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "middle",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with nested meta.current_stage="middle"
-        element = Element({
-            "data": "test",
-            "meta": {
-                "current_stage": "middle",
-                "timestamp": "2024-01-01"
+        element = DictElement(
+            {
+                "data": "test",
+                "meta": {"current_stage": "middle", "timestamp": "2024-01-01"},
             }
-        })
+        )
 
         # Call evaluate without explicit stage
         result = process.evaluate(element)
 
         # Assert current_stage is "middle" (from nested property)
-        assert result['stage'] == "middle"
+        assert result["stage"] == "middle"
 
     def test_bracket_notation_property_path(self):
         """Should support bracket notation for property paths."""
@@ -350,50 +369,50 @@ class TestStageExtractionValidation:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_active",
-                        "target_stage": "active",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_active",
+                            "target_stage": "active",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "active": {
                     "name": "Active",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "active",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "active",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # Element with bracket notation path
-        element = Element({
-            "workflow": {
-                "stages": [
-                    {"name": "active", "completed": True}
-                ]
-            }
-        })
+        element = DictElement(
+            {"workflow": {"stages": [{"name": "active", "completed": True}]}}
+        )
 
         # Call evaluate without explicit stage
         result = process.evaluate(element)
 
         # Assert current_stage is "active" (from bracket notation)
-        assert result['stage'] == "active"
+        assert result["stage"] == "active"
 
 
 class TestStageExtractionSerialization:
@@ -411,21 +430,23 @@ class TestStageExtractionSerialization:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
@@ -449,21 +470,23 @@ class TestStageExtractionSerialization:
                 "start": {
                     "name": "Start",
                     "expected_properties": {},
-                    "gates": [{
-                        "name": "to_end",
-                        "target_stage": "end",
-                        "parent_stage": "start",
-                        "locks": []
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "to_end",
+                            "target_stage": "end",
+                            "parent_stage": "start",
+                            "locks": [{"exists": "status"}],  # Minimal lock for testing
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "end": {
                     "name": "End",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
@@ -489,60 +512,74 @@ class TestStageExtractionIntegration:
             "stages": {
                 "registration": {
                     "name": "Registration",
-                    "expected_properties": {"email": {"type": "str"}},
-                    "gates": [{
-                        "name": "email_verified",
-                        "target_stage": "profile_setup",
-                        "parent_stage": "registration",
-                        "locks": [{"exists": "verification.email_verified_at"}]
-                    }],
-                    "is_final": False
+                    "expected_properties": {
+                        "email": {"type": "str"},
+                        "verification": {
+                            "type": "dict",
+                            "email_verified_at": {"type": "str"},
+                        },
+                    },
+                    "gates": [
+                        {
+                            "name": "email_verified",
+                            "target_stage": "profile_setup",
+                            "parent_stage": "registration",
+                            "locks": [{"exists": "verification.email_verified_at"}],
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "profile_setup": {
                     "name": "Profile Setup",
                     "expected_properties": {
                         "email": {"type": "str"},
-                        "profile": {"type": "dict"}
+                        "profile": {
+                            "type": "dict",
+                            "first_name": {"type": "str"},
+                            "last_name": {"type": "str"},
+                        },
                     },
-                    "gates": [{
-                        "name": "profile_complete",
-                        "target_stage": "active",
-                        "parent_stage": "profile_setup",
-                        "locks": [
-                            {"exists": "profile.first_name"},
-                            {"exists": "profile.last_name"}
-                        ]
-                    }],
-                    "is_final": False
+                    "gates": [
+                        {
+                            "name": "profile_complete",
+                            "target_stage": "active",
+                            "parent_stage": "profile_setup",
+                            "locks": [
+                                {"exists": "profile.first_name"},
+                                {"exists": "profile.last_name"},
+                            ],
+                        }
+                    ],
+                    "is_final": False,
                 },
                 "active": {
                     "name": "Active",
                     "expected_properties": {},
                     "gates": [],
-                    "is_final": True
-                }
-            }
+                    "is_final": True,
+                },
+            },
         }
 
         process = Process(process_config)
 
         # User in profile_setup stage with incomplete profile
-        user = Element({
-            "email": "user@example.com",
-            "status": "profile_setup",
-            "verification": {
-                "email_verified_at": "2024-01-01T10:00:00Z"
-            },
-            "profile": {
-                "first_name": "John"
-                # Missing last_name
+        user = DictElement(
+            {
+                "email": "user@example.com",
+                "status": "profile_setup",
+                "verification": {"email_verified_at": "2024-01-01T10:00:00Z"},
+                "profile": {
+                    "first_name": "John"
+                    # Missing last_name
+                },
             }
-        })
+        )
 
         # Evaluate without explicit stage (should use auto-extraction)
         result = process.evaluate(user)
 
         # Should evaluate at profile_setup stage
-        assert result['stage'] == "profile_setup"
+        assert result["stage"] == "profile_setup"
         # Should require action (missing last_name)
-        assert result['stage_result'].status == "ACTION_REQUIRED"
+        assert result["stage_result"].status == "action_required"

@@ -1,6 +1,5 @@
 """Simple unit tests for automatic stage extraction from element properties."""
 
-
 import pytest
 
 from stageflow.element import create_element
@@ -40,11 +39,11 @@ process:
     # Test auto-extraction
     element = create_element({"status": "start", "ready": True})
     result = process.evaluate(element)
-    assert result['stage'] == "start"
+    assert result["stage"] == "start"
 
     # Test explicit override
     result = process.evaluate(element, "end")
-    assert result['stage'] == "end"
+    assert result["stage"] == "end"
 
 
 def test_stage_extraction_precedence(tmp_path):
@@ -75,11 +74,11 @@ process:
 
     # Without override, should use auto-extracted "active"
     result = process.evaluate(element)
-    assert result['stage'] == "active"
+    assert result["stage"] == "active"
 
     # With override, should use "registration" even though element.status="active"
     result = process.evaluate(element, "registration")
-    assert result['stage'] == "registration"
+    assert result["stage"] == "registration"
 
 
 def test_stage_prop_not_found_error(tmp_path):
@@ -180,13 +179,10 @@ process:
 """)
 
     process = load_process(process_yaml)
-    element = create_element({
-        "meta": {"current_stage": "middle"},
-        "ready": True
-    })
+    element = create_element({"meta": {"current_stage": "middle"}, "ready": True})
 
     result = process.evaluate(element)
-    assert result['stage'] == "middle"
+    assert result["stage"] == "middle"
 
 
 def test_process_without_stage_prop_uses_initial(tmp_path):
@@ -212,10 +208,12 @@ process:
 """)
 
     process = load_process(process_yaml)
-    element = create_element({"status": "end", "ready": True})  # status should be ignored
+    element = create_element(
+        {"status": "end", "ready": True}
+    )  # status should be ignored
 
     result = process.evaluate(element)
-    assert result['stage'] == "start"  # Should use initial_stage, not element.status
+    assert result["stage"] == "start"  # Should use initial_stage, not element.status
 
 
 def test_to_dict_includes_stage_prop(tmp_path):

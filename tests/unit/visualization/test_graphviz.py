@@ -115,12 +115,12 @@ class TestGraphvizProcessDiagramGeneration:
             "layout=dot;",
             "rankdir=TB;",
             'label="test_process Process Flow";',
-            "stage_0 [label=\"Initial Stage\", shape=house, fillcolor=\"lightblue\"];",
-            "stage_1 [label=\"Processing Stage\", shape=box, fillcolor=\"lightgray\"];",
-            "stage_2 [label=\"Final Stage\", shape=invhouse, fillcolor=\"lightgreen\"];",
+            'stage_0 [label="Initial Stage", shape=house, fillcolor="lightblue"];',
+            'stage_1 [label="Processing Stage", shape=box, fillcolor="lightgray"];',
+            'stage_2 [label="Final Stage", shape=invhouse, fillcolor="lightgreen"];',
             "stage_0 -> stage_1;",
             "stage_1 -> stage_2;",
-            "}"
+            "}",
         ]
 
         # Act
@@ -141,10 +141,12 @@ class TestGraphvizProcessDiagramGeneration:
         assert "digraph StageFlow {" in result
         assert "layout=dot;" in result
         assert 'label="test_process Process Flow";' in result
-        assert "stage_0 [label=\"Initial Stage\\n(1 gates)\"" in result
+        assert 'stage_0 [label="Initial Stage\\n(1 gates)"' in result
         assert "}" in result
 
-    def test_generate_process_diagram_full_style_with_gate_details(self, generator, mock_process):
+    def test_generate_process_diagram_full_style_with_gate_details(
+        self, generator, mock_process
+    ):
         """Verify DOT diagram generation with full style including gate subgraphs."""
         # Arrange & Act
         result = generator.generate_process_diagram(mock_process, style="full")
@@ -154,11 +156,13 @@ class TestGraphvizProcessDiagramGeneration:
         assert "// Gate details" in result
         # Check for stages with gates - first stage has a gate
         first_stage = mock_process.get_stage("stage1")
-        if first_stage and hasattr(first_stage, 'gates') and first_stage.gates:
+        if first_stage and hasattr(first_stage, "gates") and first_stage.gates:
             assert "subgraph cluster_" in result
         assert "}" in result
 
-    def test_generate_process_diagram_legacy_include_details_parameter(self, generator, mock_process):
+    def test_generate_process_diagram_legacy_include_details_parameter(
+        self, generator, mock_process
+    ):
         """Verify legacy include_details parameter maps to detailed style."""
         # Arrange & Act
         result = generator.generate_process_diagram(mock_process, include_details=True)
@@ -194,7 +198,9 @@ class TestGraphvizProcessDiagramGeneration:
         assert 'label="empty_process Process Flow";' in result
         assert "}" in result
 
-    def test_generate_process_diagram_includes_graph_attributes(self, generator, mock_process):
+    def test_generate_process_diagram_includes_graph_attributes(
+        self, generator, mock_process
+    ):
         """Verify DOT diagram includes proper graph attributes."""
         # Arrange & Act
         result = generator.generate_process_diagram(mock_process)
@@ -207,7 +213,9 @@ class TestGraphvizProcessDiagramGeneration:
         assert 'bgcolor="white";' in result
         assert 'fontname="Arial";' in result
 
-    def test_generate_process_diagram_includes_default_styling(self, generator, mock_process):
+    def test_generate_process_diagram_includes_default_styling(
+        self, generator, mock_process
+    ):
         """Verify DOT diagram includes default node and edge styling."""
         # Arrange & Act
         result = generator.generate_process_diagram(mock_process)
@@ -222,7 +230,9 @@ class TestGraphvizProcessDiagramGeneration:
         # Arrange
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.get_sorted_stages = Mock(return_value=["missing_stage1", "missing_stage2"])
+        process.get_sorted_stages = Mock(
+            return_value=["missing_stage1", "missing_stage2"]
+        )
         process.get_stage = Mock(return_value=None)
 
         # Act
@@ -277,23 +287,32 @@ class TestGraphvizStageDetailGeneration:
         """Create a GraphvizDotGenerator instance for testing."""
         return GraphvizDotGenerator()
 
-    def test_generate_stage_detail_with_gates_and_locks(self, generator, mock_stage_with_components):
+    def test_generate_stage_detail_with_gates_and_locks(
+        self, generator, mock_stage_with_components
+    ):
         """Verify stage detail generation with gates and lock components."""
         # Arrange & Act
-        result = generator.generate_stage_detail(mock_stage_with_components, include_locks=True)
+        result = generator.generate_stage_detail(
+            mock_stage_with_components, include_locks=True
+        )
 
         # Assert
         assert "digraph StageDetail {" in result
         assert "rankdir=TB;" in result
         assert 'label="Stage: Complex Stage";' in result
-        assert "stage [label=\"Complex Stage\", shape=box, fillcolor=\"lightgreen\"];" in result
+        assert (
+            'stage [label="Complex Stage", shape=box, fillcolor="lightgreen"];'
+            in result
+        )
         # Check that gates are present with appropriate labels (including lock count)
         assert "gate_0 [label=" in result
         assert "validation_gate" in result
         assert "stage -> gate_0;" in result
         assert "}" in result
 
-    def test_generate_stage_detail_without_gates(self, generator, mock_stage_without_gates):
+    def test_generate_stage_detail_without_gates(
+        self, generator, mock_stage_without_gates
+    ):
         """Verify stage detail generation for stage without gates."""
         # Arrange & Act
         result = generator.generate_stage_detail(mock_stage_without_gates)
@@ -301,19 +320,25 @@ class TestGraphvizStageDetailGeneration:
         # Assert
         assert "digraph StageDetail {" in result
         assert 'label="Stage: Simple Stage";' in result
-        assert "stage [label=\"Simple Stage\", shape=box, fillcolor=\"lightgreen\"];" in result
-        assert "nogates [label=\"No Gates\", shape=box, fillcolor=\"lightgray\"];" in result
+        assert (
+            'stage [label="Simple Stage", shape=box, fillcolor="lightgreen"];' in result
+        )
+        assert 'nogates [label="No Gates", shape=box, fillcolor="lightgray"];' in result
         assert "stage -> nogates;" in result
         assert "}" in result
 
-    def test_generate_stage_detail_excludes_locks_when_requested(self, generator, mock_stage_with_components):
+    def test_generate_stage_detail_excludes_locks_when_requested(
+        self, generator, mock_stage_with_components
+    ):
         """Verify stage detail generation excludes locks when include_locks=False."""
         # Arrange & Act
-        result = generator.generate_stage_detail(mock_stage_with_components, include_locks=False)
+        result = generator.generate_stage_detail(
+            mock_stage_with_components, include_locks=False
+        )
 
         # Assert
         assert "digraph StageDetail {" in result
-        assert "stage [label=\"Complex Stage\"" in result
+        assert 'stage [label="Complex Stage"' in result
         # Gates should still be present but without lock details
         assert "gate_0 [label=" in result
         assert "validation_gate" in result
@@ -321,7 +346,9 @@ class TestGraphvizStageDetailGeneration:
         assert "lock_0_0 [label=" not in result
         assert "-> lock_0_0;" not in result
 
-    def test_generate_stage_detail_includes_default_styling(self, generator, mock_stage_with_components):
+    def test_generate_stage_detail_includes_default_styling(
+        self, generator, mock_stage_with_components
+    ):
         """Verify stage detail includes proper default styling."""
         # Arrange & Act
         result = generator.generate_stage_detail(mock_stage_with_components)
@@ -331,13 +358,20 @@ class TestGraphvizStageDetailGeneration:
         assert 'node [fontname="Arial", fontsize=10, style=filled];' in result
         assert 'edge [fontname="Arial", fontsize=9];' in result
 
-    def test_generate_stage_detail_with_lock_components(self, generator, mock_stage_with_components):
+    def test_generate_stage_detail_with_lock_components(
+        self, generator, mock_stage_with_components
+    ):
         """Verify stage detail properly handles lock components."""
         # Arrange & Act
-        result = generator.generate_stage_detail(mock_stage_with_components, include_locks=True)
+        result = generator.generate_stage_detail(
+            mock_stage_with_components, include_locks=True
+        )
 
         # Assert
-        assert "lock_0_0 [label=\"email\\nEXISTS\", shape=diamond, fillcolor=\"lightcyan\"];" in result
+        assert (
+            'lock_0_0 [label="email\\nEXISTS", shape=diamond, fillcolor="lightcyan"];'
+            in result
+        )
         assert "gate_0 -> lock_0_0;" in result
 
 
@@ -364,10 +398,14 @@ class TestGraphvizDotFileGeneration:
         stage2.name = "End"
         stage2.gates = []
 
-        process.get_stage = Mock(side_effect=lambda name: stage1 if name == "start" else stage2)
+        process.get_stage = Mock(
+            side_effect=lambda name: stage1 if name == "start" else stage2
+        )
         return process
 
-    def test_generate_dot_file_returns_complete_dot_content(self, generator, mock_process):
+    def test_generate_dot_file_returns_complete_dot_content(
+        self, generator, mock_process
+    ):
         """Verify generate_dot_file returns complete DOT file content."""
         # Arrange & Act
         result = generator.generate_dot_file(mock_process)
@@ -390,11 +428,15 @@ class TestGraphvizDotFileGeneration:
             assert result.startswith("digraph StageFlow {")
             assert result.endswith("}")
 
-    def test_generate_dot_file_delegates_to_process_diagram(self, generator, mock_process):
+    def test_generate_dot_file_delegates_to_process_diagram(
+        self, generator, mock_process
+    ):
         """Verify generate_dot_file delegates to generate_process_diagram."""
         # Arrange & Act
         dot_result = generator.generate_dot_file(mock_process, style="detailed")
-        diagram_result = generator.generate_process_diagram(mock_process, style="detailed")
+        diagram_result = generator.generate_process_diagram(
+            mock_process, style="detailed"
+        )
 
         # Assert
         assert dot_result == diagram_result
@@ -415,7 +457,9 @@ class TestGraphvizSubgraphGeneration:
         stage.name = "Test Stage"
         return stage
 
-    def test_generate_stage_subgraph_creates_proper_structure(self, generator, mock_stage):
+    def test_generate_stage_subgraph_creates_proper_structure(
+        self, generator, mock_stage
+    ):
         """Verify stage subgraph generation creates proper DOT subgraph structure."""
         # Arrange & Act
         result = generator.generate_stage_subgraph(mock_stage)
@@ -425,7 +469,7 @@ class TestGraphvizSubgraphGeneration:
         assert 'label="Test Stage";' in result
         assert 'style="rounded";' in result
         assert 'color="blue";' in result
-        assert "Test_Stage_node [label=\"Test Stage\", shape=box];" in result
+        assert 'Test_Stage_node [label="Test Stage", shape=box];' in result
         assert "}" in result
 
     def test_generate_stage_subgraph_handles_spaces_in_names(self, generator):
@@ -460,7 +504,7 @@ class TestGraphvizSubgraphGeneration:
         assert "gate_0 [label=" in result
         assert "gate_one" in result
         assert "shape=hexagon" in result
-        assert "fillcolor=\"lightyellow\"" in result
+        assert 'fillcolor="lightyellow"' in result
         assert "gate_1 [label=" in result
         assert "gate_two" in result
 
@@ -519,7 +563,7 @@ class TestGraphvizStateFlowGeneration:
             "AWAITING -> QUALIFYING;",
             "ADVANCING -> COMPLETED;",
             "REGRESSING -> SCOPING;",
-            "REGRESSING -> FULFILLING;"
+            "REGRESSING -> FULFILLING;",
         ]
 
         for transition in expected_transitions:
@@ -712,7 +756,7 @@ class TestGraphvizStylingHelpers:
         gate_component = Mock()
         gate_component.name = "sub_gate"
         # Ensure it doesn't have a lock attribute by setting spec
-        gate_component = Mock(spec=['name'])
+        gate_component = Mock(spec=["name"])
         gate_component.name = "sub_gate"
 
         mock_gate.components = [lock_component, gate_component]
@@ -866,38 +910,40 @@ class TestGraphvizIntegrationScenarios:
                 "submitted": {
                     "name": "Order Submitted",
                     "expected_properties": {"order_id": {"type": "str"}},
-                    "gates": [{
-                        "name": "order_valid",
-                        "target_stage": "payment",
-                        "locks": [{"exists": "order_id"}]
-                    }]
+                    "gates": [
+                        {
+                            "name": "order_valid",
+                            "target_stage": "payment",
+                            "locks": [{"exists": "order_id"}],
+                        }
+                    ],
                 },
                 "payment": {
                     "name": "Payment Processing",
                     "expected_properties": {"payment_status": {"type": "str"}},
-                    "gates": [{
-                        "name": "payment_complete",
-                        "target_stage": "fulfillment",
-                        "locks": [{"exists": "payment_status"}]
-                    }]
+                    "gates": [
+                        {
+                            "name": "payment_complete",
+                            "target_stage": "fulfillment",
+                            "locks": [{"exists": "payment_status"}],
+                        }
+                    ],
                 },
                 "fulfillment": {
                     "name": "Order Fulfillment",
                     "expected_properties": {"shipping_status": {"type": "str"}},
-                    "gates": [{
-                        "name": "shipped",
-                        "target_stage": "completed",
-                        "locks": [{"exists": "shipping_status"}]
-                    }]
+                    "gates": [
+                        {
+                            "name": "shipped",
+                            "target_stage": "completed",
+                            "locks": [{"exists": "shipping_status"}],
+                        }
+                    ],
                 },
-                "completed": {
-                    "name": "Order Completed",
-                    "gates": [],
-                    "is_final": True
-                }
+                "completed": {"name": "Order Completed", "gates": [], "is_final": True},
             },
             "initial_stage": "submitted",
-            "final_stage": "completed"
+            "final_stage": "completed",
         }
 
     @pytest.fixture
@@ -905,12 +951,16 @@ class TestGraphvizIntegrationScenarios:
         """Create a GraphvizDotGenerator instance for testing."""
         return GraphvizDotGenerator()
 
-    def test_complete_workflow_dot_generation(self, generator, realistic_process_config):
+    def test_complete_workflow_dot_generation(
+        self, generator, realistic_process_config
+    ):
         """Verify complete workflow DOT generation with realistic process."""
         # Arrange
         mock_process = Mock(spec=Process)
         mock_process.name = realistic_process_config["name"]
-        mock_process.get_sorted_stages = Mock(return_value=["submitted", "payment", "fulfillment", "completed"])
+        mock_process.get_sorted_stages = Mock(
+            return_value=["submitted", "payment", "fulfillment", "completed"]
+        )
 
         # Create mock stages based on config
         stages = {}
@@ -929,8 +979,12 @@ class TestGraphvizIntegrationScenarios:
         mock_process.get_stage = Mock(side_effect=lambda name: stages.get(name))
 
         # Act
-        overview_result = generator.generate_process_diagram(mock_process, style="overview")
-        detailed_result = generator.generate_process_diagram(mock_process, style="detailed")
+        overview_result = generator.generate_process_diagram(
+            mock_process, style="overview"
+        )
+        detailed_result = generator.generate_process_diagram(
+            mock_process, style="detailed"
+        )
         full_result = generator.generate_process_diagram(mock_process, style="full")
 
         # Assert
@@ -1000,7 +1054,9 @@ class TestGraphvizIntegrationScenarios:
         stage2.name = "End"
         stage2.gates = []
 
-        mock_process.get_stage = Mock(side_effect=lambda name: stage1 if name == "start" else stage2)
+        mock_process.get_stage = Mock(
+            side_effect=lambda name: stage1 if name == "start" else stage2
+        )
 
         for engine in layout_engines:
             # Act
@@ -1042,13 +1098,16 @@ class TestGraphvizIntegrationScenarios:
         # Should not crash despite missing stage2
 
 
-@pytest.mark.parametrize("layout_engine,expected_layout", [
-    ("dot", "layout=dot;"),
-    ("circo", "layout=circo;"),
-    ("fdp", "layout=fdp;"),
-    ("neato", "layout=neato;"),
-    ("twopi", "layout=twopi;")
-])
+@pytest.mark.parametrize(
+    "layout_engine,expected_layout",
+    [
+        ("dot", "layout=dot;"),
+        ("circo", "layout=circo;"),
+        ("fdp", "layout=fdp;"),
+        ("neato", "layout=neato;"),
+        ("twopi", "layout=twopi;"),
+    ],
+)
 class TestGraphvizParametrizedLayoutEngines:
     """Parametrized tests for different layout engine scenarios."""
 
@@ -1073,11 +1132,14 @@ class TestGraphvizParametrizedLayoutEngines:
         assert expected_layout in result
 
 
-@pytest.mark.parametrize("style,expected_elements", [
-    ("overview", ["shape=house", "shape=box", "shape=invhouse"]),
-    ("detailed", ["(0 gates)", "\\n", "gates)"]),
-    ("full", ["// Gate details", "cluster_", "subgraph"])
-])
+@pytest.mark.parametrize(
+    "style,expected_elements",
+    [
+        ("overview", ["shape=house", "shape=box", "shape=invhouse"]),
+        ("detailed", ["(0 gates)", "\\n", "gates)"]),
+        ("full", ["// Gate details", "cluster_", "subgraph"]),
+    ],
+)
 class TestGraphvizParametrizedStyleGeneration:
     """Parametrized tests for different style generation scenarios."""
 
@@ -1101,17 +1163,15 @@ class TestGraphvizParametrizedStyleGeneration:
         final.gates = []
 
         def get_stage_side_effect(name):
-            stages_map = {
-                "initial": initial,
-                "middle": middle,
-                "final": final
-            }
+            stages_map = {"initial": initial, "middle": middle, "final": final}
             return stages_map.get(name)
 
         process.get_stage = Mock(side_effect=get_stage_side_effect)
         return process
 
-    def test_style_specific_elements_present(self, style, expected_elements, three_stage_process):
+    def test_style_specific_elements_present(
+        self, style, expected_elements, three_stage_process
+    ):
         """Verify specific style elements are present in generated DOT diagrams."""
         # Arrange
         generator = GraphvizDotGenerator()
@@ -1131,4 +1191,6 @@ class TestGraphvizParametrizedStyleGeneration:
                 # subgraph only appears if there are gates with actual components
                 continue
             else:
-                assert element in result, f"Expected element '{element}' not found in {style} style"
+                assert element in result, (
+                    f"Expected element '{element}' not found in {style} style"
+                )

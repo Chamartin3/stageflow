@@ -22,7 +22,7 @@ class TestStageflowPackageMetadata:
         import stageflow
 
         # Assert
-        assert hasattr(stageflow, '__version__')
+        assert hasattr(stageflow, "__version__")
         assert isinstance(stageflow.__version__, str)
         assert len(stageflow.__version__) > 0
 
@@ -32,18 +32,22 @@ class TestStageflowPackageMetadata:
         import re
 
         import stageflow
-        semver_pattern = r'^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$'
+
+        semver_pattern = r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 
         # Act
         version = stageflow.__version__
 
         # Assert
-        assert re.match(semver_pattern, version), f"Version '{version}' does not follow semantic versioning"
+        assert re.match(semver_pattern, version), (
+            f"Version '{version}' does not follow semantic versioning"
+        )
 
     def test_package_version_matches_expected_value(self):
         """Verify version matches the expected value from source."""
         # Arrange
         import stageflow
+
         expected_version = "0.1.0"
 
         # Act
@@ -91,7 +95,7 @@ class TestStageflowPublicAPIExports:
         import stageflow
 
         # Act & Assert
-        assert hasattr(stageflow, '__all__')
+        assert hasattr(stageflow, "__all__")
         assert isinstance(stageflow.__all__, list)
         assert len(stageflow.__all__) > 0
 
@@ -99,11 +103,8 @@ class TestStageflowPublicAPIExports:
         """Verify __all__ contains the currently exported core functionality."""
         # Arrange
         import stageflow
-        expected_exports = {
-            "Element",
-            "create_element_from_config",
-            "__version__"
-        }
+
+        expected_exports = {"Element", "create_element_from_config", "__version__"}
 
         # Act
         actual_exports = set(stageflow.__all__)
@@ -118,7 +119,9 @@ class TestStageflowPublicAPIExports:
 
         # Act & Assert
         for export_name in stageflow.__all__:
-            assert hasattr(stageflow, export_name), f"Export '{export_name}' is listed in __all__ but not available as attribute"
+            assert hasattr(stageflow, export_name), (
+                f"Export '{export_name}' is listed in __all__ but not available as attribute"
+            )
 
     def test_star_import_only_includes_all_exports(self):
         """Verify star import behavior matches __all__ definition."""
@@ -129,13 +132,19 @@ class TestStageflowPublicAPIExports:
         # Test actual star import behavior
         star_import_namespace = {}
         exec("from stageflow import *", star_import_namespace)
-        star_imported = {name for name in star_import_namespace.keys() if not name.startswith('__')}
+        star_imported = {
+            name for name in star_import_namespace.keys() if not name.startswith("__")
+        }
 
         # Assert
         # Star import should include items in __all__, but Python doesn't import
         # dunder names (like __version__) even if they're in __all__
-        expected_star_imports = {name for name in stageflow.__all__ if not name.startswith('__')}
-        assert star_imported == expected_star_imports, f"Star import mismatch. Expected: {expected_star_imports}, Got: {star_imported}"
+        expected_star_imports = {
+            name for name in stageflow.__all__ if not name.startswith("__")
+        }
+        assert star_imported == expected_star_imports, (
+            f"Star import mismatch. Expected: {expected_star_imports}, Got: {star_imported}"
+        )
 
     def test_element_export_is_class_with_expected_interface(self):
         """Verify Element export is the expected abstract base class."""
@@ -148,9 +157,9 @@ class TestStageflowPublicAPIExports:
 
         # Assert
         assert exported_element is DirectElement
-        assert hasattr(exported_element, 'get_property')
-        assert hasattr(exported_element, 'has_property')
-        assert hasattr(exported_element, 'to_dict')
+        assert hasattr(exported_element, "get_property")
+        assert hasattr(exported_element, "has_property")
+        assert hasattr(exported_element, "to_dict")
 
     def test_create_element_from_config_export_is_callable(self):
         """Verify create_element_from_config export is callable function."""
@@ -179,13 +188,15 @@ class TestStageflowImportBehavior:
             exception = e
 
         # Assert
-        assert import_successful, f"Failed to import stageflow: {exception if not import_successful else 'No exception'}"
+        assert import_successful, (
+            f"Failed to import stageflow: {exception if not import_successful else 'No exception'}"
+        )
 
     def test_submodule_imports_work_correctly(self):
         """Verify expected submodules can be imported."""
         # Arrange
         expected_submodules = [
-            'stageflow.element',
+            "stageflow.element",
         ]
 
         # Act & Assert
@@ -204,18 +215,21 @@ class TestStageflowImportBehavior:
         # Test individual imports
         try:
             from stageflow import Element
+
             assert Element is not None
         except ImportError as e:
             pytest.fail(f"Failed to import Element: {e}")
 
         try:
             from stageflow import create_element_from_config
+
             assert create_element_from_config is not None
         except ImportError as e:
             pytest.fail(f"Failed to import create_element_from_config: {e}")
 
         try:
             from stageflow import __version__
+
             assert __version__ is not None
         except ImportError as e:
             pytest.fail(f"Failed to import __version__: {e}")
@@ -231,13 +245,17 @@ class TestStageflowImportBehavior:
 
         # Assert
         import stageflow
+
         for export_name in stageflow.__all__:
-            assert export_name in test_namespace, f"Star import did not include '{export_name}'"
+            assert export_name in test_namespace, (
+                f"Star import did not include '{export_name}'"
+            )
 
     def test_module_reload_works_correctly(self):
         """Verify stageflow module can be reloaded without issues."""
         # Arrange
         import stageflow
+
         original_version = stageflow.__version__
 
         # Act
@@ -262,9 +280,9 @@ class TestStageflowPublicAPIFunctionality:
         try:
             instance = Element()
             # If instantiation succeeds, verify it has the expected abstract methods
-            assert hasattr(instance, 'get_property')
-            assert hasattr(instance, 'has_property')
-            assert hasattr(instance, 'to_dict')
+            assert hasattr(instance, "get_property")
+            assert hasattr(instance, "has_property")
+            assert hasattr(instance, "to_dict")
         except TypeError:
             # If it properly raises TypeError, that's the expected behavior for an abstract class
             pass
@@ -273,11 +291,13 @@ class TestStageflowPublicAPIFunctionality:
         """Verify Element class defines required abstract methods."""
         # Arrange
         from stageflow import Element
+
         expected_abstract_methods = {"get_property", "has_property", "to_dict"}
 
         # Act
         actual_abstract_methods = {
-            name for name, method in Element.__dict__.items()
+            name
+            for name, method in Element.__dict__.items()
             if getattr(method, "__isabstractmethod__", False)
         }
 
@@ -296,6 +316,7 @@ class TestStageflowPublicAPIFunctionality:
         """Verify create_element_from_config function behavior (placeholder for actual implementation)."""
         # Arrange
         from stageflow import create_element_from_config
+
         mock_config = {"data": {"test": "value"}}
 
         # Act & Assert
@@ -317,12 +338,13 @@ class TestStageflowPackageStructure:
         """Verify stageflow module has all expected top-level attributes."""
         # Arrange
         import stageflow
+
         required_attributes = {
-            '__version__',
-            '__all__',
-            '__doc__',
-            'Element',
-            'create_element_from_config'
+            "__version__",
+            "__all__",
+            "__doc__",
+            "Element",
+            "create_element_from_config",
         }
 
         # Act
@@ -339,21 +361,35 @@ class TestStageflowPackageStructure:
         # Act
         # Get attributes that are not in __all__ and are not standard module attributes
         potentially_leaked = {
-            name for name in dir(stageflow)
-            if not name.startswith('_')
+            name
+            for name in dir(stageflow)
+            if not name.startswith("_")
             and name not in stageflow.__all__
-            and name not in {'__version__', '__all__', '__doc__'}
+            and name not in {"__version__", "__all__", "__doc__"}
         }
 
         # Assert
         # Note: In test environment, conftest.py imports may cause additional modules to appear
         # This documents the current state - ideally this should be cleaned up
-        expected_leaked = {'element'}  # Known leaked import from current implementation
+        expected_leaked = {"element"}  # Known leaked import from current implementation
         # In testing environment, test imports may add modules to namespace
-        allowed_test_artifacts = {'gate', 'lock', 'stage', 'process', 'schema', 'visualization', 'cli', 'manager'}  # Artifacts from test imports
+        allowed_test_artifacts = {
+            "gate",
+            "lock",
+            "stage",
+            "process",
+            "schema",
+            "visualization",
+            "cli",
+            "manager",
+        }  # Artifacts from test imports
 
-        unexpected_leaked = potentially_leaked - expected_leaked - allowed_test_artifacts
-        assert len(unexpected_leaked) == 0, f"Unexpectedly leaked imports: {unexpected_leaked}"
+        unexpected_leaked = (
+            potentially_leaked - expected_leaked - allowed_test_artifacts
+        )
+        assert len(unexpected_leaked) == 0, (
+            f"Unexpectedly leaked imports: {unexpected_leaked}"
+        )
 
     def test_commented_out_imports_are_properly_excluded(self):
         """Verify commented out imports in __init__.py don't cause issues."""
@@ -363,14 +399,16 @@ class TestStageflowPackageStructure:
         # Act & Assert
         # These should not be available since they're commented out (manager functionality)
         commented_out_items = [
-            'ProcessManager',
-            'ManagerConfig',
-            'ProcessRegistry',
-            'ProcessEditor'
+            "ProcessManager",
+            "ManagerConfig",
+            "ProcessRegistry",
+            "ProcessEditor",
         ]
 
         for item in commented_out_items:
-            assert not hasattr(stageflow, item), f"Commented out item '{item}' is unexpectedly available"
+            assert not hasattr(stageflow, item), (
+                f"Commented out item '{item}' is unexpectedly available"
+            )
 
 
 class TestStageflowErrorHandling:
@@ -396,27 +434,27 @@ class TestStageflowErrorHandling:
         """Verify graceful handling if element module import fails."""
         # Arrange
         # Store original module to restore later
-        original_stageflow = sys.modules.get('stageflow')
-        original_element = sys.modules.get('stageflow.element')
+        original_stageflow = sys.modules.get("stageflow")
+        original_element = sys.modules.get("stageflow.element")
 
         try:
             # Remove modules to force reimport
-            if 'stageflow' in sys.modules:
-                del sys.modules['stageflow']
-            if 'stageflow.element' in sys.modules:
-                del sys.modules['stageflow.element']
+            if "stageflow" in sys.modules:
+                del sys.modules["stageflow"]
+            if "stageflow.element" in sys.modules:
+                del sys.modules["stageflow.element"]
 
             # Patch to cause import failure
-            with patch.dict(sys.modules, {'stageflow.element': None}):
+            with patch.dict(sys.modules, {"stageflow.element": None}):
                 # Act & Assert
                 with pytest.raises(ImportError):
                     pass  # This should trigger the ImportError
         finally:
             # Restore original modules
             if original_stageflow is not None:
-                sys.modules['stageflow'] = original_stageflow
+                sys.modules["stageflow"] = original_stageflow
             if original_element is not None:
-                sys.modules['stageflow.element'] = original_element
+                sys.modules["stageflow.element"] = original_element
 
     def test_malformed_version_string_handling(self):
         """Verify package handles version string edge cases."""
@@ -441,13 +479,14 @@ class TestStageflowCompatibility:
         # Arrange
         import sys
 
-
         # Act
         current_python = sys.version_info
 
         # Assert
         # Package should work with Python 3.11+
-        assert current_python >= (3, 11), f"Python version {current_python} may not be supported"
+        assert current_python >= (3, 11), (
+            f"Python version {current_python} may not be supported"
+        )
 
     def test_import_patterns_from_documentation_work(self):
         """Verify import patterns shown in documentation actually work."""
@@ -455,6 +494,7 @@ class TestStageflowCompatibility:
         # Test the import pattern from the module docstring
         try:
             from stageflow import Element
+
             # process = load_process("path/to/process.yaml")  # Commented out in current version
             # element = Element  # Class reference, can't instantiate directly
             assert Element is not None
@@ -472,14 +512,16 @@ class TestStageflowCompatibility:
         # Assert
         # Check that commented out manager items are properly excluded from current __all__
         future_api_items = [
-            'ProcessManager',
-            'ManagerConfig',
-            'ProcessRegistry',
-            'ProcessEditor'
+            "ProcessManager",
+            "ManagerConfig",
+            "ProcessRegistry",
+            "ProcessEditor",
         ]
 
         for item in future_api_items:
-            assert item not in all_exports, f"Future API item '{item}' should not be in current __all__"
+            assert item not in all_exports, (
+                f"Future API item '{item}' should not be in current __all__"
+            )
 
 
 class TestStageflowIntegration:
@@ -524,11 +566,9 @@ class TestStageflowIntegration:
 class TestStageflowParametrized:
     """Parametrized tests for comprehensive coverage of various scenarios."""
 
-    @pytest.mark.parametrize("export_name", [
-        "Element",
-        "create_element_from_config",
-        "__version__"
-    ])
+    @pytest.mark.parametrize(
+        "export_name", ["Element", "create_element_from_config", "__version__"]
+    )
     def test_individual_exports_are_accessible(self, export_name):
         """Test each export individually to ensure accessibility."""
         # Arrange
@@ -538,11 +578,17 @@ class TestStageflowParametrized:
         assert hasattr(stageflow, export_name)
         assert export_name in stageflow.__all__
 
-    @pytest.mark.parametrize("import_pattern,expected_items", [
-        ("from stageflow import Element", ["Element"]),
-        ("from stageflow import __version__", ["__version__"]),
-        ("from stageflow import create_element_from_config", ["create_element_from_config"]),
-    ])
+    @pytest.mark.parametrize(
+        "import_pattern,expected_items",
+        [
+            ("from stageflow import Element", ["Element"]),
+            ("from stageflow import __version__", ["__version__"]),
+            (
+                "from stageflow import create_element_from_config",
+                ["create_element_from_config"],
+            ),
+        ],
+    )
     def test_various_import_patterns_work(self, import_pattern, expected_items):
         """Test various import patterns work as expected."""
         # Arrange
@@ -555,13 +601,16 @@ class TestStageflowParametrized:
         for item in expected_items:
             assert item in test_namespace
 
-    @pytest.mark.parametrize("attribute_name,expected_type", [
-        ("__version__", str),
-        ("__all__", list),
-        ("__doc__", str),
-        ("Element", type),
-        ("create_element_from_config", object),  # Could be function or callable
-    ])
+    @pytest.mark.parametrize(
+        "attribute_name,expected_type",
+        [
+            ("__version__", str),
+            ("__all__", list),
+            ("__doc__", str),
+            ("Element", type),
+            ("create_element_from_config", object),  # Could be function or callable
+        ],
+    )
     def test_attribute_types_are_correct(self, attribute_name, expected_type):
         """Test that package attributes have correct types."""
         # Arrange
@@ -589,7 +638,9 @@ class TestStageflowPerformance:
         import time
 
         # Remove from cache to test fresh import
-        modules_to_remove = [name for name in sys.modules if name.startswith('stageflow')]
+        modules_to_remove = [
+            name for name in sys.modules if name.startswith("stageflow")
+        ]
         for module in modules_to_remove:
             del sys.modules[module]
 
@@ -599,7 +650,9 @@ class TestStageflowPerformance:
 
         # Assert
         # Import should be reasonably fast (less than 1 second)
-        assert import_time < 1.0, f"Package import took {import_time:.3f} seconds, which may be too slow"
+        assert import_time < 1.0, (
+            f"Package import took {import_time:.3f} seconds, which may be too slow"
+        )
 
     def test_multiple_imports_are_consistent(self):
         """Verify multiple imports return the same module instance."""
@@ -624,7 +677,6 @@ class TestStageflowPerformance:
         gc.collect()
         initial_objects = len(gc.get_objects())
 
-
         gc.collect()
         final_objects = len(gc.get_objects())
         objects_created = final_objects - initial_objects
@@ -632,4 +684,6 @@ class TestStageflowPerformance:
         # Assert
         # Should not create an excessive number of objects
         # This is a rough heuristic - adjust threshold as needed
-        assert objects_created < 1000, f"Package import created {objects_created} objects, which may be excessive"
+        assert objects_created < 1000, (
+            f"Package import created {objects_created} objects, which may be excessive"
+        )

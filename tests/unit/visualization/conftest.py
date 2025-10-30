@@ -35,11 +35,9 @@ def simple_mock_process() -> Mock:
 
     # Configure stage lookup
     def get_stage_side_effect(stage_name):
-        return {
-            "start": start_stage,
-            "middle": middle_stage,
-            "end": end_stage
-        }.get(stage_name)
+        return {"start": start_stage, "middle": middle_stage, "end": end_stage}.get(
+            stage_name
+        )
 
     process.get_stage = Mock(side_effect=get_stage_side_effect)
     return process
@@ -50,7 +48,9 @@ def complex_mock_process() -> Mock:
     """Create a complex mock process with gates and locks for detailed testing."""
     process = Mock(spec=Process)
     process.name = "complex_workflow"
-    process.get_sorted_stages = Mock(return_value=["registration", "validation", "approval", "completion"])
+    process.get_sorted_stages = Mock(
+        return_value=["registration", "validation", "approval", "completion"]
+    )
 
     # Registration stage
     registration_stage = Mock()
@@ -95,7 +95,7 @@ def complex_mock_process() -> Mock:
             "registration": registration_stage,
             "validation": validation_stage,
             "approval": approval_stage,
-            "completion": completion_stage
+            "completion": completion_stage,
         }.get(stage_name)
 
     process.get_stage = Mock(side_effect=get_stage_side_effect)
@@ -182,87 +182,102 @@ def realistic_ecommerce_process_config() -> dict[str, Any]:
                 "name": "Shopping Cart",
                 "expected_properties": {
                     "items": {"type": "list"},
-                    "customer_id": {"type": "str"}
+                    "customer_id": {"type": "str"},
                 },
-                "gates": [{
-                    "name": "cart_validated",
-                    "target_stage": "checkout",
-                    "locks": [
-                        {"exists": "items"},
-                        {"exists": "customer_id"}
-                    ]
-                }]
+                "gates": [
+                    {
+                        "name": "cart_validated",
+                        "target_stage": "checkout",
+                        "locks": [{"exists": "items"}, {"exists": "customer_id"}],
+                    }
+                ],
             },
             "checkout": {
                 "name": "Checkout Process",
                 "expected_properties": {
                     "billing_address": {"type": "dict"},
                     "shipping_address": {"type": "dict"},
-                    "payment_method": {"type": "str"}
+                    "payment_method": {"type": "str"},
                 },
-                "gates": [{
-                    "name": "checkout_complete",
-                    "target_stage": "payment",
-                    "locks": [
-                        {"exists": "billing_address"},
-                        {"exists": "shipping_address"},
-                        {"exists": "payment_method"}
-                    ]
-                }]
+                "gates": [
+                    {
+                        "name": "checkout_complete",
+                        "target_stage": "payment",
+                        "locks": [
+                            {"exists": "billing_address"},
+                            {"exists": "shipping_address"},
+                            {"exists": "payment_method"},
+                        ],
+                    }
+                ],
             },
             "payment": {
                 "name": "Payment Processing",
                 "expected_properties": {
                     "payment_status": {"type": "str"},
-                    "transaction_id": {"type": "str"}
+                    "transaction_id": {"type": "str"},
                 },
-                "gates": [{
-                    "name": "payment_successful",
-                    "target_stage": "fulfillment",
-                    "locks": [
-                        {"type": "EQUALS", "property": "payment_status", "value": "completed"},
-                        {"exists": "transaction_id"}
-                    ]
-                }]
+                "gates": [
+                    {
+                        "name": "payment_successful",
+                        "target_stage": "fulfillment",
+                        "locks": [
+                            {
+                                "type": "EQUALS",
+                                "property": "payment_status",
+                                "value": "completed",
+                            },
+                            {"exists": "transaction_id"},
+                        ],
+                    }
+                ],
             },
             "fulfillment": {
                 "name": "Order Fulfillment",
                 "expected_properties": {
                     "fulfillment_status": {"type": "str"},
-                    "tracking_number": {"type": "str"}
+                    "tracking_number": {"type": "str"},
                 },
-                "gates": [{
-                    "name": "order_shipped",
-                    "target_stage": "delivered",
-                    "locks": [
-                        {"type": "EQUALS", "property": "fulfillment_status", "value": "shipped"},
-                        {"exists": "tracking_number"}
-                    ]
-                }]
+                "gates": [
+                    {
+                        "name": "order_shipped",
+                        "target_stage": "delivered",
+                        "locks": [
+                            {
+                                "type": "EQUALS",
+                                "property": "fulfillment_status",
+                                "value": "shipped",
+                            },
+                            {"exists": "tracking_number"},
+                        ],
+                    }
+                ],
             },
             "delivered": {
                 "name": "Order Delivered",
                 "expected_properties": {
                     "delivery_status": {"type": "str"},
-                    "delivered_date": {"type": "str"}
+                    "delivered_date": {"type": "str"},
                 },
-                "gates": [{
-                    "name": "delivery_confirmed",
-                    "target_stage": "completed",
-                    "locks": [
-                        {"type": "EQUALS", "property": "delivery_status", "value": "delivered"},
-                        {"exists": "delivered_date"}
-                    ]
-                }]
+                "gates": [
+                    {
+                        "name": "delivery_confirmed",
+                        "target_stage": "completed",
+                        "locks": [
+                            {
+                                "type": "EQUALS",
+                                "property": "delivery_status",
+                                "value": "delivered",
+                            },
+                            {"exists": "delivered_date"},
+                        ],
+                    }
+                ],
             },
-            "completed": {
-                "name": "Order Completed",
-                "gates": [],
-                "is_final": True
-            }
+            "completed": {"name": "Order Completed", "gates": [], "is_final": True},
         },
         "initial_stage": "cart",
-        "final_stage": "completed"
+        "final_stage": "completed",
     }
 
 
@@ -301,7 +316,9 @@ def mock_user_onboarding_process() -> Mock:
     """Create a mock user onboarding process for realistic testing scenarios."""
     process = Mock(spec=Process)
     process.name = "user_onboarding"
-    process.get_sorted_stages = Mock(return_value=["signup", "email_verification", "profile_setup", "activation"])
+    process.get_sorted_stages = Mock(
+        return_value=["signup", "email_verification", "profile_setup", "activation"]
+    )
 
     # Signup stage
     signup_stage = Mock()
@@ -338,7 +355,7 @@ def mock_user_onboarding_process() -> Mock:
             "signup": signup_stage,
             "email_verification": email_stage,
             "profile_setup": profile_stage,
-            "activation": activation_stage
+            "activation": activation_stage,
         }.get(stage_name)
 
     process.get_stage = Mock(side_effect=get_stage_side_effect)
@@ -350,7 +367,9 @@ def mock_process_with_edge_cases() -> Mock:
     """Create a mock process with edge cases for error handling testing."""
     process = Mock(spec=Process)
     process.name = "edge_case_process"
-    process.get_sorted_stages = Mock(return_value=["normal_stage", "missing_stage", "malformed_stage"])
+    process.get_sorted_stages = Mock(
+        return_value=["normal_stage", "missing_stage", "malformed_stage"]
+    )
 
     # Normal stage
     normal_stage = Mock()
@@ -392,31 +411,19 @@ def layout_engine(request) -> str:
 def sample_lock_configurations() -> list[dict[str, Any]]:
     """Provide sample lock configurations for testing."""
     return [
-        {
-            "type": "EXISTS",
-            "property": "email",
-            "expected_value": None
-        },
+        {"type": "EXISTS", "property": "email", "expected_value": None},
         {
             "type": "REGEX",
             "property": "email",
-            "expected_value": r"^[^@]+@[^@]+\.[^@]+$"
+            "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
         },
-        {
-            "type": "EQUALS",
-            "property": "status",
-            "expected_value": "active"
-        },
-        {
-            "type": "GREATER_THAN",
-            "property": "age",
-            "expected_value": 18
-        },
+        {"type": "EQUALS", "property": "status", "expected_value": "active"},
+        {"type": "GREATER_THAN", "property": "age", "expected_value": 18},
         {
             "type": "IN_LIST",
             "property": "role",
-            "expected_value": ["admin", "user", "moderator"]
-        }
+            "expected_value": ["admin", "user", "moderator"],
+        },
     ]
 
 
@@ -424,21 +431,14 @@ def sample_lock_configurations() -> list[dict[str, Any]]:
 def expected_mermaid_elements() -> dict[str, list[str]]:
     """Provide expected elements for Mermaid diagram validation."""
     return {
-        "overview": [
-            "```mermaid",
-            "flowchart TD",
-            "S0[",
-            "S1[",
-            "S0 -->",
-            "```"
-        ],
+        "overview": ["```mermaid", "flowchart TD", "S0[", "S1[", "S0 -->", "```"],
         "detailed": [
             "```mermaid",
             "flowchart TD",
             "subgraph",
             "direction TB",
             "gate(s)",
-            "```"
+            "```",
         ],
         "full": [
             "```mermaid",
@@ -446,8 +446,8 @@ def expected_mermaid_elements() -> dict[str, list[str]]:
             "%% Gate Details",
             "subgraph G",
             "validation gate",
-            "```"
-        ]
+            "```",
+        ],
     }
 
 
@@ -462,7 +462,7 @@ def expected_graphviz_elements() -> dict[str, list[str]]:
             "shape=house",
             "shape=box",
             "shape=invhouse",
-            "}"
+            "}",
         ],
         "detailed": [
             "digraph StageFlow {",
@@ -470,15 +470,9 @@ def expected_graphviz_elements() -> dict[str, list[str]]:
             "(0 gates)",
             "\\n",
             "gates)",
-            "}"
+            "}",
         ],
-        "full": [
-            "digraph StageFlow {",
-            "// Gate details",
-            "cluster_",
-            "subgraph",
-            "}"
-        ]
+        "full": ["digraph StageFlow {", "// Gate details", "cluster_", "subgraph", "}"],
     }
 
 
@@ -486,19 +480,19 @@ def expected_graphviz_elements() -> dict[str, list[str]]:
 def validate_mermaid_structure(diagram_content: str) -> bool:
     """Validate that Mermaid diagram has proper structure."""
     return (
-        diagram_content.startswith("```mermaid") and
-        diagram_content.endswith("```") and
-        "flowchart TD" in diagram_content
+        diagram_content.startswith("```mermaid")
+        and diagram_content.endswith("```")
+        and "flowchart TD" in diagram_content
     )
 
 
 def validate_graphviz_structure(dot_content: str) -> bool:
     """Validate that Graphviz DOT has proper structure."""
     return (
-        dot_content.startswith("digraph") and
-        dot_content.endswith("}") and
-        "layout=" in dot_content and
-        "rankdir=" in dot_content
+        dot_content.startswith("digraph")
+        and dot_content.endswith("}")
+        and "layout=" in dot_content
+        and "rankdir=" in dot_content
     )
 
 

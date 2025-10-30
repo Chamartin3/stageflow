@@ -1,6 +1,5 @@
 """Comprehensive unit tests for Stage class and stage evaluation logic."""
 
-
 import pytest
 
 from stageflow.element import DictElement
@@ -46,7 +45,7 @@ class TestAction:
         action = Action(
             description="Update user email",
             related_properties=["user.email"],
-            action_type=ActionType.UPDATE
+            action_type=ActionType.UPDATE,
         )
 
         # Assert
@@ -62,7 +61,7 @@ class TestAction:
             description="Ready to proceed",
             related_properties=[],
             action_type=ActionType.TRANSITION,
-            target_stage="next_stage"
+            target_stage="next_stage",
         )
 
         # Assert
@@ -77,7 +76,7 @@ class TestAction:
         action = Action(
             description="Test action",
             related_properties=["field"],
-            action_type=ActionType.UPDATE
+            action_type=ActionType.UPDATE,
         )
 
         # Act & Assert
@@ -91,15 +90,13 @@ class TestStageEvaluationResult:
     def test_stage_evaluation_result_creation(self):
         """Verify StageEvaluationResult can be created with all fields."""
         # Arrange
-        actions = [
-            Action("Test action", ["field"], ActionType.UPDATE)
-        ]
+        actions = [Action("Test action", ["field"], ActionType.UPDATE)]
 
         # Act
         result = StageEvaluationResult(
             status=StageStatus.ACTION_REQUIRED,
             gate_results={"gate1": "result1"},
-            sugested_action=actions
+            sugested_action=actions,
         )
 
         # Assert
@@ -112,9 +109,7 @@ class TestStageEvaluationResult:
         """Verify StageEvaluationResult is immutable."""
         # Arrange
         result = StageEvaluationResult(
-            status=StageStatus.INVALID_SCHEMA,
-            gate_results={},
-            sugested_action=[]
+            status=StageStatus.INVALID_SCHEMA, gate_results={}, sugested_action=[]
         )
 
         # Act & Assert
@@ -138,22 +133,30 @@ class TestStage:
                     "target_stage": "email_verification",
                     "parent_stage": "user_registration",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
-                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "email",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "password",
+                            "expected_value": None,
+                        },
+                    ],
                 }
             ],
             "expected_actions": [
                 {
                     "description": "Fill in required user information",
-                    "related_properties": ["email", "password"]
+                    "related_properties": ["email", "password"],
                 }
             ],
             "expected_properties": {
                 "email": {"type": "string", "default": None},
-                "password": {"type": "string", "default": None}
+                "password": {"type": "string", "default": None},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         # Act
@@ -176,7 +179,7 @@ class TestStage:
             "gates": [],
             "expected_actions": [],
             "expected_properties": {},
-            "is_final": True
+            "is_final": True,
         }
 
         # Act
@@ -196,7 +199,7 @@ class TestStage:
             "gates": [],
             "expected_actions": [],
             "expected_properties": {},
-            "is_final": False
+            "is_final": False,
         }
 
         # Act
@@ -219,30 +222,44 @@ class TestStage:
                     "description": "First gate",
                     "target_stage": "stage_a",
                     "parent_stage": "current",
-                    "locks": [{"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}]
+                    "locks": [
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "field1",
+                            "expected_value": None,
+                        }
+                    ],
                 },
                 {
                     "name": "gate2",
                     "description": "Second gate",
                     "target_stage": "stage_b",
                     "parent_stage": "current",
-                    "locks": [{"type": LockType.EXISTS, "property_path": "field2", "expected_value": None}]
+                    "locks": [
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "field2",
+                            "expected_value": None,
+                        }
+                    ],
                 },
                 {
                     "name": "gate3",
                     "description": "Third gate",
                     "target_stage": "stage_c",  # Unique target
                     "parent_stage": "current",
-                    "locks": [{"type": LockType.EXISTS, "property_path": "field3", "expected_value": None}]
-                }
+                    "locks": [
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "field3",
+                            "expected_value": None,
+                        }
+                    ],
+                },
             ],
             "expected_actions": [],
-            "expected_properties": {
-                "field1": None,
-                "field2": None,
-                "field3": None
-            },
-            "is_final": False
+            "expected_properties": {"field1": None, "field2": None, "field3": None},
+            "is_final": False,
         }
 
         stage = Stage("multi_id", stage_config)
@@ -251,7 +268,11 @@ class TestStage:
         transitions = stage.posible_transitions
 
         # Assert
-        assert set(transitions) == {"stage_a", "stage_b", "stage_c"}  # All unique transitions
+        assert set(transitions) == {
+            "stage_a",
+            "stage_b",
+            "stage_c",
+        }  # All unique transitions
 
     def test_stage_evaluate_with_valid_schema_and_passing_gate(self):
         """Verify stage evaluation succeeds when schema is valid and gate passes."""
@@ -259,7 +280,7 @@ class TestStage:
         element_data = {
             "email": "user@example.com",
             "password": "securepass123",
-            "age": 25
+            "age": 25,
         }
         element = DictElement(element_data)
 
@@ -273,19 +294,31 @@ class TestStage:
                     "target_stage": "next_stage",
                     "parent_stage": "current",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
-                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None},
-                        {"type": LockType.GREATER_THAN, "property_path": "age", "expected_value": 18}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "email",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "password",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.GREATER_THAN,
+                            "property_path": "age",
+                            "expected_value": 18,
+                        },
+                    ],
                 }
             ],
             "expected_actions": [],
             "expected_properties": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
-                "age": {"type": "integer", "default": None}
+                "age": {"type": "integer", "default": None},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("validation_id", stage_config)
@@ -319,18 +352,26 @@ class TestStage:
                     "target_stage": "next_stage",
                     "parent_stage": "current",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
-                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "email",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "password",
+                            "expected_value": None,
+                        },
+                    ],
                 }
             ],
             "expected_actions": [],
             "expected_properties": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": "default_pass"},
-                "age": {"type": "integer", "default": 18}
+                "age": {"type": "integer", "default": 18},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("validation_id", stage_config)
@@ -341,7 +382,9 @@ class TestStage:
         # Assert
         assert result.status == StageStatus.INVALID_SCHEMA
         assert len(result.sugested_action) == 2  # Missing password and age
-        assert all(action.action_type == ActionType.UPDATE for action in result.sugested_action)
+        assert all(
+            action.action_type == ActionType.UPDATE for action in result.sugested_action
+        )
         assert result.gate_results == {}  # No gates evaluated when schema invalid
 
     def test_stage_evaluate_with_valid_schema_but_failing_gates(self):
@@ -350,7 +393,7 @@ class TestStage:
         element_data = {
             "email": "invalid-email-format",  # Will fail regex
             "password": "securepass123",
-            "age": 25
+            "age": 25,
         }
         element = DictElement(element_data)
 
@@ -364,22 +407,23 @@ class TestStage:
                     "target_stage": "next_stage",
                     "parent_stage": "current",
                     "locks": [
-                        {"type": LockType.REGEX, "property_path": "email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}
-                    ]
+                        {
+                            "type": LockType.REGEX,
+                            "property_path": "email",
+                            "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+                        }
+                    ],
                 }
             ],
             "expected_actions": [
-                {
-                    "description": "Fix email format",
-                    "related_properties": ["email"]
-                }
+                {"description": "Fix email format", "related_properties": ["email"]}
             ],
             "expected_properties": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
-                "age": {"type": "integer", "default": None}
+                "age": {"type": "integer", "default": None},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("validation_id", stage_config)
@@ -390,7 +434,10 @@ class TestStage:
         # Assert
         assert result.status == StageStatus.ACTION_REQUIRED
         assert len(result.sugested_action) >= 1  # At least one action suggested
-        assert any(action.action_type == ActionType.EXCECUTE for action in result.sugested_action)
+        assert any(
+            action.action_type == ActionType.EXCECUTE
+            for action in result.sugested_action
+        )
         assert "email_validation" in result.gate_results
         assert not result.gate_results["email_validation"].success
 
@@ -407,19 +454,19 @@ class TestStage:
                     "target_stage": "next",
                     "parent_stage": "current",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "user.profile.name", "expected_value": None}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "user.profile.name",
+                            "expected_value": None,
+                        }
+                    ],
                 }
             ],
             "expected_actions": [],
             "expected_properties": {
-                "user": {
-                    "profile": {
-                        "name": {"type": "string", "default": None}
-                    }
-                }
+                "user": {"profile": {"name": {"type": "string", "default": None}}}
             },
-            "is_final": False
+            "is_final": False,
         }
 
         # Act & Assert - Should not raise exception during stage creation
@@ -439,25 +486,34 @@ class TestStage:
                     "target_stage": "next",
                     "parent_stage": "current",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "field1", "expected_value": None}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "field1",
+                            "expected_value": None,
+                        }
+                    ],
                 }
             ],
             "expected_actions": [
                 {
                     "description": "Action that references unevaluated property",
-                    "related_properties": ["field1", "field2"]  # field2 not evaluated by any gate
+                    "related_properties": [
+                        "field1",
+                        "field2",
+                    ],  # field2 not evaluated by any gate
                 }
             ],
             "expected_properties": {
                 "field1": {"type": "string", "default": None},
-                "field2": {"type": "string", "default": None}
+                "field2": {"type": "string", "default": None},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         # Act & Assert
-        with pytest.raises(ValueError, match="Action property 'field2' is not evaluated by any gate"):
+        with pytest.raises(
+            ValueError, match="Action property 'field2' is not evaluated by any gate"
+        ):
             Stage("invalid_id", invalid_config)
 
     def test_stage_serialization_to_dict(self):
@@ -473,20 +529,19 @@ class TestStage:
                     "target_stage": "next_stage",
                     "parent_stage": "current_stage",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "field", "expected_value": None}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "field",
+                            "expected_value": None,
+                        }
+                    ],
                 }
             ],
             "expected_actions": [
-                {
-                    "description": "Test action",
-                    "related_properties": ["field"]
-                }
+                {"description": "Test action", "related_properties": ["field"]}
             ],
-            "expected_properties": {
-                "field": {"type": "string", "default": None}
-            },
-            "is_final": False
+            "expected_properties": {"field": {"type": "string", "default": None}},
+            "is_final": False,
         }
 
         stage = Stage("serialization_id", stage_config)
@@ -513,15 +568,8 @@ class TestStageIntegration:
         user_data = {
             "email": "user@example.com",
             "password": "securepass123",
-            "profile": {
-                "name": "John Doe",
-                "age": 25,
-                "verified": False
-            },
-            "preferences": {
-                "newsletter": True,
-                "notifications": True
-            }
+            "profile": {"name": "John Doe", "age": 25, "verified": False},
+            "preferences": {"newsletter": True, "notifications": True},
         }
         element = DictElement(user_data)
 
@@ -535,10 +583,22 @@ class TestStageIntegration:
                     "target_stage": "profile_setup",
                     "parent_stage": "registration",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "email", "expected_value": None},
-                        {"type": LockType.EXISTS, "property_path": "password", "expected_value": None},
-                        {"type": LockType.REGEX, "property_path": "email", "expected_value": r"^[^@]+@[^@]+\.[^@]+$"}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "email",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "password",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.REGEX,
+                            "property_path": "email",
+                            "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
+                        },
+                    ],
                 },
                 {
                     "name": "profile_complete",
@@ -546,16 +606,28 @@ class TestStageIntegration:
                     "target_stage": "verification",
                     "parent_stage": "registration",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "profile.name", "expected_value": None},
-                        {"type": LockType.GREATER_THAN, "property_path": "profile.age", "expected_value": 18},
-                        {"type": LockType.EQUALS, "property_path": "profile.verified", "expected_value": True}  # Will fail
-                    ]
-                }
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "profile.name",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.GREATER_THAN,
+                            "property_path": "profile.age",
+                            "expected_value": 18,
+                        },
+                        {
+                            "type": LockType.EQUALS,
+                            "property_path": "profile.verified",
+                            "expected_value": True,
+                        },  # Will fail
+                    ],
+                },
             ],
             "expected_actions": [
                 {
                     "description": "Complete profile verification",
-                    "related_properties": ["profile.verified"]
+                    "related_properties": ["profile.verified"],
                 }
             ],
             "expected_properties": {
@@ -564,10 +636,10 @@ class TestStageIntegration:
                 "profile": {
                     "name": {"type": "string", "default": None},
                     "age": {"type": "integer", "default": None},
-                    "verified": {"type": "boolean", "default": False}
-                }
+                    "verified": {"type": "boolean", "default": False},
+                },
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("onboarding_id", stage_config)
@@ -589,7 +661,7 @@ class TestStageIntegration:
                 "info": {
                     "name": "Tech Corp",
                     "type": "technology",
-                    "employee_count": 150
+                    "employee_count": 150,
                 },
                 "departments": [
                     {
@@ -597,24 +669,21 @@ class TestStageIntegration:
                         "head": {
                             "name": "Alice Johnson",
                             "email": "alice@techcorp.com",
-                            "verified": True
+                            "verified": True,
                         },
-                        "team_size": 50
+                        "team_size": 50,
                     },
                     {
                         "name": "Marketing",
                         "head": {
                             "name": "Bob Smith",
                             "email": "bob@techcorp.com",
-                            "verified": False  # Will cause failure
+                            "verified": False,  # Will cause failure
                         },
-                        "team_size": 20
-                    }
+                        "team_size": 20,
+                    },
                 ],
-                "policies": {
-                    "remote_work": True,
-                    "performance_reviews": True
-                }
+                "policies": {"remote_work": True, "performance_reviews": True},
             }
         }
         element = DictElement(organization_data)
@@ -629,9 +698,17 @@ class TestStageIntegration:
                     "target_stage": "department_review",
                     "parent_stage": "setup",
                     "locks": [
-                        {"type": LockType.EXISTS, "property_path": "organization.info.name", "expected_value": None},
-                        {"type": LockType.GREATER_THAN, "property_path": "organization.info.employee_count", "expected_value": 10}
-                    ]
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "organization.info.name",
+                            "expected_value": None,
+                        },
+                        {
+                            "type": LockType.GREATER_THAN,
+                            "property_path": "organization.info.employee_count",
+                            "expected_value": 10,
+                        },
+                    ],
                 },
                 {
                     "name": "department_heads_verified",
@@ -639,19 +716,30 @@ class TestStageIntegration:
                     "target_stage": "policy_review",
                     "parent_stage": "setup",
                     "locks": [
-                        {"type": LockType.EQUALS, "property_path": "organization.departments[0].head.verified", "expected_value": True},
-                        {"type": LockType.EQUALS, "property_path": "organization.departments[1].head.verified", "expected_value": True}  # Will fail
-                    ]
-                }
+                        {
+                            "type": LockType.EQUALS,
+                            "property_path": "organization.departments[0].head.verified",
+                            "expected_value": True,
+                        },
+                        {
+                            "type": LockType.EQUALS,
+                            "property_path": "organization.departments[1].head.verified",
+                            "expected_value": True,
+                        },  # Will fail
+                    ],
+                },
             ],
             "expected_actions": [
                 {
                     "description": "Verify all department heads",
-                    "related_properties": ["organization.departments[0].head.verified", "organization.departments[1].head.verified"]
+                    "related_properties": [
+                        "organization.departments[0].head.verified",
+                        "organization.departments[1].head.verified",
+                    ],
                 }
             ],
             "expected_properties": None,
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("org_validation_id", stage_config)
@@ -668,10 +756,7 @@ class TestStageIntegration:
         """Test evaluation of a final stage without gates."""
         # Arrange
         final_data = {
-            "completion": {
-                "status": "completed",
-                "timestamp": "2024-01-20T10:00:00Z"
-            }
+            "completion": {"status": "completed", "timestamp": "2024-01-20T10:00:00Z"}
         }
         element = DictElement(final_data)
 
@@ -683,10 +768,10 @@ class TestStageIntegration:
             "expected_properties": {
                 "completion": {
                     "status": {"type": "string", "default": None},
-                    "timestamp": {"type": "string", "default": None}
+                    "timestamp": {"type": "string", "default": None},
                 }
             },
-            "is_final": True
+            "is_final": True,
         }
 
         stage = Stage("completion_id", final_stage_config)
@@ -715,9 +800,9 @@ class TestStageSchema:
             "expected_properties": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
-                "user.profile.name": {"type": "string", "default": "Anonymous"}
+                "user.profile.name": {"type": "string", "default": "Anonymous"},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("registration_id", stage_config)
@@ -743,7 +828,7 @@ class TestStageSchema:
             "gates": [],
             "expected_actions": [],
             "expected_properties": None,
-            "is_final": True
+            "is_final": True,
         }
 
         stage = Stage("simple_id", stage_config)
@@ -763,7 +848,7 @@ class TestStageSchema:
             "gates": [],
             "expected_actions": [],
             "expected_properties": {},
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("empty_id", stage_config)
@@ -786,19 +871,19 @@ class TestStageSchema:
                 "user": {
                     "personal": {
                         "name": {"type": "string", "default": None},
-                        "age": {"type": "integer", "default": 18}
+                        "age": {"type": "integer", "default": 18},
                     },
                     "contact": {
                         "email": {"type": "string", "default": None},
-                        "phone": {"type": "string", "default": None}
-                    }
+                        "phone": {"type": "string", "default": None},
+                    },
                 },
                 "preferences": {
                     "notifications": {"type": "boolean", "default": True},
-                    "theme": {"type": "string", "default": "light"}
-                }
+                    "theme": {"type": "string", "default": "light"},
+                },
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("complex_id", stage_config)
@@ -819,7 +904,7 @@ class TestStageSchema:
         # Arrange
         original_properties = {
             "field1": {"type": "string", "default": "value1"},
-            "field2": {"type": "integer", "default": 42}
+            "field2": {"type": "integer", "default": 42},
         }
 
         stage_config: StageDefinition = {
@@ -828,7 +913,7 @@ class TestStageSchema:
             "gates": [],
             "expected_actions": [],
             "expected_properties": original_properties,
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("immutable_id", stage_config)
@@ -858,9 +943,9 @@ class TestStageSchema:
             "expected_actions": [],
             "expected_properties": {
                 "optional_field": None,
-                "required_field": {"type": "string", "default": None}
+                "required_field": {"type": "string", "default": None},
             },
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("nullable_id", stage_config)
@@ -890,7 +975,7 @@ class TestStageSchema:
             "gates": [],
             "expected_actions": [],
             "expected_properties": large_properties,
-            "is_final": False
+            "is_final": False,
         }
 
         stage = Stage("large_id", stage_config)

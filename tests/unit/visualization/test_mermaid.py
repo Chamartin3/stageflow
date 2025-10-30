@@ -106,7 +106,7 @@ class TestMermaidProcessDiagramGeneration:
             "S2[Final Stage]",
             "S0 --> S1",
             "S1 --> S2",
-            "```"
+            "```",
         ]
 
         # Act
@@ -142,7 +142,9 @@ class TestMermaidProcessDiagramGeneration:
         assert "%% Gate Details" in result
         assert "```" in result
 
-    def test_generate_process_diagram_legacy_include_details_parameter(self, generator, mock_process):
+    def test_generate_process_diagram_legacy_include_details_parameter(
+        self, generator, mock_process
+    ):
         """Verify legacy include_details parameter maps to detailed style."""
         # Arrange & Act
         result = generator.generate_process_diagram(mock_process, include_details=True)
@@ -183,7 +185,9 @@ class TestMermaidProcessDiagramGeneration:
         # Arrange
         process = Mock(spec=Process)
         process.name = "test_process"
-        process.get_sorted_stages = Mock(return_value=["missing_stage1", "missing_stage2"])
+        process.get_sorted_stages = Mock(
+            return_value=["missing_stage1", "missing_stage2"]
+        )
         process.get_stage = Mock(return_value=None)
 
         # Act
@@ -229,7 +233,9 @@ class TestMermaidStageDetailGeneration:
         """Create a MermaidDiagramGenerator instance for testing."""
         return MermaidDiagramGenerator()
 
-    def test_generate_stage_detail_with_gates_and_locks(self, generator, mock_stage_with_gates):
+    def test_generate_stage_detail_with_gates_and_locks(
+        self, generator, mock_stage_with_gates
+    ):
         """Verify stage detail generation with gates and locks."""
         # Arrange
         mock_lock = Mock()
@@ -241,7 +247,9 @@ class TestMermaidStageDetailGeneration:
         mock_stage_with_gates.gates[0].locks = [mock_lock]
 
         # Act
-        result = generator.generate_stage_detail(mock_stage_with_gates, include_locks=True)
+        result = generator.generate_stage_detail(
+            mock_stage_with_gates, include_locks=True
+        )
 
         # Assert
         assert "```mermaid" in result
@@ -251,7 +259,9 @@ class TestMermaidStageDetailGeneration:
         assert "G1[completion_gate<br/>validation gate]" in result
         assert "```" in result
 
-    def test_generate_stage_detail_without_gates(self, generator, mock_stage_without_gates):
+    def test_generate_stage_detail_without_gates(
+        self, generator, mock_stage_without_gates
+    ):
         """Verify stage detail generation for stage without gates."""
         # Arrange & Act
         result = generator.generate_stage_detail(mock_stage_without_gates)
@@ -264,7 +274,9 @@ class TestMermaidStageDetailGeneration:
         assert "class NoGates nogate" in result
         assert "```" in result
 
-    def test_generate_stage_detail_excludes_locks_when_requested(self, generator, mock_stage_with_gates):
+    def test_generate_stage_detail_excludes_locks_when_requested(
+        self, generator, mock_stage_with_gates
+    ):
         """Verify stage detail generation excludes locks when include_locks=False."""
         # Arrange
         mock_lock = Mock()
@@ -275,7 +287,9 @@ class TestMermaidStageDetailGeneration:
         mock_stage_with_gates.gates[0].locks = [mock_lock]
 
         # Act
-        result = generator.generate_stage_detail(mock_stage_with_gates, include_locks=False)
+        result = generator.generate_stage_detail(
+            mock_stage_with_gates, include_locks=False
+        )
 
         # Assert
         assert "```mermaid" in result
@@ -286,7 +300,9 @@ class TestMermaidStageDetailGeneration:
         # Should not have lock connections
         assert "G0 --> L0_0" not in result
 
-    def test_generate_stage_detail_includes_styling(self, generator, mock_stage_with_gates):
+    def test_generate_stage_detail_includes_styling(
+        self, generator, mock_stage_with_gates
+    ):
         """Verify stage detail includes comprehensive styling classes."""
         # Arrange & Act
         result = generator.generate_stage_detail(mock_stage_with_gates)
@@ -431,7 +447,7 @@ class TestMermaidStateFlowGeneration:
             "QUALIFYING --> REGRESSING",
             "FULFILLING --> REGRESSING",
             "REGRESSING --> SCOPING",
-            "REGRESSING --> FULFILLING"
+            "REGRESSING --> FULFILLING",
         ]
 
         for transition in expected_transitions:
@@ -580,13 +596,17 @@ class TestMermaidStylingGeneration:
 
         return process
 
-    def test_generate_styling_includes_all_style_classes(self, generator, mock_process_for_styling):
+    def test_generate_styling_includes_all_style_classes(
+        self, generator, mock_process_for_styling
+    ):
         """Verify styling generation includes all required style classes."""
         # Arrange
         stage_nodes = {"initial": "S0", "middle": "S1", "final": "S2"}
 
         # Act
-        result = generator._generate_styling(stage_nodes, mock_process_for_styling, "detailed")
+        result = generator._generate_styling(
+            stage_nodes, mock_process_for_styling, "detailed"
+        )
 
         # Assert
         styling_lines = "\n".join(result)
@@ -597,13 +617,17 @@ class TestMermaidStylingGeneration:
         assert "classDef gate" in styling_lines
         assert "classDef lock" in styling_lines
 
-    def test_generate_styling_applies_stage_classifications(self, generator, mock_process_for_styling):
+    def test_generate_styling_applies_stage_classifications(
+        self, generator, mock_process_for_styling
+    ):
         """Verify styling correctly classifies initial, middle, and final stages."""
         # Arrange
         stage_nodes = {"initial": "S0", "middle": "S1", "final": "S2"}
 
         # Act
-        result = generator._generate_styling(stage_nodes, mock_process_for_styling, "detailed")
+        result = generator._generate_styling(
+            stage_nodes, mock_process_for_styling, "detailed"
+        )
 
         # Assert
         styling_lines = "\n".join(result)
@@ -611,13 +635,17 @@ class TestMermaidStylingGeneration:
         assert "class S1 stage" in styling_lines
         assert "class S2 final" in styling_lines
 
-    def test_generate_styling_handles_missing_stages(self, generator, mock_process_for_styling):
+    def test_generate_styling_handles_missing_stages(
+        self, generator, mock_process_for_styling
+    ):
         """Verify styling handles missing stages gracefully."""
         # Arrange
         stage_nodes = {"initial": "S0"}  # Missing middle and final
 
         # Act
-        result = generator._generate_styling(stage_nodes, mock_process_for_styling, "detailed")
+        result = generator._generate_styling(
+            stage_nodes, mock_process_for_styling, "detailed"
+        )
 
         # Assert
         styling_lines = "\n".join(result)
@@ -708,44 +736,46 @@ class TestMermaidIntegrationScenarios:
                 "registration": {
                     "name": "User Registration",
                     "expected_properties": {"email": {"type": "str"}},
-                    "gates": [{
-                        "name": "email_provided",
-                        "target_stage": "verification",
-                        "locks": [{"exists": "email"}]
-                    }]
+                    "gates": [
+                        {
+                            "name": "email_provided",
+                            "target_stage": "verification",
+                            "locks": [{"exists": "email"}],
+                        }
+                    ],
                 },
                 "verification": {
                     "name": "Email Verification",
                     "expected_properties": {"email_verified": {"type": "bool"}},
-                    "gates": [{
-                        "name": "email_verified",
-                        "target_stage": "profile_setup",
-                        "locks": [{"exists": "email_verified"}]
-                    }]
+                    "gates": [
+                        {
+                            "name": "email_verified",
+                            "target_stage": "profile_setup",
+                            "locks": [{"exists": "email_verified"}],
+                        }
+                    ],
                 },
                 "profile_setup": {
                     "name": "Profile Setup",
                     "expected_properties": {
                         "first_name": {"type": "str"},
-                        "last_name": {"type": "str"}
+                        "last_name": {"type": "str"},
                     },
-                    "gates": [{
-                        "name": "profile_complete",
-                        "target_stage": "active",
-                        "locks": [
-                            {"exists": "first_name"},
-                            {"exists": "last_name"}
-                        ]
-                    }]
+                    "gates": [
+                        {
+                            "name": "profile_complete",
+                            "target_stage": "active",
+                            "locks": [
+                                {"exists": "first_name"},
+                                {"exists": "last_name"},
+                            ],
+                        }
+                    ],
                 },
-                "active": {
-                    "name": "Active User",
-                    "gates": [],
-                    "is_final": True
-                }
+                "active": {"name": "Active User", "gates": [], "is_final": True},
             },
             "initial_stage": "registration",
-            "final_stage": "active"
+            "final_stage": "active",
         }
 
     @pytest.fixture
@@ -753,12 +783,16 @@ class TestMermaidIntegrationScenarios:
         """Create a MermaidDiagramGenerator instance for testing."""
         return MermaidDiagramGenerator()
 
-    def test_complete_workflow_diagram_generation(self, generator, realistic_process_config):
+    def test_complete_workflow_diagram_generation(
+        self, generator, realistic_process_config
+    ):
         """Verify complete workflow diagram generation with realistic process."""
         # Arrange
         mock_process = Mock(spec=Process)
         mock_process.name = realistic_process_config["name"]
-        mock_process.get_sorted_stages = Mock(return_value=["registration", "verification", "profile_setup", "active"])
+        mock_process.get_sorted_stages = Mock(
+            return_value=["registration", "verification", "profile_setup", "active"]
+        )
 
         # Create mock initial and final stages
         initial_stage = Mock()
@@ -788,8 +822,12 @@ class TestMermaidIntegrationScenarios:
         mock_process.get_stage = Mock(side_effect=lambda name: stages.get(name))
 
         # Act
-        overview_result = generator.generate_process_diagram(mock_process, style="overview")
-        detailed_result = generator.generate_process_diagram(mock_process, style="detailed")
+        overview_result = generator.generate_process_diagram(
+            mock_process, style="overview"
+        )
+        detailed_result = generator.generate_process_diagram(
+            mock_process, style="detailed"
+        )
         full_result = generator.generate_process_diagram(mock_process, style="full")
 
         # Assert
@@ -879,11 +917,14 @@ class TestMermaidIntegrationScenarios:
         # Should not crash despite missing stage2
 
 
-@pytest.mark.parametrize("style,expected_elements", [
-    ("overview", ["flowchart TD", "S0[", "S1[", "S0 --> S1"]),
-    ("detailed", ["subgraph", "direction TB", "gate(s)"]),
-    ("full", ["%% Gate Details", "subgraph G", "validation gate"])
-])
+@pytest.mark.parametrize(
+    "style,expected_elements",
+    [
+        ("overview", ["flowchart TD", "S0[", "S1[", "S0 --> S1"]),
+        ("detailed", ["subgraph", "direction TB", "gate(s)"]),
+        ("full", ["%% Gate Details", "subgraph G", "validation gate"]),
+    ],
+)
 class TestMermaidParametrizedStyleGeneration:
     """Parametrized tests for different style generation scenarios."""
 
@@ -926,14 +967,16 @@ class TestMermaidParametrizedStyleGeneration:
         process.get_stage = Mock(side_effect=get_stage_side_effect)
         return process
 
-    def test_style_specific_elements_present(self, style, expected_elements, simple_process):
+    def test_style_specific_elements_present(
+        self, style, expected_elements, simple_process
+    ):
         """Verify specific style elements are present in generated diagrams."""
         # Arrange
         generator = MermaidDiagramGenerator()
 
         # For parametrized tests, ensure stage1 gates are properly set up
         stage1 = simple_process.get_stage("stage1")
-        if stage1 and hasattr(stage1, 'gates'):
+        if stage1 and hasattr(stage1, "gates"):
             # Make sure gates is a proper list
             if not isinstance(stage1.gates, list):
                 stage1.gates = [stage1.gates] if stage1.gates else []
@@ -946,9 +989,11 @@ class TestMermaidParametrizedStyleGeneration:
             # For full style gate details, only check if there are actually gates
             if element in ["subgraph G", "validation gate"] and style == "full":
                 stage1 = simple_process.get_stage("stage1")
-                if not (stage1 and hasattr(stage1, 'gates') and stage1.gates):
+                if not (stage1 and hasattr(stage1, "gates") and stage1.gates):
                     continue  # Skip this check if no gates
             elif element == "validation gate" and style == "full":
                 # validation gate text only appears if gates have actual content
                 continue
-            assert element in result, f"Expected element '{element}' not found in {style} style"
+            assert element in result, (
+                f"Expected element '{element}' not found in {style} style"
+            )
