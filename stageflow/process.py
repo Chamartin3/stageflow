@@ -36,6 +36,7 @@ class ProcessElementEvaluationResult(TypedDict):
     stage: str
     stage_result: StageEvaluationResult
     regression: bool
+    expected_actions: list  # List of ActionDefinition from stage configuration
 
 
 class PathSearch:
@@ -300,7 +301,9 @@ class ProcessConsistencyChecker:
         simple_locks = [lock for lock in locks if isinstance(lock, SimpleLock)]
 
         # Check for EQUALS conflicts (multiple different values)
-        equals_locks = [lock for lock in simple_locks if lock.lock_type == LockType.EQUALS]
+        equals_locks = [
+            lock for lock in simple_locks if lock.lock_type == LockType.EQUALS
+        ]
         if len(equals_locks) > 1:
             values = [lock.expected_value for lock in equals_locks]
             unique_values = set(values)
@@ -310,8 +313,12 @@ class ProcessConsistencyChecker:
                 )
 
         # Check for numeric range conflicts
-        gt_locks = [lock for lock in simple_locks if lock.lock_type == LockType.GREATER_THAN]
-        lt_locks = [lock for lock in simple_locks if lock.lock_type == LockType.LESS_THAN]
+        gt_locks = [
+            lock for lock in simple_locks if lock.lock_type == LockType.GREATER_THAN
+        ]
+        lt_locks = [
+            lock for lock in simple_locks if lock.lock_type == LockType.LESS_THAN
+        ]
 
         # Check EQUALS vs GREATER_THAN conflicts
         for equals_lock in equals_locks:
@@ -716,6 +723,7 @@ class Process:
             stage=current_stage._id,
             stage_result=current_stage_result,
             regression=regresion,
+            expected_actions=current_stage.stage_actions,
         )
 
     def evaluate_batch(

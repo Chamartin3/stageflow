@@ -30,7 +30,6 @@ from stageflow.manager.constants import (
     get_default_format,
     get_max_backups,
     # Helper functions
-    get_processes_dir,
     get_strict_validation,
 )
 
@@ -96,23 +95,46 @@ class ManagerConfig:
             processes_dir_str = os.getenv(f"{env_prefix}PROCESSES_DIR", fallback_dir)
             processes_dir = Path(processes_dir_str).expanduser().resolve()
 
-            format_str = os.getenv(f"{env_prefix}DEFAULT_FORMAT", DEFAULT_FORMAT).lower()
+            format_str = os.getenv(
+                f"{env_prefix}DEFAULT_FORMAT", DEFAULT_FORMAT
+            ).lower()
             try:
                 default_format = ProcessFileFormat(format_str)
             except ValueError:
                 default_format = ProcessFileFormat.YAML
 
-            create_dir = os.getenv(f"{env_prefix}CREATE_DIR", str(DEFAULT_CREATE_DIR)).lower() == "true"
-            backup_enabled = os.getenv(f"{env_prefix}BACKUP_ENABLED", str(DEFAULT_BACKUP_ENABLED)).lower() == "true"
-            strict_validation = os.getenv(f"{env_prefix}STRICT_VALIDATION", str(DEFAULT_STRICT_VALIDATION)).lower() == "true"
-            auto_fix_permissions = os.getenv(f"{env_prefix}AUTO_FIX_PERMISSIONS", str(DEFAULT_AUTO_FIX_PERMISSIONS)).lower() == "true"
+            create_dir = (
+                os.getenv(f"{env_prefix}CREATE_DIR", str(DEFAULT_CREATE_DIR)).lower()
+                == "true"
+            )
+            backup_enabled = (
+                os.getenv(
+                    f"{env_prefix}BACKUP_ENABLED", str(DEFAULT_BACKUP_ENABLED)
+                ).lower()
+                == "true"
+            )
+            strict_validation = (
+                os.getenv(
+                    f"{env_prefix}STRICT_VALIDATION", str(DEFAULT_STRICT_VALIDATION)
+                ).lower()
+                == "true"
+            )
+            auto_fix_permissions = (
+                os.getenv(
+                    f"{env_prefix}AUTO_FIX_PERMISSIONS",
+                    str(DEFAULT_AUTO_FIX_PERMISSIONS),
+                ).lower()
+                == "true"
+            )
 
             backup_dir = None
             backup_dir_str = os.getenv(f"{env_prefix}BACKUP_DIR")
             if backup_dir_str:
                 backup_dir = Path(backup_dir_str).expanduser().resolve()
 
-            max_backups = int(os.getenv(f"{env_prefix}MAX_BACKUPS", str(DEFAULT_MAX_BACKUPS)))
+            max_backups = int(
+                os.getenv(f"{env_prefix}MAX_BACKUPS", str(DEFAULT_MAX_BACKUPS))
+            )
         else:
             # Use standard getter functions for default prefix
             # But check if environment variable is set, otherwise use fallback

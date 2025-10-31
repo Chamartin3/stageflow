@@ -11,7 +11,6 @@ from ruamel.yaml import YAML
 from stageflow.element import Element, create_element
 from stageflow.gate import GateDefinition
 from stageflow.lock import (
-    LockDefinition,
     LockType,
 )
 from stageflow.process import Process, ProcessDefinition
@@ -672,14 +671,14 @@ def _convert_gates_config(stage_id: str, gates_data: Any) -> list[GateDefinition
 
 def _convert_locks_config(
     locks_data: Any, gate_name: str, stage_id: str
-) -> list[LockDefinition]:
+) -> list[dict[str, Any]]:
     """Convert and validate locks configuration."""
     if not isinstance(locks_data, list):
         raise LoaderValidationError(
             f"Locks in gate '{gate_name}' (stage '{stage_id}') must be a list"
         )
 
-    converted_locks: list[LockDefinition] = []
+    converted_locks: list[dict[str, Any]] = []
 
     for i, lock_config in enumerate(locks_data):
         if not isinstance(lock_config, dict):
@@ -693,9 +692,56 @@ def _convert_locks_config(
     return converted_locks
 
 
+def _validate_or_logic_lock(
+    lock_config: dict[str, Any], location: str
+) -> dict[str, Any]:
+    """Validate an OR logic lock definition."""
+    # Must have 'conditions' field
+    if "conditions" not in lock_config:
+        raise LoaderValidationError(
+            f"OR_LOGIC lock at {location} must have 'conditions' field"
+        )
+
+    # 'conditions' must be a list
+    if not isinstance(lock_config["conditions"], list):
+        raise LoaderValidationError(
+            f"OR_LOGIC lock 'conditions' field at {location} must be a list"
+        )
+
+    # Must have at least one condition
+    if not lock_config["conditions"]:
+        raise LoaderValidationError(
+            f"OR_LOGIC lock 'conditions' field at {location} cannot be empty"
+        )
+
+    # Validate each condition group
+    for i, condition in enumerate(lock_config["conditions"]):
+        condition_location = f"{location}, condition group {i + 1}"
+
+        # Each condition must have 'locks' field
+        if "locks" not in condition:
+            raise LoaderValidationError(
+                f"Condition group at {condition_location} must have 'locks' field"
+            )
+
+        # 'locks' must be a list
+        if not isinstance(condition["locks"], list):
+            raise LoaderValidationError(
+                f"Condition group 'locks' field at {condition_location} must be a list"
+            )
+
+        # 'locks' cannot be empty
+        if not condition["locks"]:
+            raise LoaderValidationError(
+                f"Condition group 'locks' field at {condition_location} cannot be empty"
+            )
+
+    return lock_config
+
+
 def _validate_lock_definition(
     lock_config: dict[str, Any], lock_index: int, gate_name: str, stage_id: str
-) -> LockDefinition:
+) -> dict[str, Any]:
     """Validate a single lock definition."""
     location = f"lock {lock_index} in gate '{gate_name}' (stage '{stage_id}')"
 
@@ -732,6 +778,14 @@ def _validate_lock_definition(
         shorthand_key = next(iter(provided_shorthand_keys))
         return _convert_shorthand_lock(lock_config, shorthand_key, location)
 
+    # Check for conditional lock format
+    if lock_config.get("type") == "CONDITIONAL":
+        return _validate_conditional_lock(lock_config, location)
+
+    # Check for OR_LOGIC lock format
+    if lock_config.get("type") == "OR_LOGIC":
+        return _validate_or_logic_lock(lock_config, location)
+
     # Validate full format
     if "type" not in lock_config:
         raise LoaderValidationError(f"Lock at {location} must have 'type' field")
@@ -767,9 +821,56 @@ def _validate_lock_definition(
     return lock_config  # type: ignore
 
 
+def _validate_conditional_lock(
+    lock_config: dict[str, Any], location: str
+) -> dict[str, Any]:
+    """Validate a conditional lock definition."""
+    # Must have 'if' field
+    if "if" not in lock_config:
+        raise LoaderValidationError(
+            f"Conditional lock at {location} must have 'if' field"
+        )
+
+    # Must have 'then' field
+    if "then" not in lock_config:
+        raise LoaderValidationError(
+            f"Conditional lock at {location} must have 'then' field"
+        )
+
+    # 'if' and 'then' must be lists
+    if not isinstance(lock_config["if"], list):
+        raise LoaderValidationError(
+            f"Conditional lock 'if' field at {location} must be a list"
+        )
+
+    if not isinstance(lock_config["then"], list):
+        raise LoaderValidationError(
+            f"Conditional lock 'then' field at {location} must be a list"
+        )
+
+    # 'else' is optional but must be a list if present
+    if "else" in lock_config and not isinstance(lock_config["else"], list):
+        raise LoaderValidationError(
+            f"Conditional lock 'else' field at {location} must be a list"
+        )
+
+    # Validate that 'if' and 'then' are not empty
+    if not lock_config["if"]:
+        raise LoaderValidationError(
+            f"Conditional lock 'if' field at {location} cannot be empty"
+        )
+
+    if not lock_config["then"]:
+        raise LoaderValidationError(
+            f"Conditional lock 'then' field at {location} cannot be empty"
+        )
+
+    return lock_config
+
+
 def _convert_shorthand_lock(
     lock_config: dict[str, Any], shorthand_key: str, location: str
-) -> LockDefinition:
+) -> dict[str, Any]:
     """Convert shorthand lock format to full format."""
 
     # Handle simple shorthand formats where the value is the property path

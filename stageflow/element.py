@@ -107,7 +107,7 @@ class FilterSegment:
         return False  # Unsupported operator
 
     @classmethod
-    def parse(cls, filter_expr: str) -> Optional['FilterSegment']:
+    def parse(cls, filter_expr: str) -> Optional["FilterSegment"]:
         """
         Parse filter expression from bracket content.
 
@@ -124,17 +124,17 @@ class FilterSegment:
             parse("value==null") → FilterSegment("value", "==", None)
             parse("invalid") → None
         """
-        if not filter_expr or not filter_expr.startswith('?'):
+        if not filter_expr or not filter_expr.startswith("?"):
             return None
 
         # Remove leading '?'
         expr = filter_expr[1:].strip()
 
         # Find == operator
-        if '==' not in expr:
+        if "==" not in expr:
             return None
 
-        parts = expr.split('==', 1)
+        parts = expr.split("==", 1)
         if len(parts) != 2:
             return None
 
@@ -171,24 +171,25 @@ class FilterSegment:
         value_str = value_str.strip()
 
         # String literals (single or double quotes)
-        if (value_str.startswith("'") and value_str.endswith("'")) or \
-           (value_str.startswith('"') and value_str.endswith('"')):
+        if (value_str.startswith("'") and value_str.endswith("'")) or (
+            value_str.startswith('"') and value_str.endswith('"')
+        ):
             return value_str[1:-1]  # Remove quotes
 
         # Boolean literals
-        if value_str.lower() == 'true':
+        if value_str.lower() == "true":
             return True
-        if value_str.lower() == 'false':
+        if value_str.lower() == "false":
             return False
 
         # Null/None literal
-        if value_str.lower() in ('null', 'none'):
+        if value_str.lower() in ("null", "none"):
             return None
 
         # Numeric literals
         try:
             # Try integer first
-            if '.' not in value_str:
+            if "." not in value_str:
                 return int(value_str)
             # Try float
             return float(value_str)

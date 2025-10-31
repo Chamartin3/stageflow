@@ -164,6 +164,43 @@ def print_process_description(desc, process):
         )
 
 
+def print_expected_actions(actions_def, indent="   "):
+    """Print enhanced expected_actions with name and instructions.
+
+    Args:
+        actions_def: List of ActionDefinition dictionaries
+        indent: String prefix for indentation
+    """
+    if not actions_def:
+        return
+
+    console.print(f"\n{indent}📋 [bold]Expected Actions:[/bold]")
+
+    for action in actions_def:
+        name = action.get("name")
+        description = action.get("description", "No description")
+        instructions = action.get("instructions", [])
+        related_properties = action.get("related_properties", [])
+
+        # Display action name and description
+        if name:
+            console.print(f"\n{indent}  ▸ [cyan]{name}[/cyan]")
+            console.print(f"{indent}    {description}")
+        else:
+            console.print(f"\n{indent}  ▸ {description}")
+
+        # Display instructions if available
+        if instructions:
+            console.print(f"{indent}    [dim]Guidelines:[/dim]")
+            for i, instruction in enumerate(instructions, 1):
+                console.print(f"{indent}      {i}. {instruction}")
+
+        # Display related properties if available
+        if related_properties:
+            props_str = ", ".join(related_properties)
+            console.print(f"{indent}    [dim]Related properties:[/dim] {props_str}")
+
+
 def print_evaluation_result(result):
     """Print human-readable evaluation result."""
     stage_result = result["stage_result"]
@@ -210,3 +247,8 @@ def print_evaluation_result(result):
             console.print(
                 f"   [green]Passed Gate(s):[/green] {', '.join(passed_gates)}"
             )
+
+    # Display enhanced expected_actions from stage definition
+    expected_actions = result.get("expected_actions", [])
+    if expected_actions and status == "action_required":
+        print_expected_actions(expected_actions)

@@ -228,7 +228,7 @@ class LockResult:
     actual_value: Any = None
     expected_value: Any = None
     error_message: str = ""
-    nested_failures: list['LockResult'] = field(default_factory=list)
+    nested_failures: list["LockResult"] = field(default_factory=list)
     context: str = ""
     passing_path: int | None = None
 
@@ -446,7 +446,7 @@ class ConditionalLock(BaseLock):
         if_locks: list[BaseLock],
         then_locks: list[BaseLock],
         else_locks: list[BaseLock] | None = None,
-        max_depth: int = 5
+        max_depth: int = 5,
     ):
         """
         Initialize ConditionalLock.
@@ -498,7 +498,7 @@ class ConditionalLock(BaseLock):
                 property_path="<conditional>",
                 lock_type=LockType.CONDITIONAL,
                 error_message=f"Maximum conditional nesting depth ({self.max_depth}) exceeded",
-                context="depth_limit"
+                context="depth_limit",
             )
 
         # Evaluate IF condition (all locks must pass)
@@ -507,20 +507,14 @@ class ConditionalLock(BaseLock):
         if if_result.success:
             # Condition passed - evaluate THEN branch
             then_result = self._evaluate_locks(
-                self.then_locks,
-                element,
-                depth,
-                "then branch"
+                self.then_locks, element, depth, "then branch"
             )
             return then_result
 
         elif self.else_locks:
             # Condition failed - evaluate ELSE branch
             else_result = self._evaluate_locks(
-                self.else_locks,
-                element,
-                depth,
-                "else branch"
+                self.else_locks, element, depth, "else branch"
             )
             return else_result
 
@@ -531,15 +525,11 @@ class ConditionalLock(BaseLock):
                 property_path="<conditional>",
                 lock_type=LockType.CONDITIONAL,
                 error_message="",
-                context="condition not applicable"
+                context="condition not applicable",
             )
 
     def _evaluate_locks(
-        self,
-        locks: list[BaseLock],
-        element: Element,
-        depth: int,
-        context: str
+        self, locks: list[BaseLock], element: Element, depth: int, context: str
     ) -> LockResult:
         """
         Evaluate a list of locks with AND logic.
@@ -572,14 +562,14 @@ class ConditionalLock(BaseLock):
                 lock_type=LockType.CONDITIONAL,
                 error_message=f"Conditional {context} failed",
                 nested_failures=failed,
-                context=context
+                context=context,
             )
         else:
             return LockResult(
                 success=True,
                 property_path="<conditional>",
                 lock_type=LockType.CONDITIONAL,
-                context=context
+                context=context,
             )
 
     def to_dict(self) -> ConditionalLockDict:
@@ -614,9 +604,7 @@ class OrLogicLock(BaseLock):
     short_circuit: bool = True
 
     def __init__(
-        self,
-        condition_groups: list[list[BaseLock]],
-        short_circuit: bool = True
+        self, condition_groups: list[list[BaseLock]], short_circuit: bool = True
     ):
         """
         Initialize OrLogicLock.
@@ -679,7 +667,7 @@ class OrLogicLock(BaseLock):
                     lock_type=LockType.OR_LOGIC,
                     context=f"Path {i + 1}",
                     passing_path=i + 1,
-                    error_message=""
+                    error_message="",
                 )
 
         # Check if any group passed (non-short-circuit mode)
@@ -695,7 +683,7 @@ class OrLogicLock(BaseLock):
                 lock_type=LockType.OR_LOGIC,
                 context=f"Paths {', '.join(map(str, passing_indices))} passed",
                 passing_path=passing_indices[0],
-                error_message=""
+                error_message="",
             )
 
         # All groups failed
@@ -705,14 +693,11 @@ class OrLogicLock(BaseLock):
             lock_type=LockType.OR_LOGIC,
             error_message="All alternative paths failed validation",
             nested_failures=all_group_results,
-            context="or_logic"
+            context="or_logic",
         )
 
     def _evaluate_group(
-        self,
-        locks: list[BaseLock],
-        element: Element,
-        group_number: int
+        self, locks: list[BaseLock], element: Element, group_number: int
     ) -> LockResult:
         """
         Evaluate a single condition group with AND logic.
@@ -742,7 +727,7 @@ class OrLogicLock(BaseLock):
                 lock_type=LockType.OR_GROUP,
                 error_message=f"Path {group_number} failed",
                 nested_failures=failed,
-                context=f"Path {group_number}"
+                context=f"Path {group_number}",
             )
         else:
             return LockResult(
@@ -750,7 +735,7 @@ class OrLogicLock(BaseLock):
                 property_path="<or_group>",
                 lock_type=LockType.OR_GROUP,
                 context=f"Path {group_number}",
-                error_message=""
+                error_message="",
             )
 
     def to_dict(self) -> dict[str, Any]:
@@ -760,7 +745,7 @@ class OrLogicLock(BaseLock):
             "conditions": [
                 {"locks": [lock.to_dict() for lock in group]}
                 for group in self.condition_groups
-            ]
+            ],
         }
         if not self.short_circuit:
             result["short_circuit"] = False
@@ -892,7 +877,7 @@ class LockFactory:
         return ConditionalLock(
             if_locks=if_locks,
             then_locks=then_locks,
-            else_locks=else_locks if else_locks else None
+            else_locks=else_locks if else_locks else None,
         )
 
     @classmethod
@@ -919,9 +904,7 @@ class LockFactory:
         condition_groups = []
         for i, group_def in enumerate(conditions):
             if "locks" not in group_def:
-                raise ValueError(
-                    f"Condition group {i + 1} missing 'locks' field"
-                )
+                raise ValueError(f"Condition group {i + 1} missing 'locks' field")
 
             # Recursively create locks for this group
             group_locks = []
@@ -934,6 +917,5 @@ class LockFactory:
         short_circuit = lock_definition.get("short_circuit", True)
 
         return OrLogicLock(
-            condition_groups=condition_groups,
-            short_circuit=short_circuit
+            condition_groups=condition_groups, short_circuit=short_circuit
         )
