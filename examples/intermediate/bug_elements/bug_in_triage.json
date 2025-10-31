@@ -1,0 +1,7 @@
+{
+  "frontmatter": {
+    "type": "crash",
+    "title": "Application crashes when sorting large datasets",
+    "severity": "high"
+  }
+}
