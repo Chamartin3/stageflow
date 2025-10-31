@@ -6,7 +6,7 @@ from typing import NotRequired, TypedDict
 
 from .element import Element
 from .gate import Gate
-from .lock import Lock
+from .lock import BaseLock, SimpleLock
 from .stage import (
     ExpectedObjectSchmema,
     Stage,
@@ -272,7 +272,7 @@ class ProcessConsistencyChecker:
     def _check_gate_logic_conflicts(self, stage: Stage, gate: Gate) -> None:
         """Check for logical conflicts within a single gate's locks."""
         # Group locks by property path
-        locks_by_property: dict[str, list[Lock]] = {}
+        locks_by_property: dict[str, list[BaseLock]] = {}
         for lock in gate.locks:
             prop_path = lock.property_path
             if prop_path not in locks_by_property:
@@ -290,14 +290,17 @@ class ProcessConsistencyChecker:
                 )
                 self.issues.append(issue)
 
-    def _detect_property_conflicts(self, prop_path: str, locks: list[Lock]) -> str:
+    def _detect_property_conflicts(self, prop_path: str, locks: list[BaseLock]) -> str:
         """Detect logical conflicts between locks on the same property."""
         from stageflow.lock import LockType
 
         conflicts = []
 
+        # Filter to only SimpleLocks (ConditionalLocks don't have expected_value)
+        simple_locks = [lock for lock in locks if isinstance(lock, SimpleLock)]
+
         # Check for EQUALS conflicts (multiple different values)
-        equals_locks = [lock for lock in locks if lock.lock_type == LockType.EQUALS]
+        equals_locks = [lock for lock in simple_locks if lock.lock_type == LockType.EQUALS]
         if len(equals_locks) > 1:
             values = [lock.expected_value for lock in equals_locks]
             unique_values = set(values)
@@ -307,8 +310,8 @@ class ProcessConsistencyChecker:
                 )
 
         # Check for numeric range conflicts
-        gt_locks = [lock for lock in locks if lock.lock_type == LockType.GREATER_THAN]
-        lt_locks = [lock for lock in locks if lock.lock_type == LockType.LESS_THAN]
+        gt_locks = [lock for lock in simple_locks if lock.lock_type == LockType.GREATER_THAN]
+        lt_locks = [lock for lock in simple_locks if lock.lock_type == LockType.LESS_THAN]
 
         # Check EQUALS vs GREATER_THAN conflicts
         for equals_lock in equals_locks:

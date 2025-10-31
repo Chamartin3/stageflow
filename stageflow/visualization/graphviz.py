@@ -149,8 +149,8 @@ class GraphvizDotGenerator:
                     )
 
                     # Add lock nodes if gate has locks
-                    if hasattr(gate, "_locks") and gate._locks:
-                        for k, lock in enumerate(gate._locks):
+                    if hasattr(gate, "locks") and gate.locks:
+                        for k, lock in enumerate(gate.locks):
                             lock_node = f"lock_{gate_node}_{k}"
                             lock_label = self._generate_lock_label(lock)
                             lines.append(

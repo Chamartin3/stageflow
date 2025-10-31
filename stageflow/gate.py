@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from stageflow.element import Element
-from stageflow.lock import Lock, LockDefinition, LockFactory, LockResult
+from stageflow.lock import BaseLock, LockDefinition, LockFactory, LockResult
 
 
 class GateDefinition(TypedDict):
@@ -74,7 +74,7 @@ class Gate:
 
     name: str
     target_stage: str
-    _locks: list[Lock]
+    _locks: list[BaseLock]
 
     def __init__(self, gate_config: GateDefinition, parent_stage: str | None = None):
         name = gate_config.get("name")
@@ -121,7 +121,7 @@ class Gate:
         )
 
     @property
-    def locks(self) -> list[Lock]:
+    def locks(self) -> list[BaseLock]:
         """Get all locks in this gate."""
         return self._locks.copy()
 

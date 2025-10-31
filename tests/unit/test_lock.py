@@ -16,12 +16,14 @@ import pytest
 
 from stageflow.element import DictElement
 from stageflow.lock import (
+    ConditionalLock,
     Lock,
     LockFactory,
     LockMetaData,
     LockResult,
     LockShorhands,
     LockType,
+    SimpleLock,
 )
 
 
@@ -44,6 +46,9 @@ class TestLockType:
             "NOT_EMPTY",
             "IN_LIST",
             "NOT_IN_LIST",
+            "CONDITIONAL",
+            "OR_LOGIC",
+            "OR_GROUP",
         }
 
         # Act
@@ -51,7 +56,7 @@ class TestLockType:
 
         # Assert
         assert actual_lock_types == expected_lock_types
-        assert len(LockType) == 12
+        assert len(LockType) == 15
 
     def test_lock_type_enum_values_are_correct(self):
         """Verify LockType enum values match expected string representations."""
@@ -618,6 +623,10 @@ class TestLockTypeValidation:
         # Arrange & Act & Assert
         # Test that all defined lock types can be validated without errors
         for lock_type in LockType:
+            # Skip composite lock types which have their own classes (ConditionalLock, OrLogicLock)
+            if lock_type in (LockType.CONDITIONAL, LockType.OR_LOGIC, LockType.OR_GROUP):
+                continue
+
             # Verify each lock type has proper validation logic
             try:
                 # Use a simple test case for each lock type
@@ -1161,6 +1170,244 @@ class TestLockFactory:
         assert lock.lock_type == LockType.REGEX
         assert lock.property_path == "user.email"
         assert lock.expected_value == r"^[^@]+@[^@]+\.[^@]+$"
+
+    def test_lock_factory_creates_conditional_lock(self):
+        """LockFactory creates ConditionalLock from config."""
+        config = {
+            "type": "CONDITIONAL",
+            "if": [
+                {"type": "EQUALS", "property_path": "type", "expected_value": "feature"}
+            ],
+            "then": [
+                {"exists": "testing"}
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, ConditionalLock)
+        conditional_lock = lock  # type: ignore[assignment]
+        assert len(conditional_lock.if_locks) == 1
+        assert len(conditional_lock.then_locks) == 1
+        assert len(conditional_lock.else_locks) == 0
+
+    def test_lock_factory_conditional_with_else(self):
+        """LockFactory handles ELSE branch."""
+        config = {
+            "type": "CONDITIONAL",
+            "if": [{"type": "EQUALS", "property_path": "type", "expected_value": "feature"}],
+            "then": [{"exists": "testing"}],
+            "else": [{"exists": "verification"}]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, ConditionalLock)
+        conditional_lock = lock  # type: ignore[assignment]
+        assert len(conditional_lock.else_locks) == 1
+        assert isinstance(conditional_lock.else_locks[0], SimpleLock)
+
+    def test_lock_factory_conditional_nested(self):
+        """LockFactory handles nested conditionals."""
+        config = {
+            "type": "CONDITIONAL",
+            "if": [{"exists": "type"}],
+            "then": [
+                {
+                    "type": "CONDITIONAL",
+                    "if": [{"type": "EQUALS", "property_path": "type", "expected_value": "feature"}],
+                    "then": [{"exists": "testing"}]
+                }
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, ConditionalLock)
+        conditional_lock = lock  # type: ignore[assignment]
+        assert isinstance(conditional_lock.then_locks[0], ConditionalLock)
+
+    def test_lock_factory_conditional_missing_if_raises(self):
+        """Missing 'if' field raises ValueError."""
+        config = {
+            "type": "CONDITIONAL",
+            "then": [{"exists": "testing"}]
+        }
+
+        with pytest.raises(ValueError, match="'if'"):
+            LockFactory.create(config)
+
+    def test_lock_factory_conditional_missing_then_raises(self):
+        """Missing 'then' field raises ValueError."""
+        config = {
+            "type": "CONDITIONAL",
+            "if": [{"exists": "type"}]
+        }
+
+        with pytest.raises(ValueError, match="'then'"):
+            LockFactory.create(config)
+
+    def test_lock_factory_conditional_with_shorthand(self):
+        """ConditionalLock works with shorthand syntax."""
+        config = {
+            "type": "CONDITIONAL",
+            "if": [{"exists": "type"}],
+            "then": [
+                {"exists": "testing"},
+                {"is_true": "approved"}
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, ConditionalLock)
+        conditional_lock = lock  # type: ignore[assignment]
+        assert len(conditional_lock.then_locks) == 2
+        assert all(isinstance(lock_item, SimpleLock) for lock_item in conditional_lock.then_locks)
+
+    def test_lock_factory_backward_compatibility(self):
+        """Existing lock creation still works."""
+        # Simple lock
+        simple_config = {"type": "EXISTS", "property_path": "field"}
+        simple_lock = LockFactory.create(simple_config)
+        assert isinstance(simple_lock, SimpleLock)
+
+        # Shorthand
+        shorthand_config = {"exists": "field"}
+        shorthand_lock = LockFactory.create(shorthand_config)
+        assert isinstance(shorthand_lock, SimpleLock)
+
+    def test_factory_creates_or_logic_lock(self):
+        """LockFactory creates OrLogicLock from config."""
+        from stageflow.lock import OrLogicLock
+
+        config = {
+            "type": "OR_LOGIC",
+            "conditions": [
+                {"locks": [{"exists": "work_done"}]},
+                {"locks": [{"exists": "cancelled"}]}
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, OrLogicLock)
+        assert len(lock.condition_groups) == 2
+        assert lock.short_circuit is True
+
+    def test_factory_or_logic_with_short_circuit_false(self):
+        """LockFactory handles short_circuit parameter."""
+        from stageflow.lock import OrLogicLock
+
+        config = {
+            "type": "OR_LOGIC",
+            "short_circuit": False,
+            "conditions": [
+                {"locks": [{"exists": "path1"}]},
+                {"locks": [{"exists": "path2"}]}
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, OrLogicLock)
+        assert lock.short_circuit is False
+
+    def test_factory_or_logic_multiple_locks_per_group(self):
+        """LockFactory handles multiple locks per group."""
+        from stageflow.lock import OrLogicLock
+
+        config = {
+            "type": "OR_LOGIC",
+            "conditions": [
+                {
+                    "locks": [
+                        {"exists": "work_done"},
+                        {"type": "GREATER_THAN", "property_path": "quality", "expected_value": 80}
+                    ]
+                },
+                {
+                    "locks": [
+                        {"type": "EQUALS", "property_path": "cancelled", "expected_value": True},
+                        {"exists": "cancellation_reason"}
+                    ]
+                }
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, OrLogicLock)
+        assert len(lock.condition_groups) == 2
+        assert len(lock.condition_groups[0]) == 2
+        assert len(lock.condition_groups[1]) == 2
+
+    def test_factory_or_logic_with_conditional(self):
+        """OrLogicLock can contain ConditionalLock."""
+        from stageflow.lock import OrLogicLock, ConditionalLock
+
+        config = {
+            "type": "OR_LOGIC",
+            "conditions": [
+                {
+                    "locks": [
+                        {
+                            "type": "CONDITIONAL",
+                            "if": [{"exists": "type"}],
+                            "then": [{"exists": "testing"}]
+                        }
+                    ]
+                },
+                {"locks": [{"exists": "cancelled"}]}
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, OrLogicLock)
+        assert isinstance(lock.condition_groups[0][0], ConditionalLock)
+
+    def test_factory_or_logic_missing_conditions_raises(self):
+        """Missing 'conditions' field raises ValueError."""
+        config = {"type": "OR_LOGIC"}
+
+        try:
+            LockFactory.create(config)
+            assert False, "Should raise ValueError"
+        except ValueError as e:
+            assert "'conditions'" in str(e)
+
+    def test_factory_or_logic_group_missing_locks_raises(self):
+        """Condition group missing 'locks' raises ValueError."""
+        config = {
+            "type": "OR_LOGIC",
+            "conditions": [
+                {"invalid_field": []}
+            ]
+        }
+
+        try:
+            LockFactory.create(config)
+            assert False, "Should raise ValueError"
+        except ValueError as e:
+            assert "'locks'" in str(e)
+
+    def test_factory_or_logic_with_shorthand(self):
+        """OrLogicLock works with shorthand syntax."""
+        from stageflow.lock import OrLogicLock
+
+        config = {
+            "type": "OR_LOGIC",
+            "conditions": [
+                {"locks": [{"exists": "work_done"}, {"is_true": "approved"}]},
+                {"locks": [{"exists": "cancelled"}]}
+            ]
+        }
+
+        lock = LockFactory.create(config)
+
+        assert isinstance(lock, OrLogicLock)
+        assert all(isinstance(l, SimpleLock) for group in lock.condition_groups for l in group)
 
 
 class TestLockIntegration:

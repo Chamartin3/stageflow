@@ -3,6 +3,7 @@
 from typing import Any
 
 # Use relative imports for the process models
+from stageflow.lock import SimpleLock
 from stageflow.process import Process
 
 
@@ -134,10 +135,7 @@ class MermaidDiagramGenerator:
                                 lock_label = (
                                     f"{lock.property_path}\\n{lock.lock_type.value}"
                                 )
-                                if (
-                                    hasattr(lock, "expected_value")
-                                    and lock.expected_value is not None
-                                ):
+                                if isinstance(lock, SimpleLock) and lock.expected_value is not None:
                                     lock_label += f"\\n= {lock.expected_value}"
                                 lines.append(f"        {lock_node}[{lock_label}]")
                                 lines.append(f"        {gate_node} --> {lock_node}")
