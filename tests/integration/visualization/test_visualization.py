@@ -61,7 +61,15 @@ class TestVisualization:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
         # Build command: stageflow diagram process_file --output output_file [--json]
-        full_cmd = ["uv", "run", "stageflow", "diagram", process_file, "--output", output_file]
+        full_cmd = [
+            "uv",
+            "run",
+            "stageflow",
+            "diagram",
+            process_file,
+            "--output",
+            output_file,
+        ]
 
         # Add JSON flag if requested
         if json_output:
@@ -317,8 +325,7 @@ class TestVisualization:
         )
         error_output = result_dict["stdout"] + result_dict["stderr"]
         assert (
-            "Missing argument" in error_output
-            or "required" in error_output.lower()
+            "Missing argument" in error_output or "required" in error_output.lower()
         ), "Should mention missing required argument"
 
     def test_visualization_error_handling_missing_output_file_json(

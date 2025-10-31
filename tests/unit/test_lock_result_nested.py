@@ -17,14 +17,14 @@ class TestLockResultNestedFailures:
             success=False,
             property_path="field1",
             lock_type=LockType.EXISTS,
-            error_message="Field1 is missing"
+            error_message="Field1 is missing",
         )
 
         nested2 = LockResult(
             success=False,
             property_path="field2",
             lock_type=LockType.EXISTS,
-            error_message="Field2 is missing"
+            error_message="Field2 is missing",
         )
 
         parent = LockResult(
@@ -33,7 +33,7 @@ class TestLockResultNestedFailures:
             lock_type=LockType.EXISTS,  # Using existing type for test
             error_message="THEN branch failed",
             nested_failures=[nested1, nested2],
-            context="then branch"
+            context="then branch",
         )
 
         assert len(parent.nested_failures) == 2
@@ -45,7 +45,7 @@ class TestLockResultNestedFailures:
             success=False,
             property_path="testing",
             lock_type=LockType.EXISTS,
-            error_message="Testing section is required"
+            error_message="Testing section is required",
         )
 
         parent = LockResult(
@@ -54,7 +54,7 @@ class TestLockResultNestedFailures:
             lock_type=LockType.EXISTS,  # Using existing type for test
             error_message="Conditional validation failed",
             nested_failures=[nested],
-            context="then branch"
+            context="then branch",
         )
 
         tree = parent.format_error_tree()
@@ -69,7 +69,7 @@ class TestLockResultNestedFailures:
             property_path="<or_logic>",
             lock_type=LockType.EXISTS,  # Using existing type for test
             passing_path=2,
-            context="Path 2 passed"
+            context="Path 2 passed",
         )
 
         assert result.passing_path == 2
@@ -82,7 +82,7 @@ class TestLockResultNestedFailures:
             success=False,
             property_path="field",
             lock_type=LockType.EXISTS,
-            error_message="Field is missing"
+            error_message="Field is missing",
         )
 
         # New fields have default values
@@ -96,7 +96,7 @@ class TestLockResultNestedFailures:
             success=False,
             property_path="field",
             lock_type=LockType.EXISTS,
-            error_message="Field is missing"
+            error_message="Field is missing",
         )
 
         tree = result.format_error_tree()
@@ -110,7 +110,7 @@ class TestLockResultNestedFailures:
             property_path="<or_logic>",
             lock_type=LockType.EXISTS,  # Using existing type for test
             context="Path 1 passed",
-            passing_path=1
+            passing_path=1,
         )
 
         tree = result.format_error_tree()
@@ -124,7 +124,7 @@ class TestLockResultNestedFailures:
             success=False,
             property_path="deep.field",
             lock_type=LockType.EXISTS,
-            error_message="Deep field missing"
+            error_message="Deep field missing",
         )
 
         # Middle level
@@ -134,7 +134,7 @@ class TestLockResultNestedFailures:
             lock_type=LockType.EXISTS,  # Using existing type for test
             error_message="Nested condition failed",
             nested_failures=[leaf],
-            context="nested condition"
+            context="nested condition",
         )
 
         # Top level
@@ -144,13 +144,13 @@ class TestLockResultNestedFailures:
             lock_type=LockType.EXISTS,  # Using existing type for test
             error_message="Root condition failed",
             nested_failures=[middle],
-            context="root condition"
+            context="root condition",
         )
 
         tree = root.format_error_tree()
 
         # Check structure
-        lines = tree.split('\n')
+        lines = tree.split("\n")
         assert len(lines) >= 3
 
         # Root level
@@ -168,7 +168,7 @@ class TestLockResultNestedFailures:
             success=False,
             property_path="test",
             lock_type=LockType.EXISTS,
-            error_message="Test error"
+            error_message="Test error",
         )
 
         # Test different indent levels

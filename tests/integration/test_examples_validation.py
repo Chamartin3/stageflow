@@ -61,7 +61,7 @@ class TestExamplesValidation:
         self, process_file: Path, expect_success: bool = True
     ) -> dict:
         """Run StageFlow CLI on a process file and return result."""
-        cmd = ["uv", "run", "stageflow", str(process_file)]
+        cmd = ["uv", "run", "stageflow", "view", str(process_file)]
 
         try:
             result = subprocess.run(
@@ -120,7 +120,7 @@ class TestExamplesValidation:
         for process_file in valid_example_files:
             try:
                 # Run without expect_success assertion, handle results manually
-                cmd = ["uv", "run", "stageflow", str(process_file)]
+                cmd = ["uv", "run", "stageflow", "view", str(process_file)]
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -214,8 +214,9 @@ class TestExamplesValidation:
                     "uv",
                     "run",
                     "stageflow",
+                    "diagram",
                     str(viz_file),
-                    "--diagram",
+                    "-o",
                     "/tmp/test_viz.md",
                 ]
                 result = subprocess.run(

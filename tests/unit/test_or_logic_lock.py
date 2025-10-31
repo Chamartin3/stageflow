@@ -11,7 +11,7 @@ def test_or_logic_first_group_passes():
     or_lock = OrLogicLock(
         condition_groups=[
             [SimpleLock({"type": LockType.EXISTS, "property_path": "work_done"})],
-            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})]
+            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})],
         ]
     )
 
@@ -27,7 +27,7 @@ def test_or_logic_second_group_passes():
     or_lock = OrLogicLock(
         condition_groups=[
             [SimpleLock({"type": LockType.EXISTS, "property_path": "work_done"})],
-            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})]
+            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})],
         ]
     )
 
@@ -43,7 +43,7 @@ def test_or_logic_all_groups_fail():
     or_lock = OrLogicLock(
         condition_groups=[
             [SimpleLock({"type": LockType.EXISTS, "property_path": "work_done"})],
-            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})]
+            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})],
         ]
     )
 
@@ -54,20 +54,24 @@ def test_or_logic_all_groups_fail():
 
 def test_or_logic_group_with_multiple_locks():
     """Group with multiple locks (AND logic) → all must pass."""
-    element = DictElement({
-        "cancelled": True,
-        "cancellation_reason": "Duplicate task",
-        "approved_by": "manager"
-    })
+    element = DictElement(
+        {
+            "cancelled": True,
+            "cancellation_reason": "Duplicate task",
+            "approved_by": "manager",
+        }
+    )
 
     or_lock = OrLogicLock(
         condition_groups=[
             [SimpleLock({"type": LockType.EXISTS, "property_path": "work_done"})],
             [
                 SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"}),
-                SimpleLock({"type": LockType.EXISTS, "property_path": "cancellation_reason"}),
-                SimpleLock({"type": LockType.EXISTS, "property_path": "approved_by"})
-            ]
+                SimpleLock(
+                    {"type": LockType.EXISTS, "property_path": "cancellation_reason"}
+                ),
+                SimpleLock({"type": LockType.EXISTS, "property_path": "approved_by"}),
+            ],
         ]
     )
 
@@ -91,9 +95,9 @@ def test_or_logic_short_circuit():
         condition_groups=[
             [CountingLock({"type": LockType.EXISTS, "property_path": "path1"})],
             [CountingLock({"type": LockType.EXISTS, "property_path": "path2"})],
-            [CountingLock({"type": LockType.EXISTS, "property_path": "path3"})]
+            [CountingLock({"type": LockType.EXISTS, "property_path": "path3"})],
         ],
-        short_circuit=True
+        short_circuit=True,
     )
 
     result = or_lock.validate(element)
@@ -108,9 +112,9 @@ def test_or_logic_no_short_circuit():
     or_lock = OrLogicLock(
         condition_groups=[
             [SimpleLock({"type": LockType.EXISTS, "property_path": "path1"})],
-            [SimpleLock({"type": LockType.EXISTS, "property_path": "path2"})]
+            [SimpleLock({"type": LockType.EXISTS, "property_path": "path2"})],
         ],
-        short_circuit=False
+        short_circuit=False,
     )
 
     result = or_lock.validate(element)
@@ -131,7 +135,7 @@ def test_or_logic_empty_group_raises():
         OrLogicLock(
             condition_groups=[
                 [SimpleLock({"type": LockType.EXISTS, "property_path": "field"})],
-                []  # Empty group
+                [],  # Empty group
             ]
         )
     assert "empty" in str(exc_info.value).lower()
@@ -147,11 +151,23 @@ def test_or_logic_with_conditional():
         condition_groups=[
             [
                 ConditionalLock(
-                    if_locks=[SimpleLock({"type": LockType.EQUALS, "property_path": "type", "expected_value": "feature"})],
-                    then_locks=[SimpleLock({"type": LockType.EXISTS, "property_path": "testing"})]
+                    if_locks=[
+                        SimpleLock(
+                            {
+                                "type": LockType.EQUALS,
+                                "property_path": "type",
+                                "expected_value": "feature",
+                            }
+                        )
+                    ],
+                    then_locks=[
+                        SimpleLock(
+                            {"type": LockType.EXISTS, "property_path": "testing"}
+                        )
+                    ],
                 )
             ],
-            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})]
+            [SimpleLock({"type": LockType.EXISTS, "property_path": "cancelled"})],
         ]
     )
 

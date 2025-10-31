@@ -144,103 +144,117 @@ class TestElementLengthFunctions:
 
     def test_length_with_equals_lock_function_syntax(self, element):
         """EQUALS lock with length using function syntax."""
-        lock = LockFactory.create({
-            "type": LockType.EQUALS,
-            "property_path": "length(items)",
-            "expected_value": 3
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.EQUALS,
+                "property_path": "length(items)",
+                "expected_value": 3,
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True
 
         # Test failure case
-        lock_fail = LockFactory.create({
-            "type": LockType.EQUALS,
-            "property_path": "length(items)",
-            "expected_value": 5
-        })
+        lock_fail = LockFactory.create(
+            {
+                "type": LockType.EQUALS,
+                "property_path": "length(items)",
+                "expected_value": 5,
+            }
+        )
 
         result_fail = lock_fail.validate(element)
         assert result_fail.success is False
 
     def test_length_with_equals_lock_property_syntax(self, element):
         """EQUALS lock with length using property syntax."""
-        lock = LockFactory.create({
-            "type": LockType.EQUALS,
-            "property_path": "items.length",
-            "expected_value": 3
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.EQUALS,
+                "property_path": "items.length",
+                "expected_value": 3,
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True
 
     def test_length_with_greater_than_lock(self, element):
         """GREATER_THAN lock with length."""
-        lock = LockFactory.create({
-            "type": LockType.GREATER_THAN,
-            "property_path": "length(user.posts)",
-            "expected_value": 3
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.GREATER_THAN,
+                "property_path": "length(user.posts)",
+                "expected_value": 3,
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True  # 4 > 3
 
     def test_length_with_less_than_lock(self, element):
         """LESS_THAN lock with length."""
-        lock = LockFactory.create({
-            "type": LockType.LESS_THAN,
-            "property_path": "length(empty_list)",
-            "expected_value": 1
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.LESS_THAN,
+                "property_path": "length(empty_list)",
+                "expected_value": 1,
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True  # 0 < 1
 
     def test_length_with_greater_equal_lock(self, element):
         """GREATER_EQUAL lock with length."""
-        lock = LockFactory.create({
-            "type": LockType.GREATER_THAN,  # Note: Using GREATER_THAN for >= comparison
-            "property_path": "length(string_field)",
-            "expected_value": 4  # 5 >= 4
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.GREATER_THAN,  # Note: Using GREATER_THAN for >= comparison
+                "property_path": "length(string_field)",
+                "expected_value": 4,  # 5 >= 4
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True  # 5 >= 4
 
     def test_length_with_less_equal_lock(self, element):
         """LESS_EQUAL lock with length."""
-        lock = LockFactory.create({
-            "type": LockType.LESS_THAN,  # Note: Using LESS_THAN for <= comparison
-            "property_path": "length(user.tags)",
-            "expected_value": 3  # 2 <= 3
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.LESS_THAN,  # Note: Using LESS_THAN for <= comparison
+                "property_path": "length(user.tags)",
+                "expected_value": 3,  # 2 <= 3
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True  # 2 <= 3
 
-
-
     def test_length_with_type_check_lock(self, element):
         """TYPE_CHECK lock with length (length returns int)."""
-        lock = LockFactory.create({
-            "type": LockType.TYPE_CHECK,
-            "property_path": "length(items)",
-            "expected_value": "int"
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.TYPE_CHECK,
+                "property_path": "length(items)",
+                "expected_value": "int",
+            }
+        )
 
         result = lock.validate(element)
         assert result.success is True
-
-
 
     # Edge Cases and Error Handling
 
     def test_length_of_actual_length_field(self):
         """Data with actual 'length' field vs computed length."""
-        element = DictElement({
-            "items": [1, 2, 3],
-            "metadata": {"length": 100}  # Actual field named 'length'
-        })
+        element = DictElement(
+            {
+                "items": [1, 2, 3],
+                "metadata": {"length": 100},  # Actual field named 'length'
+            }
+        )
 
         # Property syntax accesses actual field
         assert element.get_property("metadata.length") == 100
@@ -259,7 +273,9 @@ class TestElementLengthFunctions:
         for path in paths:
             func_result = element.get_property(f"length({path})")
             prop_result = element.get_property(f"{path}.length")
-            assert func_result == prop_result, f"Mismatch for path {path}: func={func_result}, prop={prop_result}"
+            assert func_result == prop_result, (
+                f"Mismatch for path {path}: func={func_result}, prop={prop_result}"
+            )
 
     def test_length_with_empty_path(self):
         """Empty path handling."""
@@ -274,12 +290,12 @@ class TestElementLengthFunctions:
 
         # Various malformed syntaxes
         invalid_syntaxes = [
-            "length(items",      # Missing closing paren
-            "lengthitems)",      # Missing opening paren
-            "length[items]",     # Wrong brackets
-            "length{items}",     # Wrong braces
-            "len(items)",        # Wrong function name
-            "size(items)",       # Wrong function name
+            "length(items",  # Missing closing paren
+            "lengthitems)",  # Missing opening paren
+            "length[items]",  # Wrong brackets
+            "length{items}",  # Wrong braces
+            "len(items)",  # Wrong function name
+            "size(items)",  # Wrong function name
         ]
 
         for syntax in invalid_syntaxes:
@@ -288,27 +304,23 @@ class TestElementLengthFunctions:
 
     def test_length_with_deeply_nested_paths(self):
         """Deeply nested paths still work."""
-        element = DictElement({
-            "level1": {
-                "level2": {
-                    "level3": {
-                        "deep_array": [1, 2, 3, 4, 5]
-                    }
-                }
-            }
-        })
+        element = DictElement(
+            {"level1": {"level2": {"level3": {"deep_array": [1, 2, 3, 4, 5]}}}}
+        )
 
         assert element.get_property("length(level1.level2.level3.deep_array)") == 5
         assert element.get_property("level1.level2.level3.deep_array.length") == 5
 
     def test_length_with_special_characters_in_paths(self):
         """Paths with special characters."""
-        element = DictElement({
-            "user_data": {
-                "special-field": [1, 2, 3],
-                "field_with_underscores": "test_string"
+        element = DictElement(
+            {
+                "user_data": {
+                    "special-field": [1, 2, 3],
+                    "field_with_underscores": "test_string",
+                }
             }
-        })
+        )
 
         # Note: Special characters in property names may not work with dot notation
         # but should work when accessed directly
@@ -318,12 +330,14 @@ class TestElementLengthFunctions:
 
     def test_length_lock_with_custom_message(self):
         """Custom error message with length lock."""
-        lock = LockFactory.create({
-            "type": LockType.GREATER_THAN,
-            "property_path": "length(items)",
-            "expected_value": 5,
-            "error_message": "Item list must contain more than 5 items"
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.GREATER_THAN,
+                "property_path": "length(items)",
+                "expected_value": 5,
+                "error_message": "Item list must contain more than 5 items",
+            }
+        )
 
         element = DictElement({"items": [1, 2, 3]})
         result = lock.validate(element)
@@ -333,11 +347,13 @@ class TestElementLengthFunctions:
 
     def test_length_lock_error_shows_actual_length(self):
         """Error shows actual length value."""
-        lock = LockFactory.create({
-            "type": LockType.EQUALS,
-            "property_path": "length(items)",
-            "expected_value": 5
-        })
+        lock = LockFactory.create(
+            {
+                "type": LockType.EQUALS,
+                "property_path": "length(items)",
+                "expected_value": 5,
+            }
+        )
 
         element = DictElement({"items": [1, 2, 3]})
         result = lock.validate(element)

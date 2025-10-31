@@ -69,7 +69,7 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli(
-                [str(convergence_file), "--diagram", str(output_file)],
+                ["diagram", str(convergence_file), "-o", str(output_file)],
                 expect_success=True,
             )
 
@@ -140,7 +140,7 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli(
-                [str(convergence_file), "--diagram", str(output_file)],
+                ["diagram", str(convergence_file), "-o", str(output_file)],
                 expect_success=True,
             )
 
@@ -225,7 +225,7 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli(
-                [str(branching_file), "--diagram", str(output_file)],
+                ["diagram", str(branching_file), "-o", str(output_file)],
                 expect_success=True,
             )
 
@@ -310,7 +310,7 @@ class TestVisualizationRegression:
 
         try:
             self.run_stageflow_cli(
-                [str(convergence_file), "--diagram", str(output_file)],
+                ["diagram", str(convergence_file), "-o", str(output_file)],
                 expect_success=True,
             )
 

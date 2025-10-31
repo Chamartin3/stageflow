@@ -79,6 +79,7 @@ class TestGraphvizProcessDiagramGeneration:
         gate_mock = Mock()
         gate_mock.name = "validation_gate"
         gate_mock.components = []  # Make sure it's iterable
+        gate_mock.locks = []  # Add locks property
         stage1.gates = [gate_mock]
 
         stage2 = Mock()
@@ -973,6 +974,7 @@ class TestGraphvizIntegrationScenarios:
                 gate_mock = Mock()
                 gate_mock.name = gate_config["name"]
                 gate_mock.components = []
+                gate_mock.locks = []  # Add locks property
                 stage.gates.append(gate_mock)
             stages[stage_name] = stage
 

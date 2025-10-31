@@ -19,8 +19,16 @@ class TestConditionalLockBasic:
         element = DictElement({"type": "feature", "testing": "done"})
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})]
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
         )
 
         result = conditional.validate(element)
@@ -31,8 +39,16 @@ class TestConditionalLockBasic:
         element = DictElement({"type": "feature"})  # Missing testing
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})]
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
         )
 
         result = conditional.validate(element)
@@ -45,8 +61,16 @@ class TestConditionalLockBasic:
         element = DictElement({"type": "bug"})
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})]
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
         )
 
         result = conditional.validate(element)
@@ -58,9 +82,19 @@ class TestConditionalLockBasic:
         element = DictElement({"type": "bug", "verification": "done"})
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
             then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
-            else_locks=[SimpleLock({"type": "EXISTS", "property_path": "verification"})]
+            else_locks=[
+                SimpleLock({"type": "EXISTS", "property_path": "verification"})
+            ],
         )
 
         result = conditional.validate(element)
@@ -77,10 +111,18 @@ class TestConditionalLockLogic:
 
         conditional = ConditionalLock(
             if_locks=[
-                SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"}),
-                SimpleLock({"type": "EQUALS", "property_path": "priority", "expected_value": 1})
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                ),
+                SimpleLock(
+                    {"type": "EQUALS", "property_path": "priority", "expected_value": 1}
+                ),
             ],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})]
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
         )
 
         result = conditional.validate(element)
@@ -88,14 +130,24 @@ class TestConditionalLockLogic:
 
     def test_conditional_multiple_if_conditions_and_fails(self):
         """Multiple IF locks - one fails → condition fails."""
-        element = DictElement({"type": "feature", "priority": 2, "testing": "done"})  # priority != 1
+        element = DictElement(
+            {"type": "feature", "priority": 2, "testing": "done"}
+        )  # priority != 1
 
         conditional = ConditionalLock(
             if_locks=[
-                SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"}),
-                SimpleLock({"type": "EQUALS", "property_path": "priority", "expected_value": 1})
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                ),
+                SimpleLock(
+                    {"type": "EQUALS", "property_path": "priority", "expected_value": 1}
+                ),
             ],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})]
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
         )
 
         result = conditional.validate(element)
@@ -107,11 +159,19 @@ class TestConditionalLockLogic:
         element = DictElement({"type": "feature", "testing": "done", "docs": "written"})
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
             then_locks=[
                 SimpleLock({"type": "EXISTS", "property_path": "testing"}),
-                SimpleLock({"type": "EXISTS", "property_path": "docs"})
-            ]
+                SimpleLock({"type": "EXISTS", "property_path": "docs"}),
+            ],
         )
 
         result = conditional.validate(element)
@@ -122,11 +182,19 @@ class TestConditionalLockLogic:
         element = DictElement({"type": "feature", "testing": "done"})  # Missing docs
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
             then_locks=[
                 SimpleLock({"type": "EXISTS", "property_path": "testing"}),
-                SimpleLock({"type": "EXISTS", "property_path": "docs"})
-            ]
+                SimpleLock({"type": "EXISTS", "property_path": "docs"}),
+            ],
         )
 
         result = conditional.validate(element)
@@ -143,13 +211,25 @@ class TestConditionalLockNested:
         element = DictElement({"type": "feature", "priority": 1, "perf_tests": "done"})
 
         inner = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "priority", "expected_value": 1})],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "perf_tests"})]
+            if_locks=[
+                SimpleLock(
+                    {"type": "EQUALS", "property_path": "priority", "expected_value": 1}
+                )
+            ],
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "perf_tests"})],
         )
 
         outer = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
-            then_locks=[inner]
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
+            then_locks=[inner],
         )
 
         result = outer.validate(element)
@@ -160,13 +240,25 @@ class TestConditionalLockNested:
         element = DictElement({"type": "feature", "priority": 1})  # Missing perf_tests
 
         inner = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "priority", "expected_value": 1})],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "perf_tests"})]
+            if_locks=[
+                SimpleLock(
+                    {"type": "EQUALS", "property_path": "priority", "expected_value": 1}
+                )
+            ],
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "perf_tests"})],
         )
 
         outer = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
-            then_locks=[inner]
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
+            then_locks=[inner],
         )
 
         result = outer.validate(element)
@@ -192,7 +284,7 @@ class TestConditionalLockDepthLimit:
             lock = ConditionalLock(
                 if_locks=[SimpleLock({"type": "EXISTS", "property_path": "value"})],
                 then_locks=[lock],
-                max_depth=5
+                max_depth=5,
             )
 
         result = lock.validate(element)
@@ -200,7 +292,10 @@ class TestConditionalLockDepthLimit:
 
         # Check that depth limit error exists somewhere in the nested failures
         def find_depth_error(r):
-            if "maximum" in r.error_message.lower() and "depth" in r.error_message.lower():
+            if (
+                "maximum" in r.error_message.lower()
+                and "depth" in r.error_message.lower()
+            ):
                 return True
             for nested in r.nested_failures:
                 if find_depth_error(nested):
@@ -220,7 +315,7 @@ class TestConditionalLockDepthLimit:
             lock = ConditionalLock(
                 if_locks=[SimpleLock({"type": "EXISTS", "property_path": "value"})],
                 then_locks=[lock],
-                max_depth=2
+                max_depth=2,
             )
 
         result = lock.validate(element)
@@ -228,7 +323,10 @@ class TestConditionalLockDepthLimit:
 
         # Check that depth limit error exists somewhere in the nested failures
         def find_depth_error(r):
-            if "maximum" in r.error_message.lower() and "depth" in r.error_message.lower():
+            if (
+                "maximum" in r.error_message.lower()
+                and "depth" in r.error_message.lower()
+            ):
                 return True
             for nested in r.nested_failures:
                 if find_depth_error(nested):
@@ -246,7 +344,7 @@ class TestConditionalLockValidation:
         with pytest.raises(ValueError) as exc_info:
             ConditionalLock(
                 if_locks=[],
-                then_locks=[SimpleLock({"type": "EXISTS", "property_path": "field"})]
+                then_locks=[SimpleLock({"type": "EXISTS", "property_path": "field"})],
             )
         assert "IF lock" in str(exc_info.value)
 
@@ -255,7 +353,7 @@ class TestConditionalLockValidation:
         with pytest.raises(ValueError) as exc_info:
             ConditionalLock(
                 if_locks=[SimpleLock({"type": "EXISTS", "property_path": "field"})],
-                then_locks=[]
+                then_locks=[],
             )
         assert "THEN lock" in str(exc_info.value)
 
@@ -264,7 +362,7 @@ class TestConditionalLockValidation:
         conditional = ConditionalLock(
             if_locks=[SimpleLock({"type": "EXISTS", "property_path": "field"})],
             then_locks=[SimpleLock({"type": "EXISTS", "property_path": "other"})],
-            else_locks=None
+            else_locks=None,
         )
 
         assert conditional.else_locks == []
@@ -278,8 +376,16 @@ class TestConditionalLockErrorReporting:
         element = DictElement({"type": "feature"})  # Missing testing
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
-            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})]
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
+            then_locks=[SimpleLock({"type": "EXISTS", "property_path": "testing"})],
         )
 
         result = conditional.validate(element)
@@ -294,11 +400,19 @@ class TestConditionalLockErrorReporting:
         element = DictElement({"type": "feature"})  # Missing testing and docs
 
         conditional = ConditionalLock(
-            if_locks=[SimpleLock({"type": "EQUALS", "property_path": "type", "expected_value": "feature"})],
+            if_locks=[
+                SimpleLock(
+                    {
+                        "type": "EQUALS",
+                        "property_path": "type",
+                        "expected_value": "feature",
+                    }
+                )
+            ],
             then_locks=[
                 SimpleLock({"type": "EXISTS", "property_path": "testing"}),
-                SimpleLock({"type": "EXISTS", "property_path": "docs"})
-            ]
+                SimpleLock({"type": "EXISTS", "property_path": "docs"}),
+            ],
         )
 
         result = conditional.validate(element)

@@ -243,7 +243,9 @@ class TestElementValidation:
         # Assert
         assert result["exit_code"] == 0
         assert "⚠️" in result["stdout"], "Action required should show warning indicator"
-        assert "Required Actions:" in result["stdout"], "Should list required actions"
+        assert "Possible Transitions:" in result["stdout"], (
+            "Should list possible transitions"
+        )
         assert "Current Stage:" in result["stdout"], "Should show current stage"
 
     @pytest.mark.parametrize(
