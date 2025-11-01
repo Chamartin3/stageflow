@@ -12,9 +12,13 @@ from stageflow.process import Process, ProcessDefinition, ProcessElementEvaluati
 
 # Import simplified loader
 from stageflow.schema.loader import (
+    ConfigValidationError,
     FileReader,
     Loader,
     LoadError,
+    ProcessConfigParser,
+    ProcessLoader,
+    ProcessSourceType,
     ProcessWithErrors,
     add_schema_to_yaml_output,
     get_local_schema_path,
@@ -38,6 +42,10 @@ __all__ = [
     # Loader interface
     "Loader",  # Class-based interface for loading
     "LoadError",
+    "ConfigValidationError",  # Comprehensive validation error with error collection
+    "ProcessConfigParser",  # Parser and validator for process configuration
+    "ProcessLoader",  # Unified loader for files and registry
+    "ProcessSourceType",  # Enum for source type detection
     "ProcessWithErrors",  # Graceful error handling
     "FileReader",  # Advanced I/O operations
     "load_process",

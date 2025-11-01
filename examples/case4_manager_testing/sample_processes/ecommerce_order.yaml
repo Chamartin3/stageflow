@@ -13,12 +13,14 @@ stages:
         description: "Proceed to checkout with items"
         target_stage: "checkout"
         locks:
-          - exists: "cart_id"
-          - exists: "items"
-          - exists: "customer_id"
-          - greater_than:
-              property_path: "items"
-              expected_value: []
+          - type: exists
+            property_path: "cart_id"
+          - type: exists
+            property_path: "items"
+          - type: exists
+            property_path: "customer_id"
+          - type: not_empty
+            property_path: "items"
 
   checkout:
     name: "Checkout"
@@ -32,12 +34,15 @@ stages:
         description: "Place order with payment"
         target_stage: "payment_processing"
         locks:
-          - exists: "shipping_address"
-          - exists: "payment_method"
-          - exists: "total_amount"
-          - greater_than:
-              property_path: "total_amount"
-              expected_value: 0.0
+          - type: exists
+            property_path: "shipping_address"
+          - type: exists
+            property_path: "payment_method"
+          - type: exists
+            property_path: "total_amount"
+          - type: greater_than
+            property_path: "total_amount"
+            expected_value: 0.0
 
   payment_processing:
     name: "Payment Processing"
@@ -52,18 +57,20 @@ stages:
         description: "Payment completed successfully"
         target_stage: "confirmed"
         locks:
-          - exists: "order_id"
-          - equals:
-              property_path: "payment_status"
-              expected_value: "completed"
-          - exists: "payment.transaction_id"
+          - type: exists
+            property_path: "order_id"
+          - type: equals
+            property_path: "payment_status"
+            expected_value: "completed"
+          - type: exists
+            property_path: "payment.transaction_id"
       - name: "payment_failed"
         description: "Payment failed or declined"
         target_stage: "payment_failed"
         locks:
-          - equals:
-              property_path: "payment_status"
-              expected_value: "failed"
+          - type: equals
+            property_path: "payment_status"
+            expected_value: "failed"
 
   payment_failed:
     name: "Payment Failed"
@@ -77,10 +84,11 @@ stages:
         description: "Customer can retry payment"
         target_stage: "payment_processing"
         locks:
-          - equals:
-              property_path: "retry_available"
-              expected_value: true
-          - exists: "payment_method"
+          - type: equals
+            property_path: "retry_available"
+            expected_value: true
+          - type: exists
+            property_path: "payment_method"
 
   confirmed:
     name: "Order Confirmed"
@@ -95,8 +103,10 @@ stages:
         description: "Begin order fulfillment"
         target_stage: "fulfillment"
         locks:
-          - exists: "confirmed_at"
-          - exists: "fulfillment.assigned_warehouse"
+          - type: exists
+            property_path: "confirmed_at"
+          - type: exists
+            property_path: "fulfillment.assigned_warehouse"
 
   fulfillment:
     name: "Fulfillment"
@@ -112,11 +122,13 @@ stages:
         description: "Order has been shipped"
         target_stage: "shipped"
         locks:
-          - equals:
-              property_path: "fulfillment.status"
-              expected_value: "shipped"
-          - exists: "fulfillment.tracking_number"
-          - exists: "shipped_at"
+          - type: equals
+            property_path: "fulfillment.status"
+            expected_value: "shipped"
+          - type: exists
+            property_path: "fulfillment.tracking_number"
+          - type: exists
+            property_path: "shipped_at"
 
   shipped:
     name: "Shipped"
@@ -131,10 +143,11 @@ stages:
         description: "Order delivered to customer"
         target_stage: "delivered"
         locks:
-          - exists: "delivered_at"
-          - equals:
-              property_path: "delivery_status"
-              expected_value: "delivered"
+          - type: exists
+            property_path: "delivered_at"
+          - type: equals
+            property_path: "delivery_status"
+            expected_value: "delivered"
 
   delivered:
     name: "Delivered"

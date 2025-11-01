@@ -3,53 +3,62 @@
 import typer
 
 from stageflow.cli.utils import show_progress
-from stageflow.manager import ManagerConfig, ProcessRegistry
-from stageflow.schema import load_process_graceful
+from stageflow.process import Process
+from stageflow.schema import ProcessLoader, ProcessSourceType, ProcessWithErrors
 
 
-class SourceType:
-    """Source type for process loading."""
+def load_process_from_source(
+    source: str, verbose: bool = False
+) -> Process | ProcessWithErrors:
+    """
+    Load process from either file or registry source.
 
-    FILE = "file"
-    REGISTRY = "registry"
+    This is a convenience wrapper around ProcessLoader for CLI commands
+    that need to handle typer-specific error reporting.
 
+    Args:
+        source: File path or registry reference (prefixed with '@')
+        verbose: Whether to show progress messages
 
-def detect_source_type(source: str) -> str:
-    """Detect whether source is file path or registry reference."""
-    if source.startswith("@"):
-        return SourceType.REGISTRY
-    else:
-        return SourceType.FILE
+    Returns:
+        Process instance if valid, ProcessWithErrors if invalid
 
-
-def load_process_from_source(source: str, verbose: bool = False):
-    """Load process from either file or registry source."""
-    source_type = detect_source_type(source)
-
-    if source_type == SourceType.FILE:
+    Raises:
+        typer.BadParameter: If loading fails
+    """
+    try:
+        # Use verbose mode with custom progress handler
         if verbose:
-            show_progress(f"Loading process from file: {source}", verbose=True)
-        return load_process_graceful(source)
+            loader = VerboseProcessLoader()
+        else:
+            loader = ProcessLoader()
 
-    elif source_type == SourceType.REGISTRY:
-        process_name = source[1:]  # Remove @ prefix
-        if verbose:
-            show_progress(
-                f"Loading process from registry: {process_name}", verbose=True
-            )
+        return loader.load(source, graceful=True)
 
-        try:
-            config = ManagerConfig.from_env()
-            registry = ProcessRegistry(config)
+    except Exception as e:
+        raise typer.BadParameter(f"Failed to load process: {e}") from e
 
-            process_file_path = registry.get_process_file_path(process_name)
-            if not process_file_path or not process_file_path.exists():
-                raise typer.BadParameter(
-                    f"Process '{process_name}' not found in registry"
-                )
 
-            return load_process_graceful(process_file_path)
-        except Exception as e:
-            raise typer.BadParameter(
-                f"Failed to load process from registry: {e}"
-            ) from e
+class VerboseProcessLoader(ProcessLoader):
+    """ProcessLoader subclass that integrates with CLI's rich formatting."""
+
+    def __init__(self):
+        super().__init__(verbose=True)
+
+    def _show_progress(self, message: str) -> None:
+        """Override to use CLI's show_progress with rich formatting."""
+        show_progress(message, verbose=True)
+
+
+def detect_source_type(source: str) -> ProcessSourceType:
+    """
+    Detect whether source is file path or registry reference.
+
+    Args:
+        source: Source string to analyze
+
+    Returns:
+        ProcessSourceType enum value (FILE or REGISTRY)
+    """
+    loader = ProcessLoader()
+    return loader.detect_source_type(source)

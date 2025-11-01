@@ -14,13 +14,16 @@ stages:
         description: "Submit document for review"
         target_stage: "under_review"
         locks:
-          - exists: "document_id"
-          - exists: "title"
-          - exists: "content"
-          - exists: "author"
-          - greater_than:
-              property_path: "content"
-              expected_value: ""
+          - type: exists
+            property_path: "document_id"
+          - type: exists
+            property_path: "title"
+          - type: exists
+            property_path: "content"
+          - type: exists
+            property_path: "author"
+          - type: not_empty
+            property_path: "content"
 
   under_review:
     name: "Under Review"
@@ -37,20 +40,24 @@ stages:
         description: "Document approved by reviewer"
         target_stage: "approved"
         locks:
-          - exists: "review.decision"
-          - equals:
-              property_path: "review.decision"
-              expected_value: "approved"
-          - exists: "review.completed_at"
+          - type: exists
+            property_path: "review.decision"
+          - type: equals
+            property_path: "review.decision"
+            expected_value: "approved"
+          - type: exists
+            property_path: "review.completed_at"
       - name: "request_changes"
         description: "Changes requested by reviewer"
         target_stage: "needs_revision"
         locks:
-          - exists: "review.decision"
-          - equals:
-              property_path: "review.decision"
-              expected_value: "changes_requested"
-          - exists: "review.feedback"
+          - type: exists
+            property_path: "review.decision"
+          - type: equals
+            property_path: "review.decision"
+            expected_value: "changes_requested"
+          - type: exists
+            property_path: "review.feedback"
 
   needs_revision:
     name: "Needs Revision"
@@ -67,11 +74,13 @@ stages:
         description: "Resubmit document after making changes"
         target_stage: "under_review"
         locks:
-          - exists: "revision.completed"
-          - equals:
-              property_path: "revision.completed"
-              expected_value: true
-          - exists: "revision.changes_made"
+          - type: exists
+            property_path: "revision.completed"
+          - type: equals
+            property_path: "revision.completed"
+            expected_value: true
+          - type: exists
+            property_path: "revision.changes_made"
 
   approved:
     name: "Approved"
@@ -85,12 +94,15 @@ stages:
         description: "Publish approved document"
         target_stage: "published"
         locks:
-          - exists: "approved_by"
-          - exists: "approved_at"
-          - exists: "publish_ready"
-          - equals:
-              property_path: "publish_ready"
-              expected_value: true
+          - type: exists
+            property_path: "approved_by"
+          - type: exists
+            property_path: "approved_at"
+          - type: exists
+            property_path: "publish_ready"
+          - type: equals
+            property_path: "publish_ready"
+            expected_value: true
 
   published:
     name: "Published"

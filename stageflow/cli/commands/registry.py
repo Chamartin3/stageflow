@@ -7,8 +7,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from stageflow.cli.commands.helpers import build_process_description
-from stageflow.cli.utils import show_success
+from stageflow.cli.utils import build_process_description, show_success
 from stageflow.manager import ManagerConfig, ProcessRegistry
 from stageflow.schema import ProcessWithErrors, load_process, load_process_graceful
 
@@ -41,8 +40,10 @@ def list_processes(
                 try:
                     process = registry.load_process(process_name)
                     description = build_process_description(process)
-                    description["registry_name"] = process_name
-                    process_details.append(description)
+                    # Create mutable dict with additional field
+                    detail = dict(description)
+                    detail["registry_name"] = process_name
+                    process_details.append(detail)
                 except Exception as e:
                     process_details.append(
                         {

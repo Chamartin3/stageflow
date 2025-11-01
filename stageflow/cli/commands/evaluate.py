@@ -9,11 +9,11 @@ import typer
 from rich.console import Console
 
 from stageflow.cli.commands.common import load_process_from_source
-from stageflow.cli.commands.helpers import (
-    build_process_description,
+from stageflow.cli.utils import (
+    EvaluationFormatter,
     print_evaluation_result,
+    show_progress,
 )
-from stageflow.cli.utils import show_progress
 from stageflow.element import create_element
 from stageflow.process import Process
 from stageflow.schema import LoadError, ProcessWithErrors, load_element
@@ -145,30 +145,7 @@ def evaluate_command(
         result = process.evaluate(elem, stage)
 
         if json_output:
-            process_description = build_process_description(process)
-            json_result = {
-                "process": process_description,
-                "evaluation": {
-                    "stage": result["stage"],
-                    "status": result["stage_result"].status,
-                    "regression": result["regression"],
-                    "actions": [
-                        {"description": action.description, "type": action.action_type}
-                        for action in result["stage_result"].sugested_action
-                    ],
-                    "gate_results": {
-                        gate_name: {
-                            "passed": gate_result.success,
-                            "success_rate": gate_result.success_rate,
-                            "failed_locks": len(gate_result.failed),
-                            "passed_locks": len(gate_result.passed),
-                        }
-                        for gate_name, gate_result in result[
-                            "stage_result"
-                        ].gate_results.items()
-                    },
-                },
-            }
+            json_result = EvaluationFormatter.format_json_result(process, result)
             console.print_json(data=json_result)
         else:
             print_evaluation_result(result)

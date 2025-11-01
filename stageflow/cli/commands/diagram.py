@@ -7,13 +7,12 @@ import typer
 from rich.console import Console
 
 from stageflow.cli.commands.common import (
-    SourceType,
     detect_source_type,
     load_process_from_source,
 )
 from stageflow.cli.utils import safe_write_file, show_success
 from stageflow.process import Process
-from stageflow.schema import ProcessWithErrors
+from stageflow.schema import ProcessSourceType, ProcessWithErrors
 from stageflow.visualization.mermaid import MermaidDiagramGenerator
 
 console = Console()
@@ -60,7 +59,7 @@ def diagram_command(
         # Default output filename if not provided
         if not output:
             source_type = detect_source_type(source)
-            if source_type == SourceType.REGISTRY:
+            if source_type == ProcessSourceType.REGISTRY:
                 process_name = source[1:]
                 output = Path(f"{process_name}_diagram.md")
             else:

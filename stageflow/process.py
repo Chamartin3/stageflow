@@ -22,12 +22,12 @@ class ProcessDefinition(TypedDict):
 
     name: str
     description: str
-    stages: dict[str, StageDefinition]
     initial_stage: str
     final_stage: str
     stage_prop: NotRequired[
         str
     ]  # Optional: property path to extract current stage from element
+    stages: dict[str, StageDefinition]
 
 
 class ProcessElementEvaluationResult(TypedDict):

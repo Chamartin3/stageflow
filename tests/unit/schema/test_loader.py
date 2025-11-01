@@ -373,6 +373,8 @@ class TestConvertProcessConfig:
         # Arrange
         config = {
             "name": "convert_test",
+            "initial_stage": "stage1",
+            "final_stage": "stage2",
             "stages": {
                 "stage1": {
                     "name": "Stage One",
@@ -386,7 +388,9 @@ class TestConvertProcessConfig:
                             "locks": [{"exists": "field2"}],
                         },
                     },
-                }
+                },
+                "stage2": {},
+                "stage3": {}
             },
         }
 
@@ -411,6 +415,8 @@ class TestConvertProcessConfig:
         # Arrange
         config = {
             "name": "list_gates_test",
+            "initial_stage": "stage1",
+            "final_stage": "stage2",
             "stages": {
                 "stage1": {
                     "gates": [
@@ -425,7 +431,9 @@ class TestConvertProcessConfig:
                             "locks": [{"exists": "field2"}],
                         },
                     ]
-                }
+                },
+                "stage2": {},
+                "stage3": {}
             },
         }
 
@@ -444,7 +452,12 @@ class TestConvertProcessConfig:
     def test_convert_process_config_adds_default_stage_fields(self):
         """Verify default fields are added to stages when missing."""
         # Arrange
-        config = {"name": "defaults_test", "stages": {"minimal_stage": {"gates": {}}}}
+        config = {
+            "name": "defaults_test",
+            "initial_stage": "minimal_stage",
+            "final_stage": "minimal_stage",
+            "stages": {"minimal_stage": {"gates": {}}}
+        }
 
         # Act
         converted = _convert_process_config(config)
@@ -462,6 +475,8 @@ class TestConvertProcessConfig:
         # Arrange
         config = {
             "name": "preserve_test",
+            "initial_stage": "custom_stage",
+            "final_stage": "custom_stage",
             "stages": {
                 "custom_stage": {
                     "name": "Custom Stage Name",
@@ -490,6 +505,8 @@ class TestConvertProcessConfig:
         # Arrange
         config = {
             "name": "gate_desc_test",
+            "initial_stage": "stage1",
+            "final_stage": "stage2",
             "stages": {
                 "stage1": {
                     "gates": {
@@ -503,7 +520,8 @@ class TestConvertProcessConfig:
                             "locks": [{"exists": "field"}],
                         },
                     }
-                }
+                },
+                "stage2": {}
             },
         }
 
@@ -537,24 +555,27 @@ class TestConvertProcessConfig:
         assert converted["initial_stage"] == "start"
         assert converted["final_stage"] == "end"
 
-    def test_convert_process_config_handles_no_stages(self):
-        """Verify conversion works when no stages are present."""
-        # Arrange
+    def test_convert_process_config_requires_all_fields(self):
+        """Verify conversion validates all required fields are present."""
+        # Arrange - config missing required fields
         config = {"name": "no_stages_test", "description": "Test without stages"}
 
-        # Act
-        converted = _convert_process_config(config)
+        # Act & Assert - should raise ConfigValidationError
+        from stageflow.schema import ConfigValidationError
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _convert_process_config(config)
 
-        # Assert
-        assert converted["name"] == "no_stages_test"
-        assert converted["description"] == "Test without stages"
-        # No stages key should remain absent or be handled gracefully
+        # Should mention missing required fields
+        error_msg = str(exc_info.value)
+        assert "stages" in error_msg or "initial_stage" in error_msg or "final_stage" in error_msg
 
     def test_convert_process_config_does_not_mutate_original(self):
         """Verify original configuration is not modified during conversion."""
         # Arrange
         original_config = {
             "name": "mutation_test",
+            "initial_stage": "stage1",
+            "final_stage": "stage2",
             "stages": {
                 "stage1": {
                     "gates": {
@@ -563,7 +584,8 @@ class TestConvertProcessConfig:
                             "locks": [{"exists": "field"}],
                         }
                     }
-                }
+                },
+                "stage2": {}
             },
         }
         original_copy = json.loads(json.dumps(original_config))  # Deep copy

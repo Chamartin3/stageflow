@@ -3,6 +3,7 @@
 import json
 import os
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,45 @@ class LoaderValidationError(Exception):
     """Exception raised during validation within the loader conversion process."""
 
     pass
+
+
+class ConfigValidationError(Exception):
+    """
+    Exception raised when process configuration validation fails.
+
+    This exception collects all validation errors encountered during
+    configuration parsing and validation, allowing for comprehensive
+    error reporting.
+    """
+
+    def __init__(self, errors: list[str], config: dict[str, Any] | None = None):
+        """
+        Initialize with a list of validation errors.
+
+        Args:
+            errors: List of validation error messages
+            config: Optional raw configuration that failed validation
+        """
+        self.errors = errors
+        self.config = config
+        self.error_count = len(errors)
+
+        # Create a formatted error message
+        if self.error_count == 1:
+            message = f"Configuration validation failed with 1 error:\n  • {errors[0]}"
+        else:
+            error_list = "\n  • ".join(errors)
+            message = f"Configuration validation failed with {self.error_count} errors:\n  • {error_list}"
+
+        super().__init__(message)
+
+    def get_error_summary(self) -> str:
+        """Get a formatted summary of all errors."""
+        if self.error_count == 1:
+            return f"1 validation error: {self.errors[0]}"
+        return f"{self.error_count} validation errors:\n" + "\n".join(
+            f"  {i+1}. {error}" for i, error in enumerate(self.errors)
+        )
 
 
 @dataclass
@@ -171,6 +211,9 @@ def load_process(file_path: str | Path) -> Process:
         # Let Process handle its own validation and error reporting
         return Process(converted_config)
 
+    except ConfigValidationError as e:
+        # Convert ConfigValidationError to LoadError with detailed message
+        raise LoadError(f"Failed to load {file_path}: {e.get_error_summary()}") from e
     except Exception as e:
         if isinstance(e, LoadError):
             raise
@@ -198,8 +241,52 @@ def load_process_graceful(file_path: str | Path) -> Process | ProcessWithErrors:
         # First try normal loading
         return load_process(file_path)
     except LoadError as e:
-        # Check if this is a validation error we can handle gracefully
-        if "not found in stages definition" in str(e) or "must have" in str(e):
+        # Check if this was caused by ConfigValidationError
+        if e.__cause__ and isinstance(e.__cause__, ConfigValidationError):
+            # Extract ConfigValidationError for detailed error handling
+            config_error = e.__cause__
+
+            try:
+                # Try to load the raw config for ProcessWithErrors
+                data = FileReader.read_file(file_path)
+
+                if not isinstance(data, dict):
+                    raise  # Re-raise original error for parsing issues
+
+                # Handle both new format with 'process' key and legacy format without it
+                if "process" in data:
+                    process_config = data["process"]
+                else:
+                    required_process_fields = [
+                        "name",
+                        "stages",
+                        "initial_stage",
+                        "final_stage",
+                    ]
+                    if all(field in data for field in required_process_fields):
+                        process_config = data
+                    else:
+                        raise  # Re-raise original error
+
+                # Extract basic info
+                name = process_config.get("name", "Unknown Process")
+                description = process_config.get("description", "")
+
+                # Use errors from ConfigValidationError
+                return ProcessWithErrors(
+                    name=name,
+                    description=description,
+                    file_path=file_path,
+                    raw_config=process_config,
+                    validation_errors=config_error.errors,
+                )
+
+            except Exception:
+                # If graceful handling fails, re-raise original error
+                raise e from None
+
+        # Check for other validation patterns we can handle gracefully
+        elif "not found in stages definition" in str(e) or "must have" in str(e):
             try:
                 # Try to load the raw config for analysis
                 data = FileReader.read_file(file_path)
@@ -226,32 +313,8 @@ def load_process_graceful(file_path: str | Path) -> Process | ProcessWithErrors:
                 name = process_config.get("name", "Unknown Process")
                 description = process_config.get("description", "")
 
-                # Collect validation errors
-                errors = []
-
-                # Check stages structure
-                stages = process_config.get("stages", {})
-                initial_stage = process_config.get("initial_stage", "")
-                final_stage = process_config.get("final_stage", "")
-
-                if not stages:
-                    errors.append("No stages defined")
-                elif len(stages) < 2:
-                    errors.append("Process must have at least two stages")
-                else:
-                    stage_names = set(stages.keys())
-
-                    if initial_stage and initial_stage not in stage_names:
-                        available = ", ".join(sorted(stage_names))
-                        errors.append(
-                            f"initial_stage '{initial_stage}' not found. Available stages: {available}"
-                        )
-
-                    if final_stage and final_stage not in stage_names:
-                        available = ", ".join(sorted(stage_names))
-                        errors.append(
-                            f"final_stage '{final_stage}' not found. Available stages: {available}"
-                        )
+                # Parse error message to extract validation errors
+                errors = [str(e).replace(f"Failed to load {file_path}: ", "")]
 
                 return ProcessWithErrors(
                     name=name,
@@ -337,61 +400,681 @@ class Loader:
         return load_element(file_path)
 
 
+class ProcessSourceType(Enum):
+    """
+    Enum representing the type of source for process loading.
+
+    Attributes:
+        FILE: Process is loaded from a file path
+        REGISTRY: Process is loaded from a registry reference (prefixed with '@')
+    """
+    FILE = "file"
+    REGISTRY = "registry"
+
+
+class ProcessLoader:
+    """
+    Unified process loader that handles both file paths and registry references.
+
+    This class provides a consistent interface for loading processes from different sources:
+    - Direct file paths (YAML/JSON files)
+    - Registry references (prefixed with '@')
+
+    Example:
+        # Load from file
+        loader = ProcessLoader()
+        process = loader.load("path/to/process.yaml")
+
+        # Load from registry
+        process = loader.load("@my_process")
+
+        # Load with graceful error handling
+        result = loader.load("process.yaml", graceful=True)
+        if isinstance(result, ProcessWithErrors):
+            print(result.get_error_summary())
+    """
+
+    def __init__(self, verbose: bool = False):
+        """
+        Initialize the ProcessLoader.
+
+        Args:
+            verbose: Whether to output progress messages during loading
+        """
+        self.verbose = verbose
+        self._registry = None
+
+    def detect_source_type(self, source: str) -> ProcessSourceType:
+        """
+        Detect whether source is a file path or registry reference.
+
+        Args:
+            source: The source string to analyze
+
+        Returns:
+            ProcessSourceType.FILE or ProcessSourceType.REGISTRY
+        """
+        if source.startswith("@"):
+            return ProcessSourceType.REGISTRY
+        return ProcessSourceType.FILE
+
+    def load(
+        self,
+        source: str,
+        graceful: bool = False
+    ) -> Process | ProcessWithErrors:
+        """
+        Load a process from either a file path or registry reference.
+
+        Args:
+            source: File path or registry reference (prefixed with '@')
+            graceful: If True, return ProcessWithErrors for validation errors
+                     instead of raising exceptions
+
+        Returns:
+            Process instance if valid, ProcessWithErrors if graceful=True and invalid
+
+        Raises:
+            LoadError: If file/registry cannot be accessed or parsing fails (unless graceful=True)
+        """
+        source_type = self.detect_source_type(source)
+
+        if source_type == ProcessSourceType.FILE:
+            return self._load_from_file(source, graceful)
+        else:
+            return self._load_from_registry(source, graceful)
+
+    def _load_from_file(
+        self,
+        file_path: str,
+        graceful: bool
+    ) -> Process | ProcessWithErrors:
+        """Load process from a file path."""
+        if self.verbose:
+            self._show_progress(f"Loading process from file: {file_path}")
+
+        if graceful:
+            return load_process_graceful(file_path)
+        return load_process(file_path)
+
+    def _load_from_registry(
+        self,
+        source: str,
+        graceful: bool
+    ) -> Process | ProcessWithErrors:
+        """Load process from registry reference."""
+        from stageflow.manager import ManagerConfig, ProcessRegistry
+
+        process_name = source[1:]  # Remove @ prefix
+
+        if self.verbose:
+            self._show_progress(f"Loading process from registry: {process_name}")
+
+        try:
+            # Lazy initialize registry
+            if self._registry is None:
+                config = ManagerConfig.from_env()
+                self._registry = ProcessRegistry(config)
+
+            # Get process file path from registry
+            process_file_path = self._registry.get_process_file_path(process_name)
+
+            if not process_file_path or not process_file_path.exists():
+                raise LoadError(f"Process '{process_name}' not found in registry")
+
+            # Load the process file
+            if graceful:
+                return load_process_graceful(process_file_path)
+            return load_process(process_file_path)
+
+        except Exception as e:
+            if isinstance(e, LoadError):
+                raise
+            raise LoadError(f"Failed to load process from registry: {e}") from e
+
+    def _show_progress(self, message: str) -> None:
+        """Show progress message if verbose mode is enabled."""
+        if self.verbose:
+            # Simple print for now - CLI can override this with rich formatting
+            print(f"[ProcessLoader] {message}")
+
+
+class ProcessConfigParser:
+    """
+    Parser and validator for process configuration dictionaries.
+
+    This class handles the conversion of raw YAML/JSON configuration into
+    validated ProcessDefinition format. It collects all validation errors
+    rather than throwing immediately, allowing for comprehensive error reporting.
+
+    Example:
+        parser = ProcessConfigParser(config)
+        try:
+            process_def = parser.parse_and_validate()
+        except ConfigValidationError as e:
+            print(f"Found {e.error_count} errors:")
+            for error in e.errors:
+                print(f"  - {error}")
+    """
+
+    def __init__(self, config: dict[str, Any]):
+        """
+        Initialize parser with configuration dictionary.
+
+        Args:
+            config: Raw configuration dictionary from YAML/JSON
+                   Must contain at minimum: name, stages, initial_stage, final_stage
+        """
+        self.config = config
+        self.errors: list[str] = []
+
+    def parse_and_validate(self) -> ProcessDefinition:
+        """
+        Parse and validate the configuration.
+
+        Returns:
+            ProcessDefinition if validation succeeds
+
+        Raises:
+            ConfigValidationError: If validation fails with collected errors
+        """
+        # Always validate basic structure
+        self._validate_basic_structure()
+
+        # If basic validation failed, stop here
+        if self.errors:
+            raise ConfigValidationError(self.errors, self.config)
+
+        # Convert configuration
+        converted = self._convert_config()
+
+        # Final validation
+        if self.errors:
+            raise ConfigValidationError(self.errors, self.config)
+
+        return converted  # type: ignore
+
+    def _validate_basic_structure(self) -> None:
+        """Validate basic process structure requirements."""
+        required_fields = ["name", "stages", "initial_stage", "final_stage"]
+
+        for field in required_fields:
+            if field not in self.config:
+                self.errors.append(
+                    f"Required field '{field}' is missing from process definition"
+                )
+
+        # Validate field types if present
+        if "name" in self.config:
+            if not isinstance(self.config["name"], str) or not self.config["name"].strip():
+                self.errors.append("Process 'name' must be a non-empty string")
+
+        if "initial_stage" in self.config:
+            if (
+                not isinstance(self.config["initial_stage"], str)
+                or not self.config["initial_stage"].strip()
+            ):
+                self.errors.append("Process 'initial_stage' must be a non-empty string")
+
+        if "final_stage" in self.config:
+            if (
+                not isinstance(self.config["final_stage"], str)
+                or not self.config["final_stage"].strip()
+            ):
+                self.errors.append("Process 'final_stage' must be a non-empty string")
+
+        # Validate stage_prop if present
+        if "stage_prop" in self.config:
+            if (
+                not isinstance(self.config["stage_prop"], str)
+                or not self.config["stage_prop"].strip()
+            ):
+                self.errors.append("Process 'stage_prop' must be a non-empty string")
+
+    def _convert_config(self) -> dict[str, Any]:
+        """Convert configuration to ProcessDefinition format."""
+        converted: dict[str, Any] = dict(self.config)
+
+        # Pass through stage_prop if present
+        if "stage_prop" in self.config:
+            converted["stage_prop"] = self.config["stage_prop"]
+
+        # Convert stages
+        if "stages" in self.config:
+            if not isinstance(self.config["stages"], dict):
+                self.errors.append("'stages' must be a dictionary with stage IDs as keys")
+            else:
+                converted_stages: dict[str, StageDefinition] = {}
+                for stage_id, stage_data in self.config["stages"].items():
+                    if not isinstance(stage_data, dict):
+                        self.errors.append(f"Stage '{stage_id}' must be a dictionary")
+                        continue
+
+                    converted_stage = self._convert_stage(stage_id, stage_data)
+                    if converted_stage:
+                        converted_stages[stage_id] = converted_stage
+
+                converted["stages"] = converted_stages
+
+        # Note: Stage reference validation (checking if initial_stage and final_stage
+        # exist in the stages dict) is intentionally NOT done here. This validation
+        # is handled by the Process class itself, which treats these as "consistency errors"
+        # rather than "structural errors". This allows processes with invalid references
+        # to still be loaded and viewed (with warnings) rather than failing completely.
+
+        # Add description if missing
+        if "description" not in converted:
+            converted["description"] = ""
+
+        return converted
+
+    def _convert_stage(
+        self, stage_id: str, stage_data: dict[str, Any]
+    ) -> StageDefinition | None:
+        """Convert and validate stage configuration."""
+        converted_stage = dict(stage_data)
+
+        # Add name field
+        if "name" not in converted_stage:
+            converted_stage["name"] = stage_id
+
+        # Validate and convert gates
+        if "gates" in converted_stage:
+            gates_data = converted_stage["gates"]
+            converted_gates = self._convert_gates(stage_id, gates_data)
+            converted_stage["gates"] = converted_gates
+        else:
+            converted_stage["gates"] = []
+
+        # Add default fields with proper types
+        if "description" not in converted_stage:
+            converted_stage["description"] = ""
+        if "expected_actions" not in converted_stage:
+            converted_stage["expected_actions"] = []
+        if "expected_properties" not in converted_stage:
+            converted_stage["expected_properties"] = None
+        if "is_final" not in converted_stage:
+            converted_stage["is_final"] = False
+
+        # Validate expected_actions if present and properly structured
+        if converted_stage["expected_actions"]:
+            if all(
+                isinstance(action, dict) for action in converted_stage["expected_actions"]
+            ):
+                self._validate_expected_actions(
+                    converted_stage["expected_actions"], stage_id
+                )
+
+        # Validate expected_properties if present
+        if converted_stage["expected_properties"] is not None:
+            self._validate_expected_properties(
+                converted_stage["expected_properties"], stage_id
+            )
+
+        return converted_stage  # type: ignore
+
+    def _convert_gates(
+        self, stage_id: str, gates_data: Any
+    ) -> list[GateDefinition]:
+        """Convert and validate gates configuration."""
+        gates_list: list[GateDefinition] = []
+
+        if isinstance(gates_data, dict):
+            # Convert dict format to list format
+            for gate_name, gate_config in gates_data.items():
+                if not isinstance(gate_config, dict):
+                    self.errors.append(
+                        f"Gate '{gate_name}' in stage '{stage_id}' must be a dictionary"
+                    )
+                    continue
+
+                gate_def = dict(gate_config)
+                gate_def["name"] = gate_name
+                gate_def["parent_stage"] = stage_id
+
+                if "description" not in gate_def:
+                    gate_def["description"] = ""
+
+                if "locks" not in gate_def:
+                    self.errors.append(
+                        f"Gate '{gate_name}' in stage '{stage_id}' must have 'locks' field"
+                    )
+                    continue
+
+                gate_def["locks"] = self._convert_locks(
+                    gate_def["locks"], gate_name, stage_id
+                )
+                self._validate_gate(gate_def, stage_id)
+                gates_list.append(gate_def)  # type: ignore
+
+        elif isinstance(gates_data, list):
+            # Already a list, validate each gate
+            for i, gate_config in enumerate(gates_data):
+                if not isinstance(gate_config, dict):
+                    self.errors.append(
+                        f"Gate {i} in stage '{stage_id}' must be a dictionary"
+                    )
+                    continue
+
+                gate_def = dict(gate_config)
+                if "parent_stage" not in gate_def:
+                    gate_def["parent_stage"] = stage_id
+                if "description" not in gate_def:
+                    gate_def["description"] = ""
+
+                if "name" not in gate_def:
+                    self.errors.append(
+                        f"Gate {i} in stage '{stage_id}' must have a 'name' field"
+                    )
+                    continue
+
+                if "locks" not in gate_def:
+                    self.errors.append(
+                        f"Gate '{gate_def['name']}' in stage '{stage_id}' must have 'locks' field"
+                    )
+                    continue
+
+                gate_def["locks"] = self._convert_locks(
+                    gate_def["locks"], gate_def["name"], stage_id
+                )
+                self._validate_gate(gate_def, stage_id)
+                gates_list.append(gate_def)  # type: ignore
+        else:
+            self.errors.append(
+                f"Gates in stage '{stage_id}' must be a dictionary or list"
+            )
+
+        return gates_list
+
+    def _convert_locks(
+        self, locks_data: Any, gate_name: str, stage_id: str
+    ) -> list[dict[str, Any]]:
+        """Convert and validate locks configuration."""
+        if not isinstance(locks_data, list):
+            self.errors.append(
+                f"Locks in gate '{gate_name}' (stage '{stage_id}') must be a list"
+            )
+            return []
+
+        converted_locks: list[dict[str, Any]] = []
+
+        for i, lock_config in enumerate(locks_data):
+            if not isinstance(lock_config, dict):
+                self.errors.append(
+                    f"Lock {i} in gate '{gate_name}' (stage '{stage_id}') must be a dictionary"
+                )
+                continue
+
+            validated_lock = self._validate_lock(lock_config, i, gate_name, stage_id)
+            if validated_lock:
+                converted_locks.append(validated_lock)
+
+        return converted_locks
+
+    def _validate_lock(
+        self, lock_config: dict[str, Any], lock_index: int, gate_name: str, stage_id: str
+    ) -> dict[str, Any] | None:
+        """Validate a single lock definition."""
+        location = f"lock {lock_index} in gate '{gate_name}' (stage '{stage_id}')"
+
+        # Define shorthand keys
+        shorthand_keys = {
+            "exists", "equals", "greater_than", "less_than", "contains",
+            "regex", "type_check", "range", "length", "not_empty",
+            "in_list", "not_in_list", "is_true", "is_false"
+        }
+
+        # Check for shorthand format
+        provided_shorthand_keys = set(lock_config.keys()) & shorthand_keys
+
+        if provided_shorthand_keys:
+            if len(provided_shorthand_keys) != 1:
+                self.errors.append(
+                    f"Shorthand lock at {location} must have exactly one shorthand key. "
+                    f"Found: {provided_shorthand_keys}"
+                )
+                return None
+            return lock_config  # Shorthand format is valid
+
+        # Check for conditional lock
+        if lock_config.get("type") == "CONDITIONAL":
+            self._validate_conditional_lock(lock_config, location)
+            return lock_config
+
+        # Check for OR_LOGIC lock
+        if lock_config.get("type") == "OR_LOGIC":
+            self._validate_or_logic_lock(lock_config, location)
+            return lock_config
+
+        # Validate full format
+        if "type" not in lock_config:
+            self.errors.append(f"Lock at {location} must have 'type' field")
+            return None
+
+        if "property_path" not in lock_config:
+            self.errors.append(f"Lock at {location} must have 'property_path' field")
+            return None
+
+        # Validate lock type
+        lock_type_str = lock_config["type"]
+        try:
+            if isinstance(lock_type_str, str):
+                LockType(lock_type_str)
+            else:
+                self.errors.append(f"Lock type at {location} must be a string")
+                return None
+        except ValueError:
+            valid_types = [t.value for t in LockType]
+            self.errors.append(
+                f"Invalid lock type '{lock_type_str}' at {location}. "
+                f"Valid types: {valid_types}"
+            )
+            return None
+
+        # Validate property_path
+        if (
+            not isinstance(lock_config["property_path"], str)
+            or not lock_config["property_path"].strip()
+        ):
+            self.errors.append(
+                f"Lock property_path at {location} must be a non-empty string"
+            )
+            return None
+
+        return lock_config
+
+    def _validate_conditional_lock(
+        self, lock_config: dict[str, Any], location: str
+    ) -> None:
+        """Validate a conditional lock definition."""
+        if "if" not in lock_config:
+            self.errors.append(f"Conditional lock at {location} must have 'if' field")
+
+        if "then" not in lock_config:
+            self.errors.append(f"Conditional lock at {location} must have 'then' field")
+
+        if "if" in lock_config and not isinstance(lock_config["if"], list):
+            self.errors.append(
+                f"Conditional lock 'if' field at {location} must be a list"
+            )
+
+        if "then" in lock_config and not isinstance(lock_config["then"], list):
+            self.errors.append(
+                f"Conditional lock 'then' field at {location} must be a list"
+            )
+
+        if "else" in lock_config and not isinstance(lock_config["else"], list):
+            self.errors.append(
+                f"Conditional lock 'else' field at {location} must be a list"
+            )
+
+        if "if" in lock_config and isinstance(lock_config["if"], list):
+            if not lock_config["if"]:
+                self.errors.append(
+                    f"Conditional lock 'if' field at {location} cannot be empty"
+                )
+
+        if "then" in lock_config and isinstance(lock_config["then"], list):
+            if not lock_config["then"]:
+                self.errors.append(
+                    f"Conditional lock 'then' field at {location} cannot be empty"
+                )
+
+    def _validate_or_logic_lock(
+        self, lock_config: dict[str, Any], location: str
+    ) -> None:
+        """Validate an OR logic lock definition."""
+        if "conditions" not in lock_config:
+            self.errors.append(
+                f"OR_LOGIC lock at {location} must have 'conditions' field"
+            )
+            return
+
+        if not isinstance(lock_config["conditions"], list):
+            self.errors.append(
+                f"OR_LOGIC lock 'conditions' field at {location} must be a list"
+            )
+            return
+
+        if not lock_config["conditions"]:
+            self.errors.append(
+                f"OR_LOGIC lock 'conditions' field at {location} cannot be empty"
+            )
+            return
+
+        for i, condition in enumerate(lock_config["conditions"]):
+            condition_location = f"{location}, condition group {i + 1}"
+
+            if "locks" not in condition:
+                self.errors.append(
+                    f"Condition group at {condition_location} must have 'locks' field"
+                )
+                continue
+
+            if not isinstance(condition["locks"], list):
+                self.errors.append(
+                    f"Condition group 'locks' field at {condition_location} must be a list"
+                )
+                continue
+
+            if not condition["locks"]:
+                self.errors.append(
+                    f"Condition group 'locks' field at {condition_location} cannot be empty"
+                )
+
+    def _validate_gate(self, gate_def: dict[str, Any], stage_id: str) -> None:
+        """Validate gate definition structure."""
+        required_fields = ["name", "target_stage", "parent_stage", "locks"]
+
+        for field in required_fields:
+            if field not in gate_def:
+                self.errors.append(
+                    f"Gate '{gate_def.get('name', 'unnamed')}' in stage '{stage_id}' "
+                    f"missing required field '{field}'"
+                )
+
+        if "name" in gate_def:
+            if not isinstance(gate_def["name"], str) or not gate_def["name"].strip():
+                self.errors.append(
+                    f"Gate name in stage '{stage_id}' must be a non-empty string"
+                )
+
+        if "target_stage" in gate_def:
+            if (
+                not isinstance(gate_def["target_stage"], str)
+                or not gate_def["target_stage"].strip()
+            ):
+                self.errors.append(
+                    f"Gate '{gate_def.get('name', 'unnamed')}' target_stage must be a non-empty string"
+                )
+
+    def _validate_expected_actions(self, actions: Any, stage_id: str) -> None:
+        """Validate expected_actions structure."""
+        if not isinstance(actions, list):
+            self.errors.append(
+                f"expected_actions in stage '{stage_id}' must be a list"
+            )
+            return
+
+        for i, action in enumerate(actions):
+            if not isinstance(action, dict):
+                self.errors.append(
+                    f"Action {i} in stage '{stage_id}' must be a dictionary"
+                )
+                continue
+
+            if "description" not in action:
+                self.errors.append(
+                    f"Action {i} in stage '{stage_id}' must have 'description' field"
+                )
+
+            if "related_properties" not in action:
+                self.errors.append(
+                    f"Action {i} in stage '{stage_id}' must have 'related_properties' field"
+                )
+
+            if "related_properties" in action and not isinstance(
+                action["related_properties"], list
+            ):
+                self.errors.append(
+                    f"Action {i} 'related_properties' in stage '{stage_id}' must be a list"
+                )
+
+    def _validate_expected_properties(self, properties: Any, stage_id: str) -> None:
+        """Validate expected_properties structure."""
+        if not isinstance(properties, dict):
+            self.errors.append(
+                f"expected_properties in stage '{stage_id}' must be a dictionary"
+            )
+            return
+
+        for prop_name, prop_def in properties.items():
+            if prop_def is not None and not isinstance(prop_def, dict):
+                self.errors.append(
+                    f"Property '{prop_name}' definition in stage '{stage_id}' "
+                    f"must be a dictionary or None"
+                )
+                continue
+
+            if isinstance(prop_def, dict):
+                if (
+                    "type" in prop_def
+                    and prop_def["type"] is not None
+                    and not isinstance(prop_def["type"], str)
+                ):
+                    self.errors.append(
+                        f"Property '{prop_name}' type in stage '{stage_id}' "
+                        f"must be a string or None"
+                    )
+
+
 def _convert_process_config(config: dict[str, Any]) -> ProcessDefinition:
     """
     Convert intuitive YAML format to internal ProcessDefinition format with validation.
 
-    Validates the structure using TypedDicts and transforms:
-    - stages dict with keys as names -> stages dict with name fields
-    - gates dict with keys as names -> gates list with name fields
-    - lock definitions with proper type validation
+    This function uses ProcessConfigParser for comprehensive error collection.
+    Always requires a complete configuration with all required fields.
 
     Args:
         config: Raw configuration dictionary from YAML/JSON
+               Must contain: name, stages, initial_stage, final_stage
 
     Returns:
         Validated ProcessDefinition
 
     Raises:
-        LoadError: If validation fails or required fields are missing
+        ConfigValidationError: If validation fails (with all collected errors)
+        LoaderValidationError: For backward compatibility with legacy code
     """
-    # Only validate fields if this is called from load_process (has all required fields)
-    # The _convert_process_config function can be called with partial configs for testing
-    if all(
-        field in config for field in ["name", "stages", "initial_stage", "final_stage"]
-    ):
-        _validate_process_structure(config)
-
-    converted: dict[str, Any] = dict(config)
-
-    # Pass through stage_prop if present
-    if "stage_prop" in config:
-        converted["stage_prop"] = config["stage_prop"]
-
-    if "stages" in config:
-        if not isinstance(config["stages"], dict):
-            raise LoaderValidationError(
-                "'stages' must be a dictionary with stage IDs as keys"
-            )
-
-        converted_stages: dict[str, StageDefinition] = {}
-        for stage_id, stage_data in config["stages"].items():
-            if not isinstance(stage_data, dict):
-                raise LoaderValidationError(f"Stage '{stage_id}' must be a dictionary")
-
-            converted_stage = _convert_stage_config(stage_id, stage_data)
-            converted_stages[stage_id] = converted_stage
-
-        converted["stages"] = converted_stages
-
-    # Validate final structure matches ProcessDefinition only if we have all required fields
-    if all(
-        field in converted
-        for field in ["name", "stages", "initial_stage", "final_stage"]
-    ):
-        _validate_process_definition(converted)
-
-    return converted  # type: ignore
+    try:
+        parser = ProcessConfigParser(config)
+        return parser.parse_and_validate()
+    except ConfigValidationError:
+        # Re-raise ConfigValidationError as-is for new code
+        raise
+    except Exception as e:
+        # Wrap unexpected errors in LoaderValidationError for backward compatibility
+        raise LoaderValidationError(str(e)) from e
 
 
 # Schema Integration Functions

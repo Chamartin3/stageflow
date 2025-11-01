@@ -1,0 +1,564 @@
+"""Process formatting utilities for CLI output.
+
+This module provides type-safe formatting of Process and ProcessWithErrors objects
+for display in CLI commands. All methods return strings ready for printing rather
+than printing directly.
+"""
+
+from typing import TypedDict
+
+from stageflow.process import Process, ProcessElementEvaluationResult
+from stageflow.schema import ProcessWithErrors
+
+
+class ConsistencyIssue(TypedDict):
+    """Type definition for consistency issue."""
+
+    type: str
+    description: str
+
+
+class StageInfo(TypedDict):
+    """Type definition for stage information."""
+
+    id: str
+    name: str
+    expected_properties: list[str]
+    gates: int
+    target_stages: list[str]
+    is_final: bool
+
+
+class ProcessDescription(TypedDict):
+    """Type definition for process description."""
+
+    name: str
+    description: str
+    initial_stage: str | None
+    final_stage: str | None
+    stages: list[StageInfo]
+    valid: bool
+    consistency_issues: list[ConsistencyIssue]
+
+
+class ActionDefinition(TypedDict, total=False):
+    """Type definition for expected action."""
+
+    name: str
+    description: str
+    instructions: list[str]
+    related_properties: list[str]
+
+
+class ActionInfo(TypedDict):
+    """Type definition for action information in JSON output."""
+
+    description: str
+    type: str
+
+
+class GateResultInfo(TypedDict):
+    """Type definition for gate result information in JSON output."""
+
+    passed: bool
+    success_rate: float
+    failed_locks: int
+    passed_locks: int
+
+
+class EvaluationData(TypedDict):
+    """Type definition for evaluation data in JSON output."""
+
+    stage: str
+    status: str
+    regression: bool
+    actions: list[ActionInfo]
+    gate_results: dict[str, GateResultInfo]
+
+
+class EvaluationJsonResult(TypedDict):
+    """Type definition for complete evaluation JSON result."""
+
+    process: ProcessDescription
+    evaluation: EvaluationData
+
+
+class ProcessFormatter:
+    """Type-safe formatter for Process and ProcessWithErrors objects.
+
+    This class provides methods to format process information into strings
+    ready for CLI output. All methods return strings and do not print directly.
+    """
+
+    @staticmethod
+    def build_description(process: Process | ProcessWithErrors) -> ProcessDescription:
+        """Build a structured process description dictionary.
+
+        Args:
+            process: Either a Process or ProcessWithErrors instance
+
+        Returns:
+            ProcessDescription dictionary with all process information
+        """
+        if isinstance(process, ProcessWithErrors):
+            return ProcessFormatter._build_description_from_errors(process)
+        else:
+            return ProcessFormatter._build_description_from_process(process)
+
+    @staticmethod
+    def _build_description_from_errors(
+        process: ProcessWithErrors,
+    ) -> ProcessDescription:
+        """Build description from ProcessWithErrors instance.
+
+        Args:
+            process: ProcessWithErrors instance
+
+        Returns:
+            ProcessDescription dictionary
+        """
+        consistency_issues: list[ConsistencyIssue] = [
+            {"type": "validation_error", "description": error}
+            for error in process.validation_errors
+        ]
+
+        stages: list[StageInfo] = []
+        stages_config = process.raw_config.get("stages", {})
+        for stage_id, stage_config in stages_config.items():
+            stage_info: StageInfo = {
+                "id": stage_id,
+                "name": stage_config.get("name", stage_id),
+                "expected_properties": list(
+                    stage_config.get("expected_properties", {}).keys()
+                ),
+                "gates": len(stage_config.get("gates", [])),
+                "target_stages": [],
+                "is_final": stage_config.get("is_final", False),
+            }
+            stages.append(stage_info)
+
+        return ProcessDescription(
+            name=process.name,
+            description=process.description,
+            initial_stage=process.raw_config.get("initial_stage"),
+            final_stage=process.raw_config.get("final_stage"),
+            stages=stages,
+            valid=process.valid,
+            consistency_issues=consistency_issues,
+        )
+
+    @staticmethod
+    def _build_description_from_process(process: Process) -> ProcessDescription:
+        """Build description from Process instance.
+
+        Args:
+            process: Process instance
+
+        Returns:
+            ProcessDescription dictionary
+        """
+        # Determine validity based on consistency checker
+        consistency_valid = (
+            process.checker.valid
+            if hasattr(process, "checker") and process.checker
+            else True
+        )
+
+        # Collect consistency issues
+        consistency_issues: list[ConsistencyIssue] = []
+        if (
+            hasattr(process, "checker")
+            and process.checker
+            and hasattr(process.checker, "issues")
+        ):
+            consistency_issues = [
+                {"type": str(issue.issue_type), "description": issue.description}
+                for issue in process.checker.issues
+            ]
+
+        # Collect stages in traversal order
+        visited: set[str] = set()
+        stage_order: list[str] = []
+
+        def collect_stages(stage_id: str | None) -> None:
+            """Recursively collect stages in traversal order."""
+            if stage_id is None or stage_id in visited:
+                return
+            visited.add(stage_id)
+            stage_order.append(stage_id)
+
+            stage = process.get_stage(stage_id)
+            if stage:
+                for gate in stage.gates:
+                    if hasattr(gate, "target_stage") and gate.target_stage:
+                        collect_stages(gate.target_stage)
+
+        # Start from initial stage
+        if process.initial_stage:
+            collect_stages(process.initial_stage._id)
+
+        # Add any unvisited stages
+        for stage in process.stages:
+            if stage._id not in visited:
+                stage_order.append(stage._id)
+
+        # Build stage information
+        stages: list[StageInfo] = []
+        for stage_id in stage_order:
+            stage = process.get_stage(stage_id)
+            if stage:
+                target_stages: list[str] = []
+                for gate in stage.gates:
+                    if hasattr(gate, "target_stage") and gate.target_stage:
+                        if gate.target_stage not in target_stages:
+                            target_stages.append(gate.target_stage)
+
+                stage_info: StageInfo = {
+                    "id": stage._id,
+                    "name": stage.name,
+                    "expected_properties": list(stage._base_schema.keys())
+                    if stage._base_schema
+                    else [],
+                    "gates": len(stage.gates),
+                    "target_stages": target_stages,
+                    "is_final": stage.is_final,
+                }
+                stages.append(stage_info)
+
+        return ProcessDescription(
+            name=process.name,
+            description=getattr(process, "description", ""),
+            initial_stage=process.initial_stage._id if process.initial_stage else None,
+            final_stage=process.final_stage._id if process.final_stage else None,
+            stages=stages,
+            valid=consistency_valid,
+            consistency_issues=consistency_issues,
+        )
+
+    @staticmethod
+    def format_header(desc: ProcessDescription) -> str:
+        """Format process header with validation status.
+
+        Args:
+            desc: ProcessDescription dictionary
+
+        Returns:
+            Formatted header string with rich markup
+        """
+        status_icon = "✅" if desc["valid"] else "❌"
+        status_text = "Valid" if desc["valid"] else "Invalid"
+
+        lines = [
+            f"\n{status_icon} [bold]Process: {desc['name']}[/bold] ({status_text})"
+        ]
+
+        if desc["description"]:
+            lines.append(f"   Description: {desc['description']}")
+
+        lines.append(f"   Initial Stage: {desc['initial_stage']}")
+        lines.append(f"   Final Stage: {desc['final_stage']}")
+        lines.append(f"   Total Stages: {len(desc['stages'])}\n")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_stages(desc: ProcessDescription) -> str:
+        """Format stage listing with hierarchy.
+
+        Args:
+            desc: ProcessDescription dictionary
+
+        Returns:
+            Formatted stage list string with rich markup
+        """
+        if not desc["stages"]:
+            return ""
+
+        lines = ["[bold]Stages:[/bold]"]
+
+        for i, stage in enumerate(desc["stages"]):
+            is_last = i == len(desc["stages"]) - 1
+            prefix = "└─" if is_last else "├─"
+            final_marker = " (final)" if stage["is_final"] else ""
+
+            targets_text = ""
+            if stage["target_stages"]:
+                targets_text = f" → {', '.join(stage['target_stages'])}"
+
+            lines.append(f"{prefix} {stage['name']}{targets_text}{final_marker}")
+
+            if stage["expected_properties"]:
+                props = ", ".join(stage["expected_properties"])
+                lines.append(f"   Expected properties: {props}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_consistency_issues(desc: ProcessDescription) -> str:
+        """Format consistency issues section.
+
+        Args:
+            desc: ProcessDescription dictionary
+
+        Returns:
+            Formatted consistency issues string with rich markup, empty if no issues
+        """
+        if not desc["consistency_issues"]:
+            return ""
+
+        lines = [
+            "",
+            "[red]❌ Consistency Issues:[/red]",
+        ]
+
+        for issue in desc["consistency_issues"]:
+            lines.append(f"   • {issue['description']}")
+
+        lines.extend(
+            [
+                "",
+                "⚠️  This process is not valid for execution due to the above consistency issues.",
+            ]
+        )
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_process_description(desc: ProcessDescription) -> str:
+        """Format complete process description.
+
+        Args:
+            desc: ProcessDescription dictionary
+
+        Returns:
+            Complete formatted process description string
+        """
+        sections = [
+            ProcessFormatter.format_header(desc),
+            ProcessFormatter.format_stages(desc),
+            ProcessFormatter.format_consistency_issues(desc),
+        ]
+
+        # Filter out empty sections
+        return "\n".join(section for section in sections if section)
+
+
+class EvaluationFormatter:
+    """Type-safe formatter for evaluation results.
+
+    This class provides methods to format ProcessElementEvaluationResult objects
+    into strings ready for CLI output. All methods return strings and do not print directly.
+    """
+
+    @staticmethod
+    def format_expected_actions(
+        actions_def: list[ActionDefinition], indent: str = "   "
+    ) -> str:
+        """Format enhanced expected_actions with name and instructions.
+
+        Args:
+            actions_def: List of ActionDefinition dictionaries
+            indent: String prefix for indentation
+
+        Returns:
+            Formatted expected actions string with rich markup, empty if no actions
+        """
+        if not actions_def:
+            return ""
+
+        lines = [f"\n{indent}📋 [bold]Expected Actions:[/bold]"]
+
+        for action in actions_def:
+            name = action.get("name")
+            description = action.get("description", "No description")
+            instructions = action.get("instructions", [])
+            related_properties = action.get("related_properties", [])
+
+            # Display action name and description
+            if name:
+                lines.append(f"\n{indent}  ▸ [cyan]{name}[/cyan]")
+                lines.append(f"{indent}    {description}")
+            else:
+                lines.append(f"\n{indent}  ▸ {description}")
+
+            # Display instructions if available
+            if instructions:
+                lines.append(f"{indent}    [dim]Guidelines:[/dim]")
+                for i, instruction in enumerate(instructions, 1):
+                    lines.append(f"{indent}      {i}. {instruction}")
+
+            # Display related properties if available
+            if related_properties:
+                props_str = ", ".join(related_properties)
+                lines.append(f"{indent}    [dim]Related properties:[/dim] {props_str}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_status_header(result: ProcessElementEvaluationResult) -> str:
+        """Format evaluation result status header.
+
+        Args:
+            result: Evaluation result from Process.evaluate()
+
+        Returns:
+            Formatted header string with status emoji and basic info
+        """
+        stage_result = result["stage_result"]
+        status = stage_result.status
+        current_stage = result["stage"]
+
+        status_emoji_map = {
+            "ready": "✅",
+            "action_required": "⚠️",
+            "invalid_schema": "❌",
+        }
+        status_emoji = status_emoji_map.get(status, "❓")
+
+        lines = [
+            f"\n{status_emoji} [bold]Evaluation Result[/bold]",
+            f"   Current Stage: {current_stage}",
+            f"   Status: {status}",
+        ]
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_transitions(result: ProcessElementEvaluationResult) -> str:
+        """Format possible transitions section.
+
+        Args:
+            result: Evaluation result from Process.evaluate()
+
+        Returns:
+            Formatted transitions string with rich markup, empty if no actions
+        """
+        stage_result = result["stage_result"]
+        actions = stage_result.sugested_action
+
+        if not actions:
+            return ""
+
+        lines = ["   [yellow]Possible Transitions:[/yellow]"]
+
+        # Group actions by gate transitions for better readability
+        for i, action in enumerate(actions):
+            description = action.description
+
+            # Check if this is a gate header (starts with "To transition via")
+            if description.startswith("To transition via"):
+                # Add spacing before new transition (except first one)
+                if i > 0:
+                    lines.append("")
+                # Print the transition header with styling
+                lines.append(f"     [cyan]•[/cyan] [bold]{description}[/bold]")
+            else:
+                # This is a required action under the current gate
+                lines.append(f"       {description}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_passed_gates(result: ProcessElementEvaluationResult) -> str:
+        """Format passed gates section for ready status.
+
+        Args:
+            result: Evaluation result from Process.evaluate()
+
+        Returns:
+            Formatted passed gates string, empty if not ready or no gates passed
+        """
+        stage_result = result["stage_result"]
+        status = stage_result.status
+
+        if status != "ready":
+            return ""
+
+        passed_gates = [
+            gate_name
+            for gate_name, gate_result in stage_result.gate_results.items()
+            if gate_result.passed
+        ]
+
+        if not passed_gates:
+            return ""
+
+        gates_str = ", ".join(passed_gates)
+        return f"   [green]Passed Gate(s):[/green] {gates_str}"
+
+    @staticmethod
+    def format_evaluation_result(result: ProcessElementEvaluationResult) -> str:
+        """Format complete human-readable evaluation result.
+
+        Args:
+            result: Evaluation result from Process.evaluate()
+
+        Returns:
+            Formatted evaluation result string with rich markup
+        """
+        sections = [
+            EvaluationFormatter.format_status_header(result),
+            EvaluationFormatter.format_transitions(result),
+            EvaluationFormatter.format_passed_gates(result),
+        ]
+
+        # Add expected actions for action_required status
+        stage_result = result["stage_result"]
+        expected_actions = result.get("expected_actions", [])
+        if expected_actions and stage_result.status == "action_required":
+            sections.append(EvaluationFormatter.format_expected_actions(expected_actions))
+
+        # Filter out empty sections
+        return "\n".join(section for section in sections if section)
+
+    @staticmethod
+    def format_json_result(
+        process: Process | ProcessWithErrors,
+        evaluation_result: ProcessElementEvaluationResult,
+    ) -> EvaluationJsonResult:
+        """Format evaluation result as JSON-serializable dictionary.
+
+        This method uses ProcessFormatter.build_description() for the process
+        serialization to ensure all data is JSON-serializable.
+
+        Args:
+            process: Process or ProcessWithErrors instance
+            evaluation_result: Evaluation result from Process.evaluate()
+
+        Returns:
+            EvaluationJsonResult with process and evaluation data
+        """
+        # Use ProcessFormatter for JSON-safe process serialization
+        process_description = ProcessFormatter.build_description(process)
+
+        stage_result = evaluation_result["stage_result"]
+
+        # Format actions
+        actions: list[ActionInfo] = [
+            ActionInfo(description=action.description, type=action.action_type)
+            for action in stage_result.sugested_action
+        ]
+
+        # Format gate results
+        gate_results: dict[str, GateResultInfo] = {
+            gate_name: GateResultInfo(
+                passed=gate_result.success,
+                success_rate=gate_result.success_rate,
+                failed_locks=len(gate_result.failed),
+                passed_locks=len(gate_result.passed),
+            )
+            for gate_name, gate_result in stage_result.gate_results.items()
+        }
+
+        # Format evaluation section
+        evaluation_data = EvaluationData(
+            stage=evaluation_result["stage"],
+            status=stage_result.status,
+            regression=evaluation_result["regression"],
+            actions=actions,
+            gate_results=gate_results,
+        )
+
+        return EvaluationJsonResult(
+            process=process_description, evaluation=evaluation_data
+        )

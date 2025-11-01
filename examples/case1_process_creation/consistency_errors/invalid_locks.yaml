@@ -1,0 +1,65 @@
+# Case 1.2: Invalid Lock Configurations
+# Tests: Lock definitions with incorrect structure or invalid types
+# Expected: Lock validation should fail with configuration errors
+
+process:
+  name: invalid_locks
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      schema:
+        required_fields:
+          - data
+
+      gates:
+        invalid_lock_types:
+          target_stage: end
+          locks:
+            # Invalid lock type
+            - type: INVALID_TYPE
+              property_path: "data"
+              expected_value: "something"
+
+            # Missing required property_path for EQUALS lock
+            - type: equals
+              expected_value: "test"
+
+            # Invalid structure - neither shorthand nor full format
+            - invalid_structure: true
+
+            # RANGE lock with invalid expected_value format
+            - type: range
+              property_path: "score"
+              expected_value: "not_an_array"
+
+            # REGEX lock with invalid regex pattern
+            - type: regex
+              property_path: "email"
+              expected_value: "[invalid regex("
+
+            # TYPE_CHECK with invalid type name
+            - type: type_check
+              property_path: "value"
+              expected_value: "invalid_type"
+
+            # IN_LIST with non-array expected_value
+            - type: in_list
+              property_path: "category"
+              expected_value: "not_a_list"
+
+            # Lock with completely wrong format
+            - this_is_not_a_lock: "invalid"
+
+    end:
+      schema:
+        required_fields:
+          - result
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with invalid lock configurations"
+    test_case: "invalid_lock_definitions"

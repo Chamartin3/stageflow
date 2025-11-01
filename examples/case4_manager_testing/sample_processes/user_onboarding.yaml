@@ -13,12 +13,15 @@ stages:
         description: "Email verification completed"
         target_stage: "profile_setup"
         locks:
-          - exists: "email"
-          - exists: "user_id"
-          - exists: "email_verified_at"
-          - regex:
-              property_path: "email"
-              expected_value: "^[^@]+@[^@]+\\.[^@]+$"
+          - type: exists
+            property_path: "email"
+          - type: exists
+            property_path: "user_id"
+          - type: exists
+            property_path: "email_verified_at"
+          - type: regex
+            property_path: "email"
+            expected_value: "^[^@]+@[^@]+\\.[^@]+$"
 
   profile_setup:
     name: "Profile Setup"
@@ -32,11 +35,12 @@ stages:
         description: "Profile information is complete"
         target_stage: "verification"
         locks:
-          - exists: "profile.first_name"
-          - exists: "profile.last_name"
-          - greater_than:
-              property_path: "profile.first_name"
-              expected_value: ""
+          - type: exists
+            property_path: "profile.first_name"
+          - type: exists
+            property_path: "profile.last_name"
+          - type: not_empty
+            property_path: "profile.first_name"
 
   verification:
     name: "Verification"
@@ -50,12 +54,12 @@ stages:
         description: "Identity verification approved"
         target_stage: "active_user"
         locks:
-          - equals:
-              property_path: "verification.document_uploaded"
-              expected_value: true
-          - equals:
-              property_path: "verification.status"
-              expected_value: "approved"
+          - type: equals
+            property_path: "verification.document_uploaded"
+            expected_value: true
+          - type: equals
+            property_path: "verification.status"
+            expected_value: "approved"
 
   active_user:
     name: "Active User"
