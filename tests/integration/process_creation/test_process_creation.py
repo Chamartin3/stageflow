@@ -390,39 +390,6 @@ class TestProcessCreation:
         assert "❌" in consistency_result["stdout"]
         assert "Consistency Issues:" in consistency_result["stdout"]
 
-    @pytest.mark.skip(reason="View command no longer supports --verbose flag")
-    def test_verbose_output_provides_additional_details(self, test_data_dir: Path):
-        """
-        Verify that verbose flag provides enhanced output for debugging and analysis.
-
-        Tests that --verbose flag:
-        - Includes progress messages during loading
-        - Provides additional diagnostic information
-        - Maintains structured output format
-        - Helps with troubleshooting process issues
-        """
-        # Arrange
-        valid_process = test_data_dir / "valid_processes" / "simple_2stage.yaml"
-
-        # Act - Run with and without verbose to compare
-        normal_result = self.run_stageflow_cli(
-            str(valid_process), None, expect_success=True
-        )
-        verbose_result = self.run_stageflow_cli(
-            str(valid_process), None, verbose=True, expect_success=True
-        )
-
-        # Assert
-        assert verbose_result["exit_code"] == 0
-        # Verbose output should contain progress indicators
-        assert "Loading process" in verbose_result["stdout"], (
-            "Verbose should show loading progress"
-        )
-        # Both should succeed, but verbose should have more detail
-        assert len(verbose_result["stdout"]) >= len(normal_result["stdout"]), (
-            "Verbose should provide more output"
-        )
-
     def test_error_handling_with_nonexistent_files(self):
         """
         Verify proper error handling when process files don't exist.

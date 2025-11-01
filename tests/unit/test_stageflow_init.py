@@ -430,35 +430,6 @@ class TestStageflowErrorHandling:
         # Assert
         assert import_successful, f"Package import failed: {error}"
 
-    @pytest.mark.skip(
-        reason="Test incomplete - needs actual import statement to trigger ImportError"
-    )
-    def test_element_import_failure_is_handled(self):
-        """Verify graceful handling if element module import fails."""
-        # Arrange
-        # Store original module to restore later
-        original_stageflow = sys.modules.get("stageflow")
-        original_element = sys.modules.get("stageflow.element")
-
-        try:
-            # Remove modules to force reimport
-            if "stageflow" in sys.modules:
-                del sys.modules["stageflow"]
-            if "stageflow.element" in sys.modules:
-                del sys.modules["stageflow.element"]
-
-            # Patch to cause import failure
-            with patch.dict(sys.modules, {"stageflow.element": None}):
-                # Act & Assert
-                with pytest.raises(ImportError):
-                    pass  # TODO: This should trigger the ImportError - needs import statement
-        finally:
-            # Restore original modules
-            if original_stageflow is not None:
-                sys.modules["stageflow"] = original_stageflow
-            if original_element is not None:
-                sys.modules["stageflow.element"] = original_element
-
     def test_malformed_version_string_handling(self):
         """Verify package handles version string edge cases."""
         # Arrange
