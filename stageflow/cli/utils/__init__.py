@@ -1,64 +1,57 @@
-"""CLI utilities package."""
+"""CLI utilities package.
+
+This package provides utilities for CLI commands including:
+- CLIContext: Context management for commands
+- Formatters: Process, Evaluation, and LoadResult formatters
+- Decorators: Error handling decorators
+- Helper functions: File writing and process description building
+"""
 
 from pathlib import Path
 
 import click
-from rich.console import Console
 
+from stageflow.cli.utils.context import CLIContext
+from stageflow.cli.utils.decorators import handle_cli_errors
 from stageflow.cli.utils.format import (
-    ActionDefinition,
+    ActionInfo,
+    ConsistencyIssue,
     EvaluationData,
     EvaluationFormatter,
     EvaluationJsonResult,
+    GateResultInfo,
+    LoadResultFormatter,
     ProcessDescription,
     ProcessFormatter,
+    StageInfo,
 )
-from stageflow.process import Process, ProcessElementEvaluationResult
-from stageflow.schema import ProcessWithErrors
+from stageflow.models import ActionDefinition
 
 __all__ = [
+    # Context
+    "CLIContext",
+    # Formatters
     "ProcessFormatter",
     "EvaluationFormatter",
+    "LoadResultFormatter",
+    # TypedDicts for type hints
     "ProcessDescription",
-    "ActionDefinition",
+    "StageInfo",
+    "ConsistencyIssue",
+    "ActionDefinition",  # From models
+    "ActionInfo",
     "EvaluationData",
     "EvaluationJsonResult",
-    "build_process_description",
-    "print_process_description",
-    "print_expected_actions",
-    "print_evaluation_result",
-    "handle_error",
+    "GateResultInfo",
+    # Decorators
+    "handle_cli_errors",
+    # Helper functions
     "safe_write_file",
-    "show_progress",
-    "show_success",
 ]
-
-# Create console for printing functions
-_console = Console()
-
-
-def handle_error(error: Exception, verbose: bool = False):
-    """
-    Handle and display CLI errors consistently.
-
-    Args:
-        error: Exception that occurred
-        verbose: Whether to show detailed error information
-    """
-    if verbose:
-        import traceback
-
-        click.echo(f"❌ Error: {str(error)}", err=True)
-        click.echo("Traceback:", err=True)
-        click.echo(traceback.format_exc(), err=True)
-    else:
-        click.echo(f"❌ Error: {str(error)}", err=True)
-        click.echo("Use --verbose for detailed error information", err=True)
 
 
 def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> None:
-    """
-    Safely write content to file with error handling.
+    """Safely write content to file with error handling.
 
     Args:
         file_path: Path to output file
@@ -94,75 +87,3 @@ def safe_write_file(file_path: Path, content: str, verbose: bool = False) -> Non
             click.echo(f"Unexpected error writing to {file_path}:", err=True)
             click.echo(traceback.format_exc(), err=True)
         raise click.ClickException(f"Failed to write file {file_path}: {e}") from e
-
-
-def show_progress(message: str, verbose: bool = False) -> None:
-    """
-    Show progress message if verbose mode is enabled.
-
-    Args:
-        message: Progress message to show
-        verbose: Whether verbose mode is enabled
-    """
-    if verbose:
-        click.echo(f"🔄 {message}")
-
-
-def show_success(message: str) -> None:
-    """
-    Show success message with green checkmark.
-
-    Args:
-        message: Success message to show
-    """
-    click.echo(f"✅ {message}")
-
-
-# Printing convenience functions that delegate to formatters
-def build_process_description(process: Process | ProcessWithErrors) -> ProcessDescription:
-    """Build process description dictionary for Process or ProcessWithErrors.
-
-    Args:
-        process: Either a Process or ProcessWithErrors instance
-
-    Returns:
-        ProcessDescription with all process information
-    """
-    return ProcessFormatter.build_description(process)
-
-
-def print_process_description(
-    desc: ProcessDescription, process: Process | ProcessWithErrors
-) -> None:
-    """Print human-readable process description.
-
-    Args:
-        desc: Process description from build_process_description
-        process: Process or ProcessWithErrors instance (unused, kept for compatibility)
-    """
-    formatted = ProcessFormatter.format_process_description(desc)
-    _console.print(formatted)
-
-
-def print_expected_actions(
-    actions_def: list[ActionDefinition], indent: str = "   "
-) -> None:
-    """Print enhanced expected_actions with name and instructions.
-
-    Args:
-        actions_def: List of ActionDefinition dictionaries
-        indent: String prefix for indentation
-    """
-    formatted = EvaluationFormatter.format_expected_actions(actions_def, indent)
-    if formatted:
-        _console.print(formatted)
-
-
-def print_evaluation_result(result: ProcessElementEvaluationResult) -> None:
-    """Print human-readable evaluation result.
-
-    Args:
-        result: Evaluation result from Process.evaluate()
-    """
-    formatted = EvaluationFormatter.format_evaluation_result(result)
-    _console.print(formatted)

@@ -1,14 +1,19 @@
 """Process formatting utilities for CLI output.
 
-This module provides type-safe formatting of Process and ProcessWithErrors objects
+This module provides type-safe formatting of Process objects
 for display in CLI commands. All methods return strings ready for printing rather
 than printing directly.
 """
 
 from typing import TypedDict
 
-from stageflow.process import Process, ProcessElementEvaluationResult
-from stageflow.schema import ProcessWithErrors
+from stageflow.models import (
+    ActionDefinition,
+    ExpectedObjectSchmema,
+    ProcessLoadResult,
+)
+from stageflow.models.base import ProcessElementEvaluationResult
+from stageflow.process import Process
 
 
 class ConsistencyIssue(TypedDict):
@@ -39,15 +44,6 @@ class ProcessDescription(TypedDict):
     stages: list[StageInfo]
     valid: bool
     consistency_issues: list[ConsistencyIssue]
-
-
-class ActionDefinition(TypedDict, total=False):
-    """Type definition for expected action."""
-
-    name: str
-    description: str
-    instructions: list[str]
-    related_properties: list[str]
 
 
 class ActionInfo(TypedDict):
@@ -84,68 +80,23 @@ class EvaluationJsonResult(TypedDict):
 
 
 class ProcessFormatter:
-    """Type-safe formatter for Process and ProcessWithErrors objects.
+    """Type-safe formatter for Process objects.
 
     This class provides methods to format process information into strings
     ready for CLI output. All methods return strings and do not print directly.
     """
 
     @staticmethod
-    def build_description(process: Process | ProcessWithErrors) -> ProcessDescription:
+    def build_description(process: Process) -> ProcessDescription:
         """Build a structured process description dictionary.
 
         Args:
-            process: Either a Process or ProcessWithErrors instance
+            process: Process instance
 
         Returns:
             ProcessDescription dictionary with all process information
         """
-        if isinstance(process, ProcessWithErrors):
-            return ProcessFormatter._build_description_from_errors(process)
-        else:
-            return ProcessFormatter._build_description_from_process(process)
-
-    @staticmethod
-    def _build_description_from_errors(
-        process: ProcessWithErrors,
-    ) -> ProcessDescription:
-        """Build description from ProcessWithErrors instance.
-
-        Args:
-            process: ProcessWithErrors instance
-
-        Returns:
-            ProcessDescription dictionary
-        """
-        consistency_issues: list[ConsistencyIssue] = [
-            {"type": "validation_error", "description": error}
-            for error in process.validation_errors
-        ]
-
-        stages: list[StageInfo] = []
-        stages_config = process.raw_config.get("stages", {})
-        for stage_id, stage_config in stages_config.items():
-            stage_info: StageInfo = {
-                "id": stage_id,
-                "name": stage_config.get("name", stage_id),
-                "expected_properties": list(
-                    stage_config.get("expected_properties", {}).keys()
-                ),
-                "gates": len(stage_config.get("gates", [])),
-                "target_stages": [],
-                "is_final": stage_config.get("is_final", False),
-            }
-            stages.append(stage_info)
-
-        return ProcessDescription(
-            name=process.name,
-            description=process.description,
-            initial_stage=process.raw_config.get("initial_stage"),
-            final_stage=process.raw_config.get("final_stage"),
-            stages=stages,
-            valid=process.valid,
-            consistency_issues=consistency_issues,
-        )
+        return ProcessFormatter._build_description_from_process(process)
 
     @staticmethod
     def _build_description_from_process(process: Process) -> ProcessDescription:
@@ -506,14 +457,16 @@ class EvaluationFormatter:
         stage_result = result["stage_result"]
         expected_actions = result.get("expected_actions", [])
         if expected_actions and stage_result.status == "action_required":
-            sections.append(EvaluationFormatter.format_expected_actions(expected_actions))
+            sections.append(
+                EvaluationFormatter.format_expected_actions(expected_actions)
+            )
 
         # Filter out empty sections
         return "\n".join(section for section in sections if section)
 
     @staticmethod
     def format_json_result(
-        process: Process | ProcessWithErrors,
+        process: Process,
         evaluation_result: ProcessElementEvaluationResult,
     ) -> EvaluationJsonResult:
         """Format evaluation result as JSON-serializable dictionary.
@@ -522,7 +475,7 @@ class EvaluationFormatter:
         serialization to ensure all data is JSON-serializable.
 
         Args:
-            process: Process or ProcessWithErrors instance
+            process: Process instance
             evaluation_result: Evaluation result from Process.evaluate()
 
         Returns:
@@ -562,3 +515,89 @@ class EvaluationFormatter:
         return EvaluationJsonResult(
             process=process_description, evaluation=evaluation_data
         )
+
+    @staticmethod
+    def format_schema_hint(
+        schema: ExpectedObjectSchmema, stage_id: str, show_cumulative: bool = False
+    ) -> str:
+        """Format schema hint for expected properties.
+
+        Args:
+            schema: Expected object schema
+            stage_id: Stage identifier
+            show_cumulative: Whether showing cumulative schema
+
+        Returns:
+            Formatted schema hint string
+        """
+        if not schema:
+            return ""
+
+        schema_type = "cumulative" if show_cumulative else "current stage"
+        lines = [f"\n[bold]Expected Properties ({schema_type}):[/bold]"]
+
+        def flatten_schema(schema_dict: dict, prefix: str = "") -> list[str]:
+            """Recursively flatten nested schema structure."""
+            result_lines = []
+            for key, value in schema_dict.items():
+                full_key = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, dict):
+                    if "type" in value or "default" in value:
+                        # This is a property definition
+                        type_info = value.get("type", "any")
+                        default_info = value.get("default")
+                        prop_line = f"  • {full_key}: {type_info}"
+                        if default_info is not None:
+                            prop_line += f" (default: {default_info})"
+                        result_lines.append(prop_line)
+                    else:
+                        # This is a nested structure - recurse
+                        result_lines.extend(flatten_schema(value, full_key))
+            return result_lines
+
+        lines.extend(flatten_schema(schema))
+        return "\n".join(lines) if len(lines) > 1 else ""
+
+
+class LoadResultFormatter:
+    """Formatter for ProcessLoadResult objects."""
+
+    @staticmethod
+    def format_load_result(result: ProcessLoadResult, verbose: bool = False) -> str:
+        """Format a ProcessLoadResult for display.
+
+        Args:
+            result: ProcessLoadResult to format
+            verbose: Whether to show detailed information
+
+        Returns:
+            Formatted string for display
+        """
+        if result.has_errors:
+            lines = [
+                f"[red]✗ Failed to load process from: {result.source}[/red]",
+                f"[red]  Status: {result.status.value}[/red]",
+                f"[red]  Errors: {result.error_count}[/red]",
+                "",
+                "[bold red]Errors:[/bold red]",
+            ]
+
+            for i, error in enumerate(result.errors, 1):
+                lines.append(f"  {i}. {error.message}")
+                if verbose and error.context:
+                    for key, value in error.context.items():
+                        lines.append(f"     {key}: {value}")
+
+            return "\n".join(lines)
+        else:
+            if result.has_warnings:
+                lines = [
+                    f"[yellow]⚠ Process loaded with warnings from: {result.source}[/yellow]",
+                    "",
+                    "[bold yellow]Warnings:[/bold yellow]",
+                ]
+                for i, warning in enumerate(result.warnings, 1):
+                    lines.append(f"  {i}. {warning.message}")
+                return "\n".join(lines)
+            else:
+                return f"[green]✓ Process loaded successfully from: {result.source}[/green]"
