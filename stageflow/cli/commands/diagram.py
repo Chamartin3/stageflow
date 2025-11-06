@@ -1,24 +1,17 @@
 """Diagram command for generating process visualizations."""
 
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated
 
 import typer
-from rich.console import Console
 
-from stageflow.cli.commands.common import (
-    detect_source_type,
-    load_process_from_source,
-)
-from stageflow.cli.utils import safe_write_file, show_success
-from stageflow.process import Process
-from stageflow.schema import ProcessSourceType, ProcessWithErrors
+from stageflow.cli.utils import safe_write_file
+from stageflow.models import ProcessSourceType
 from stageflow.visualization.mermaid import MermaidDiagramGenerator
-
-console = Console()
 
 
 def diagram_command(
+    ctx: typer.Context,
     source: Annotated[
         str, typer.Argument(help="Process source (file path or @registry_name)")
     ],
@@ -30,58 +23,50 @@ def diagram_command(
     ] = False,
 ):
     """Generate process visualization diagram."""
+    # Access CLI context
+    cli_ctx = ctx.obj
+
+    # Set JSON mode to suppress all non-JSON output
+    cli_ctx.json_mode = json_output
+    cli_ctx.printer.json_mode = json_output
+
+    # Load process using context (handles all error reporting and exits on failure)
+    process = cli_ctx.load_process_or_exit(source)
+
+    # Determine output filename
+    if not output:
+        source_type = cli_ctx.loader.detect_source_type(source)
+        if source_type == ProcessSourceType.REGISTRY:
+            process_name = source[1:]
+            output = Path(f"{process_name}_diagram.md")
+        else:
+            source_path = Path(source)
+            output = source_path.with_suffix(".diagram.md")
+
+    # Generate diagram
+    cli_ctx.print_progress("Generating diagram...")
     try:
-        process_result = load_process_from_source(source, verbose=False)
-
-        # Check if process has validation errors
-        if isinstance(process_result, ProcessWithErrors):
-            error_msg = f"Cannot generate diagram for invalid process. {process_result.get_error_summary()}"
-            if json_output:
-                console.print_json(
-                    data={
-                        "error": error_msg,
-                        "validation_errors": process_result.validation_errors,
-                    }
-                )
-            else:
-                console.print(
-                    "[red]❌ Error:[/red] Cannot generate diagram for invalid process"
-                )
-                console.print(f"   {process_result.get_error_summary()}")
-                console.print(
-                    f"   Fix the process first using: stageflow view {source}"
-                )
-            raise typer.Exit(1)
-
-        # Type narrowing: at this point, process_result must be Process
-        process = cast(Process, process_result)
-
-        # Default output filename if not provided
-        if not output:
-            source_type = detect_source_type(source)
-            if source_type == ProcessSourceType.REGISTRY:
-                process_name = source[1:]
-                output = Path(f"{process_name}_diagram.md")
-            else:
-                source_path = Path(source)
-                output = source_path.with_suffix(".diagram.md")
-
         generator = MermaidDiagramGenerator()
         diagram_content = generator.generate_process_diagram(process, style="overview")
-
-        if not output.suffix:
-            output = output.with_suffix(".md")
-
-        safe_write_file(output, diagram_content, verbose=False)
-
-        if json_output:
-            console.print_json(data={"visualization": str(output), "format": "mermaid"})
-        else:
-            show_success(f"Mermaid visualization written to {output}")
-
     except Exception as e:
-        if json_output:
-            console.print_json(data={"error": str(e)})
-        else:
-            console.print(f"[red]❌ Error:[/red] {e}")
+        # Diagram generation errors are handled by printer for consistent formatting
+        cli_ctx.printer.print_diagram_error(e, error_type="generation")
         raise typer.Exit(1) from e
+
+    # Ensure .md extension
+    if not output.suffix:
+        output = output.with_suffix(".md")
+
+    # Write diagram to file
+    try:
+        safe_write_file(output, diagram_content, verbose=False)
+    except Exception as e:
+        # File write errors are handled by printer for consistent formatting
+        cli_ctx.printer.print_diagram_error(e, error_type="write")
+        raise typer.Exit(1) from e
+
+    # Print success (handles JSON vs normal mode, errors, and formatting)
+    cli_ctx.printer.print_diagram_success(
+        output_path=str(output),
+        diagram_format="mermaid",
+    )

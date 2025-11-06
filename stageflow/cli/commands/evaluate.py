@@ -1,27 +1,63 @@
 """Evaluate command for assessing elements against processes."""
 
-import json
-import sys
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated
 
 import typer
-from rich.console import Console
 
-from stageflow.cli.commands.common import load_process_from_source
-from stageflow.cli.utils import (
-    EvaluationFormatter,
-    print_evaluation_result,
-    show_progress,
-)
-from stageflow.element import create_element
+from stageflow.elements import Element
 from stageflow.process import Process
-from stageflow.schema import LoadError, ProcessWithErrors, load_element
 
-console = Console()
+
+def get_element_stage(
+    stage_override: str | None, process: Process, elem: Element
+) -> tuple[str, str]:
+    """Determine the stage to use based on override, process config, or None.
+
+    Args:
+        stage_override: Stage name from command-line override
+        process: Process instance
+        elem: Element to evaluate
+
+    Returns:
+        Tuple of (stage_id, message) describing the stage selection
+
+    Raises:
+        ValueError: If the specified stage doesn't exist in the process
+    """
+
+    def validate_stage(stage_id: str, source: str) -> None:
+        """Validate that stage exists in process."""
+        if not process.get_stage(stage_id):
+            available_stages = [s._id for s in process.stages]
+            raise ValueError(
+                f"Stage '{stage_id}' from {source} does not exist in process. "
+                f"Available stages: {', '.join(available_stages)}"
+            )
+
+    if stage_override:
+        message = f"Using explicit stage override: '{stage_override}'"
+        validate_stage(stage_override, "command-line override")
+        return stage_override, message
+
+    config_stage = getattr(process, "stage_prop", None)
+    msg = ""
+    if config_stage:
+        msg = f"Process configured to auto-extract stage from property: {config_stage}"
+        extracted_stage = elem.get_property(config_stage)
+        if extracted_stage:
+            msg += f"\n extracted stage: '{extracted_stage}'"
+            validate_stage(extracted_stage, f"element property '{config_stage}'")
+            return extracted_stage, msg
+        else:
+            msg += "\n No property found in element"
+
+    msg += f"\n Falling back to process initial_stage: '{process.initial_stage._id}'"
+    return process.initial_stage._id, msg
 
 
 def evaluate_command(
+    ctx: typer.Context,
     source: Annotated[
         str, typer.Argument(help="Process source (file path or @registry_name)")
     ],
@@ -44,8 +80,19 @@ def evaluate_command(
     json_output: Annotated[
         bool, typer.Option("--json", help="Output in JSON format")
     ] = False,
-    verbose: Annotated[
-        bool, typer.Option("--verbose", "-v", help="Verbose output")
+    show_schema: Annotated[
+        bool,
+        typer.Option(
+            "--show-schema",
+            help="Show expected schema structure for the stage",
+        ),
+    ] = False,
+    cumulative_schema: Annotated[
+        bool,
+        typer.Option(
+            "--cumulative-schema",
+            help="Show cumulative schema (all properties from previous stages)",
+        ),
     ] = False,
 ):
     """
@@ -59,100 +106,69 @@ def evaluate_command(
     Element source:
     - If --element/-e is provided, reads from the specified file
     - If omitted, reads JSON from stdin (useful for piping data)
+
+    Schema hints:
+    - Automatically shown when element has INVALID_SCHEMA or ACTION_REQUIRED status
+    - Use --show-schema to always display schema hints
+    - Use --cumulative-schema to show properties from all previous stages
     """
+    # Access CLI context
+    cli_ctx = ctx.obj
+
+    # Set JSON mode to suppress all non-JSON output
+    cli_ctx.json_mode = json_output
+    cli_ctx.printer.json_mode = json_output
+
+    # Load process using context (handles all error reporting and exits on failure)
+    process = cli_ctx.load_process_or_exit(source)
+
+    # Load element using context (handles all error reporting and exits on failure)
+    element_path = str(element) if element else None
+    elem = cli_ctx.load_element_or_exit(element_path)
+
+    # Determine stage and show selection method in verbose mode
+    cli_ctx.print_progress("Evaluating element against process...")
     try:
-        process_result = load_process_from_source(source, verbose)
-
-        # Check if process has validation errors
-        if isinstance(process_result, ProcessWithErrors):
-            error_msg = f"Cannot evaluate against invalid process. {process_result.get_error_summary()}"
-            if json_output:
-                console.print_json(
-                    data={
-                        "error": error_msg,
-                        "validation_errors": process_result.validation_errors,
-                    }
-                )
-            else:
-                console.print(
-                    "[red]❌ Error:[/red] Cannot evaluate against invalid process"
-                )
-                console.print(f"   {process_result.get_error_summary()}")
-                console.print(
-                    f"   Fix the process first using: stageflow view {source}"
-                )
-            raise typer.Exit(1)
-
-        # Type narrowing: at this point, process_result must be Process
-        process = cast(Process, process_result)
-
-        # Load element from file or stdin
-        if element:
-            # Load from file
-            if verbose:
-                show_progress(f"Loading element from {element}", verbose=True)
-
-            try:
-                elem = load_element(str(element))
-            except LoadError as e:
-                raise typer.BadParameter(f"Failed to load element: {e}") from e
-        else:
-            # Load from stdin
-            if verbose:
-                show_progress("Reading element from stdin...", verbose=True)
-
-            try:
-                stdin_data = sys.stdin.read()
-                if not stdin_data.strip():
-                    raise typer.BadParameter("No data provided on stdin")
-
-                element_data = json.loads(stdin_data)
-                elem = create_element(element_data)
-            except json.JSONDecodeError as e:
-                raise typer.BadParameter(f"Failed to parse JSON from stdin: {e}") from e
-            except Exception as e:
-                raise typer.BadParameter(
-                    f"Failed to create element from stdin: {e}"
-                ) from e
-
-        # Show stage selection method in verbose mode
-        if verbose:
-            if stage:
-                console.print(f"[dim]Using explicit stage override: '{stage}'[/dim]")
-            elif hasattr(process, "stage_prop") and process.stage_prop:
-                console.print(
-                    f"[dim]Process configured to auto-extract stage from property: "
-                    f"'{process.stage_prop}'[/dim]"
-                )
-                # Try to show what stage will be extracted
-                try:
-                    extracted_stage = elem.get_property(process.stage_prop)
-                    if extracted_stage:
-                        console.print(
-                            f"[dim]Extracted stage from element: '{extracted_stage}'[/dim]"
-                        )
-                except Exception:
-                    pass
-            else:
-                console.print(
-                    f"[dim]Using process initial stage: '{process.initial_stage._id}'[/dim]"
-                )
-
-        # Evaluate
-        if verbose:
-            show_progress("Evaluating element against process...", verbose=True)
-
-        result = process.evaluate(elem, stage)
-
+        stage_id, stage_msg = get_element_stage(stage, process, elem)
+        cli_ctx.print_verbose(stage_msg)
+    except ValueError as e:
+        # Stage validation errors are handled by printer for consistent formatting
         if json_output:
-            json_result = EvaluationFormatter.format_json_result(process, result)
-            console.print_json(data=json_result)
+            cli_ctx.print_json(data={"error": str(e)})
         else:
-            print_evaluation_result(result)
-
-    except Exception as e:
-        if json_output:
-            console.print_json(data={"error": str(e)})
-        else:
-            console.print(f"[red]❌ Error:[/red] {e}")
+            cli_ctx.print_error(str(e))
         raise typer.Exit(1) from e
+
+    # Evaluate element
+    try:
+        result = process.evaluate(elem, stage_id)
+    except Exception as e:
+        # Evaluation errors are handled by printer for consistent formatting
+        cli_ctx.printer.print_evaluation_error(e)
+        raise typer.Exit(1) from e
+
+    # Print results (handles JSON vs normal mode, errors, and formatting)
+    cli_ctx.printer.print_evaluation_result(
+        process=process,
+        result=result,
+    )
+
+    # Show schema hint if requested or if evaluation needs help
+    if not json_output:
+        from stageflow.cli.utils.format import EvaluationFormatter
+
+        stage_result = result["stage_result"]
+        should_show_schema = show_schema or stage_result.status in (
+            "invalid_schema",
+            "action_required",
+        )
+
+        if should_show_schema:
+            # Get schema for helpful hints
+            schema = process.get_schema(stage_id, partial=not cumulative_schema)
+            schema_hint = EvaluationFormatter.format_schema_hint(
+                schema, stage_id, show_cumulative=cumulative_schema
+            )
+
+            if schema_hint:
+                cli_ctx.printer.print(schema_hint)

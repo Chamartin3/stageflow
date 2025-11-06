@@ -5,13 +5,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
-from stageflow.cli.utils import build_process_description, show_success
+from stageflow.cli.utils import ProcessFormatter
+from stageflow.loader import ProcessLoader
 from stageflow.manager import ManagerConfig, ProcessRegistry
-from stageflow.schema import ProcessWithErrors, load_process, load_process_graceful
-
-console = Console()
 
 # Create registry subcommand group
 reg_app = typer.Typer(
@@ -23,106 +20,83 @@ reg_app = typer.Typer(
 
 @reg_app.command(name="list")
 def list_processes(
+    ctx: typer.Context,
     json_output: Annotated[
         bool, typer.Option("--json", help="Output in JSON format")
     ] = False,
 ):
     """List all processes in the registry."""
+    # Access CLI context
+    cli_ctx = ctx.obj
+
+    # Set JSON mode
+    cli_ctx.json_mode = json_output
+    cli_ctx.printer.json_mode = json_output
+
     try:
         config = ManagerConfig.from_env()
         registry = ProcessRegistry(config)
 
         processes = registry.list_processes()
 
-        if json_output:
-            process_details = []
-            for process_name in processes:
-                try:
-                    process = registry.load_process(process_name)
-                    description = build_process_description(process)
-                    # Create mutable dict with additional field
-                    detail = dict(description)
-                    detail["registry_name"] = process_name
-                    process_details.append(detail)
-                except Exception as e:
-                    process_details.append(
-                        {
-                            "registry_name": process_name,
-                            "error": f"Failed to load: {str(e)}",
-                            "valid": False,
-                        }
-                    )
-
-            result = {
-                "registry_processes": process_details,
-                "total_count": len(processes),
-            }
-            console.print_json(data=result)
-        else:
-            if not processes:
-                console.print("📂 No processes found in registry")
-                console.print(f"   Registry directory: {config.processes_dir}")
-                console.print(
-                    "   Use 'stageflow reg import' to add processes to registry"
-                )
-                return
-
-            console.print(
-                f"[bold]📂 Registry Processes ({len(processes)} found)[/bold]"
-            )
-            console.print(f"   Registry directory: {config.processes_dir}\n")
-
-            for i, process_name in enumerate(sorted(processes)):
-                try:
-                    process_file_path = registry.get_process_file_path(process_name)
-                    if process_file_path:
-                        process = load_process_graceful(process_file_path)
+        # Build process details for all processes
+        loader = ProcessLoader()
+        process_details = []
+        for process_name in processes:
+            try:
+                process_file_path = registry.get_process_file_path(process_name)
+                if process_file_path:
+                    # Use ProcessLoader for consistent error handling
+                    result = loader.load(process_file_path)
+                    if result.success and result.process is not None:
+                        process = result.process
                     else:
-                        process = registry.load_process(process_name)
+                        # Process load failed - add error detail
+                        process_details.append(
+                            {
+                                "registry_name": process_name,
+                                "error": f"Failed to load: {result.get_error_summary()}",
+                                "valid": False,
+                            }
+                        )
+                        continue
+                else:
+                    process = registry.load_process(process_name)
 
-                    description = build_process_description(process)
+                description = ProcessFormatter.build_description(process)
+                # Create mutable dict with additional field
+                detail = dict(description)
+                detail["registry_name"] = process_name
+                process_details.append(detail)
+            except Exception as e:
+                process_details.append(
+                    {
+                        "registry_name": process_name,
+                        "error": f"Failed to load: {str(e)}",
+                        "valid": False,
+                    }
+                )
 
-                    prefix = "└─" if i == len(processes) - 1 else "├─"
-                    status_icon = "✅" if description["valid"] else "❌"
-
-                    console.print(f"{prefix} {status_icon} @{process_name}")
-                    console.print(f"   Name: {description['name']}")
-                    if description["description"]:
-                        console.print(f"   Description: {description['description']}")
-                    console.print(f"   Stages: {len(description['stages'])}")
-
-                    if description["consistency_issues"]:
-                        if isinstance(process, ProcessWithErrors):
-                            console.print(
-                                f"   [red]Issues: {len(description['consistency_issues'])} validation problems[/red]"
-                            )
-                        else:
-                            console.print(
-                                f"   [yellow]Issues: {len(description['consistency_issues'])} consistency problems[/yellow]"
-                            )
-
-                    console.print()
-
-                except Exception:
-                    prefix = "└─" if i == len(processes) - 1 else "├─"
-                    console.print(f"{prefix} ❌ @{process_name}")
-                    console.print("   [red]Status: Invalid (severe error)[/red]")
-                    console.print()
-
-            console.print(
-                "💡 Use 'stageflow view @process_name' to inspect a specific process"
-            )
+        # Print registry list (handles JSON vs normal mode and formatting)
+        cli_ctx.printer.print_registry_list(
+            processes=processes,
+            registry_dir=str(config.processes_dir),
+            process_details=process_details,
+        )
 
     except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Failed to list registry processes: {e}"
         if json_output:
-            console.print_json(data={"error": str(e)})
+            cli_ctx.print_json(data={"error": error_msg})
         else:
-            console.print(f"[red]❌ Error:[/red] {e}")
+            cli_ctx.print_error(error_msg)
         raise typer.Exit(1) from e
 
 
 @reg_app.command(name="import")
 def import_process(
+    ctx: typer.Context,
     file_path: Annotated[Path, typer.Argument(help="Process file to import")],
     name: Annotated[
         str | None,
@@ -136,10 +110,23 @@ def import_process(
     ] = False,
 ):
     """Import a process file into the registry."""
-    try:
-        if not file_path.exists():
-            raise typer.BadParameter(f"File '{file_path}' not found")
+    # Access CLI context
+    cli_ctx = ctx.obj
 
+    # Set JSON mode
+    cli_ctx.json_mode = json_output
+    cli_ctx.printer.json_mode = json_output
+
+    # Validate file exists
+    if not file_path.exists():
+        error_msg = f"File '{file_path}' not found"
+        if json_output:
+            cli_ctx.print_json(data={"error": error_msg})
+        else:
+            cli_ctx.print_error(error_msg)
+        raise typer.Exit(1)
+
+    try:
         config = ManagerConfig.from_env()
         registry = ProcessRegistry(config)
 
@@ -153,46 +140,51 @@ def import_process(
                 f"Use --force to overwrite."
             )
             if json_output:
-                console.print_json(data={"error": error_msg, "exists": True})
+                cli_ctx.print_json(data={"error": error_msg, "exists": True})
             else:
-                console.print(f"[red]❌ Error:[/red] {error_msg}")
+                cli_ctx.print_error(error_msg)
             raise typer.Exit(1)
 
-        # Load process to validate it
-        process = load_process(str(file_path))
+        # Load process to validate it using ProcessLoader
+        cli_ctx.print_progress(f"Importing process from {file_path}...")
+        loader = ProcessLoader()
+        result = loader.load(str(file_path))
+
+        if not result.success or result.process is None:
+            # Use structured error reporting from ProcessLoader
+            cli_ctx.printer.print_load_result(result, json_mode=json_output)
+            raise typer.Exit(1)
+
+        process = result.process
+
+        # Determine if overwriting
+        is_overwrite = registry.process_exists(registry_name) and force
 
         # Save to registry
         registry.save_process(registry_name, process)
 
-        action = (
-            "overwritten"
-            if registry.process_exists(registry_name) and force
-            else "imported"
+        # Print success (handles JSON vs normal mode and formatting)
+        cli_ctx.printer.print_registry_import_success(
+            registry_name=registry_name,
+            source_file=str(file_path),
+            overwritten=is_overwrite,
         )
-
-        if json_output:
-            result = {
-                "message": f"Process {action} successfully",
-                "source_file": str(file_path),
-                "registry_name": registry_name,
-                "overwritten": force,
-            }
-            console.print_json(data=result)
-        else:
-            show_success(f"Process {action} to registry as '@{registry_name}'")
 
     except typer.Exit:
         raise
     except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Failed to import process: {e}"
         if json_output:
-            console.print_json(data={"error": str(e)})
+            cli_ctx.print_json(data={"error": error_msg})
         else:
-            console.print(f"[red]❌ Error:[/red] {e}")
+            cli_ctx.print_error(error_msg)
         raise typer.Exit(1) from e
 
 
 @reg_app.command(name="export")
 def export_process(
+    ctx: typer.Context,
     name: Annotated[str, typer.Argument(help="Registry process name (without @)")],
     file_path: Annotated[Path, typer.Argument(help="Destination file path")],
     json_output: Annotated[
@@ -200,6 +192,13 @@ def export_process(
     ] = False,
 ):
     """Export a registry process to a file."""
+    # Access CLI context
+    cli_ctx = ctx.obj
+
+    # Set JSON mode
+    cli_ctx.json_mode = json_output
+    cli_ctx.printer.json_mode = json_output
+
     try:
         config = ManagerConfig.from_env()
         registry = ProcessRegistry(config)
@@ -207,32 +206,39 @@ def export_process(
         # Get source file
         source_path = registry.get_process_file_path(name)
         if not source_path or not source_path.exists():
-            raise typer.BadParameter(f"Process '{name}' not found in registry")
+            error_msg = f"Process '{name}' not found in registry"
+            if json_output:
+                cli_ctx.print_json(data={"error": error_msg})
+            else:
+                cli_ctx.print_error(error_msg)
+            raise typer.Exit(1)
 
         # Copy file
+        cli_ctx.print_progress(f"Exporting process '@{name}' to {file_path}...")
         file_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, file_path)
 
-        if json_output:
-            result = {
-                "message": "Process exported successfully",
-                "registry_name": name,
-                "destination_file": str(file_path),
-            }
-            console.print_json(data=result)
-        else:
-            show_success(f"Process '@{name}' exported to {file_path}")
+        # Print success (handles JSON vs normal mode and formatting)
+        cli_ctx.printer.print_registry_export_success(
+            registry_name=name,
+            destination_file=str(file_path),
+        )
 
+    except typer.Exit:
+        raise
     except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Failed to export process: {e}"
         if json_output:
-            console.print_json(data={"error": str(e)})
+            cli_ctx.print_json(data={"error": error_msg})
         else:
-            console.print(f"[red]❌ Error:[/red] {e}")
+            cli_ctx.print_error(error_msg)
         raise typer.Exit(1) from e
 
 
 @reg_app.command(name="delete")
 def delete_process(
+    ctx: typer.Context,
     name: Annotated[str, typer.Argument(help="Registry process name (without @)")],
     force: Annotated[
         bool, typer.Option("--force", "-f", help="Skip confirmation")
@@ -242,6 +248,13 @@ def delete_process(
     ] = False,
 ):
     """Delete a process from the registry."""
+    # Access CLI context
+    cli_ctx = ctx.obj
+
+    # Set JSON mode
+    cli_ctx.json_mode = json_output
+    cli_ctx.printer.json_mode = json_output
+
     try:
         config = ManagerConfig.from_env()
         registry = ProcessRegistry(config)
@@ -249,7 +262,12 @@ def delete_process(
         # Check if process exists
         process_file_path = registry.get_process_file_path(name)
         if not process_file_path:
-            raise typer.BadParameter(f"Process '{name}' not found in registry")
+            error_msg = f"Process '{name}' not found in registry"
+            if json_output:
+                cli_ctx.print_json(data={"error": error_msg})
+            else:
+                cli_ctx.print_error(error_msg)
+            raise typer.Exit(1)
 
         # Confirm deletion (unless forced or JSON mode)
         if not json_output and not force:
@@ -258,24 +276,26 @@ def delete_process(
                 default=False,
             )
             if not confirmed:
-                console.print("Deletion cancelled.")
+                cli_ctx.console.print("Deletion cancelled.")
                 return
 
+        # Delete process
+        cli_ctx.print_progress(f"Deleting process '@{name}' from registry...")
         registry.delete_process(name, create_backup=True)
 
-        if json_output:
-            result = {
-                "message": f"Process '{name}' deleted successfully",
-                "process": name,
-                "file": str(process_file_path),
-            }
-            console.print_json(data=result)
-        else:
-            show_success(f"Process '{name}' deleted from registry")
+        # Print success (handles JSON vs normal mode and formatting)
+        cli_ctx.printer.print_registry_delete_success(
+            registry_name=name,
+            file_path=str(process_file_path),
+        )
 
+    except typer.Exit:
+        raise
     except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Failed to delete process: {e}"
         if json_output:
-            console.print_json(data={"error": str(e)})
+            cli_ctx.print_json(data={"error": error_msg})
         else:
-            console.print(f"[red]❌ Error:[/red] {e}")
+            cli_ctx.print_error(error_msg)
         raise typer.Exit(1) from e
