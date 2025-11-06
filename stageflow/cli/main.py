@@ -1,15 +1,15 @@
 """StageFlow CLI - Typer-based command line interface."""
 
+from typing import Annotated
+
 import typer
 from rich.console import Console
 
 from stageflow.cli.commands import (
-    diagram_command,
     evaluate_command,
-    new_command,
-    reg_app,
-    view_command,
+    process_app,
 )
+from stageflow.cli.utils import CLIContext
 
 # Create main app and console
 app = typer.Typer(
@@ -19,14 +19,36 @@ app = typer.Typer(
 )
 console = Console()
 
-# Register top-level commands
-app.command(name="view")(view_command)
-app.command(name="evaluate")(evaluate_command)
-app.command(name="new")(new_command)
-app.command(name="diagram")(diagram_command)
 
-# Register registry subcommand group
-app.add_typer(reg_app, name="reg")
+@app.callback()
+def main_callback(
+    ctx: typer.Context,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Enable verbose output")
+    ] = False,
+):
+    """
+    StageFlow CLI callback - sets up context for all commands.
+
+    This callback initializes the CLIContext object that is shared across all commands.
+    Commands can access the context via ctx.obj, which provides:
+    - Process loading and validation
+    - Error handling and reporting
+    - Console output management
+    - Verbose mode control
+    """
+    # Initialize context with console and verbose setting
+    cli_context = CLIContext(console=console, verbose=verbose)
+
+    # Store the context for all commands to access
+    ctx.obj = cli_context
+
+
+# Register process command group
+app.add_typer(process_app)
+
+# Register evaluate command at top level
+app.command(name="evaluate")(evaluate_command)
 
 
 def main():
