@@ -2,80 +2,16 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, NotRequired, Required, TypedDict
+from typing import Any, cast
 
-from .element import Element
-from .gate import Gate, GateDefinition, GateResult
-
-
-class TemplateParameter(TypedDict, total=False):
-    """Parameter definition for template.
-
-    Fields:
-        name: Parameter identifier
-        required: Whether this parameter is mandatory
-        description: What this parameter represents
-        placeholder: Example/placeholder value
-    """
-
-    name: str  # Required: Parameter identifier
-    required: bool  # Required: Whether mandatory
-    description: str  # Required: Parameter description
-    placeholder: NotRequired[str]  # Optional: Placeholder value
-
-
-class TemplateSectionDef(TypedDict, total=False):
-    """Content section definition in template.
-
-    Fields:
-        id: Section identifier
-        title: Section heading text
-        level: Heading level (1-6)
-        content: Default/placeholder content
-        subsections: Nested subsections (recursive)
-    """
-
-    id: str  # Required: Section identifier
-    title: str  # Required: Section heading
-    level: int  # Required: Heading level (1-6)
-    content: NotRequired[str]  # Optional: Default content
-    subsections: NotRequired[list["TemplateSectionDef"]]  # Optional: Nested sections
-
-
-class StageTemplate(TypedDict, total=False):
-    """Stage template definition.
-
-    Fields:
-        name: Unique template identifier
-        description: What this template is for
-        parameters: Parameter definitions
-        frontmatter: Default frontmatter values
-        sections: Default section structures
-    """
-
-    name: Required[str]  # Required: Template identifier
-    description: Required[str]  # Required: Template purpose
-    parameters: NotRequired[list[TemplateParameter]]  # Optional: Parameters
-    frontmatter: NotRequired[dict[str, Any]]  # Optional: Default frontmatter
-    sections: NotRequired[list[TemplateSectionDef]]  # Optional: Default sections
-
-
-class ActionDefinition(TypedDict):
-    """TypedDict for action definition with enhanced structure.
-
-    Fields:
-        description: Brief summary of what the action accomplishes (required)
-        name: Optional unique identifier for the action within the stage
-        instructions: Optional list of guidelines for completing the action
-        related_properties: Optional list of property paths involved in this action
-        template: Optional reference to a template by name
-    """
-
-    description: str  # Required: Brief summary
-    name: NotRequired[str]  # Optional: Action identifier
-    instructions: NotRequired[list[str]]  # Optional: List of guidelines
-    related_properties: NotRequired[list[str]]  # Optional: Related property paths
-    template: NotRequired[str]  # Optional: Template reference
+from .elements import Element
+from .gate import Gate, GateResult
+from .models import (
+    ActionDefinition,
+    ExpectedObjectSchmema,
+    GateDefinition,
+    StageDefinition,
+)
 
 
 class ActionType(StrEnum):
@@ -96,8 +32,8 @@ class Action:
 
 class StageStatus(StrEnum):
     INVALID_SCHEMA = "invalid_schema"  # The element is missing required properties for this stage | scoping
-    READY_FOR_TRANSITION = "ready"  # A gate has passed and the element can transition to the next stage | done
     ACTION_REQUIRED = "action_required"  # The element has not met gate requirements and requires action | in progress
+    READY_FOR_TRANSITION = "ready"  # A gate has passed and the element can transition to the next stage | done
 
 
 @dataclass(frozen=True)
@@ -109,24 +45,8 @@ class StageEvaluationResult:
     sugested_action: list[Action]
 
 
-class StageObjectPropertyDefinition(TypedDict):
-    type: str | None
-    default: Any | None
-
-
-ExpectedObjectSchmema = dict[str, StageObjectPropertyDefinition | None] | None
-
-
-class StageDefinition(TypedDict, total=False):
-    """TypedDict for stage definition."""
-
-    name: Required[str]  # Required
-    description: Required[str]  # Required
-    gates: Required[list[GateDefinition]]  # Required
-    expected_actions: Required[list[ActionDefinition]]  # Required
-    expected_properties: Required[ExpectedObjectSchmema]  # Required
-    is_final: Required[bool]  # Required
-    templates: NotRequired[list[StageTemplate]]  # Optional: Stage templates
+# StageObjectPropertyDefinition, ExpectedObjectSchmema, and StageDefinition
+# are now imported from .models above
 
 
 class Stage:
@@ -140,7 +60,6 @@ class Stage:
     name: str
     gates: tuple[Gate, ...]
     stage_actions: list[ActionDefinition]
-    templates: list[StageTemplate]
 
     def __init__(
         self,
@@ -155,16 +74,31 @@ class Stage:
             config: Stage configuration dictionary
         """
         self._id = id
-        self.name = config["name"]
+        # Stage name can come from config (if specified) or defaults to the id
+        self.name = config.get("name", id)
         self.description = config.get("description", "")
 
         # Define gates and required properties from those gates
+        # Gates can be either a dict (with gate names as keys) or a list
+        gates_config = config.get("gates", [])
+        if isinstance(gates_config, dict):
+            # Convert dict format to list format, adding gate name
+            gates_list = [
+                {**gate_def, "name": gate_name}
+                for gate_name, gate_def in gates_config.items()
+            ]
+        else:
+            gates_list = gates_config
+
         gates_definition: list[GateDefinition] = [
-            {
-                **gate_def,
-                "parent_stage": self._id,
-            }
-            for gate_def in config.get("gates", [])
+            cast(
+                GateDefinition,
+                {
+                    **gate_def,
+                    "parent_stage": self._id,
+                },
+            )
+            for gate_def in gates_list
         ]
         self.is_final = config.get("is_final", False)
         # Allow stages without gates if they are final or if they are terminal states
@@ -183,12 +117,7 @@ class Stage:
         self._validate_schema(expected_properties)
         self._base_schema = expected_properties
 
-        # Validate and store templates
-        templates = config.get("templates", [])
-        self._validate_templates(templates)
-        self.templates = templates
-
-        # Validate action definitions (must come after templates validation)
+        # Validate action definitions
         actions = config.get("expected_actions", [])
         self._validate_actions(actions)
         self.stage_actions = actions
@@ -215,155 +144,6 @@ class Stage:
                     )
                 nested = nested[part]
 
-    def _validate_templates(self, templates: list[StageTemplate]) -> None:
-        """Validate template definitions.
-
-        Validates:
-        - Required fields (name, description)
-        - Parameter structure and uniqueness
-        - Section structure and uniqueness
-        - Section level validity (1-6)
-        - Warns if too many templates (>5)
-        """
-        import warnings
-
-        # Warn if too many templates
-        if len(templates) > 5:
-            warnings.warn(
-                f"Stage '{self.name}' has {len(templates)} templates. "
-                f"Consider keeping template count reasonable (2-5 recommended).",
-                UserWarning,
-                stacklevel=3,
-            )
-
-        template_names: set[str] = set()
-
-        for idx, template in enumerate(templates):
-            # Validate required fields
-            if "name" not in template or not template["name"]:
-                raise ValueError(
-                    f"Template at index {idx} in stage '{self.name}' is missing required 'name' field"
-                )
-            if "description" not in template or not template["description"]:
-                raise ValueError(
-                    f"Template at index {idx} in stage '{self.name}' is missing required 'description' field"
-                )
-
-            # Check for duplicate template names
-            template_name = template["name"]
-            if template_name in template_names:
-                raise ValueError(
-                    f"Duplicate template name '{template_name}' in stage '{self.name}'. "
-                    f"Template names must be unique within a stage."
-                )
-            template_names.add(template_name)
-
-            # Validate parameters if present
-            if "parameters" in template:
-                param_names: set[str] = set()
-                for param_idx, param in enumerate(template["parameters"]):
-                    if "name" not in param or not param["name"]:
-                        raise ValueError(
-                            f"Parameter at index {param_idx} in template '{template_name}' "
-                            f"of stage '{self.name}' is missing required 'name' field"
-                        )
-                    if "required" not in param:
-                        raise ValueError(
-                            f"Parameter '{param['name']}' in template '{template_name}' "
-                            f"of stage '{self.name}' is missing required 'required' field"
-                        )
-                    if "description" not in param or not param["description"]:
-                        raise ValueError(
-                            f"Parameter '{param['name']}' in template '{template_name}' "
-                            f"of stage '{self.name}' is missing required 'description' field"
-                        )
-
-                    # Check for duplicate parameter names
-                    param_name = param["name"]
-                    if param_name in param_names:
-                        raise ValueError(
-                            f"Duplicate parameter name '{param_name}' in template '{template_name}' "
-                            f"of stage '{self.name}'"
-                        )
-                    param_names.add(param_name)
-
-            # Validate sections if present
-            if "sections" in template:
-                self._validate_template_sections(
-                    template["sections"], template_name, template_name
-                )
-
-            # Validate frontmatter alignment with expected_properties (warning only)
-            if "frontmatter" in template and self._base_schema:
-                for prop_path in self._base_schema:
-                    if prop_path.startswith("frontmatter."):
-                        prop_name = prop_path.split(".", 1)[1]
-                        if prop_name not in template["frontmatter"]:
-                            warnings.warn(
-                                f"Template '{template_name}' in stage '{self.name}' "
-                                f"is missing expected frontmatter property '{prop_name}'",
-                                UserWarning,
-                                stacklevel=3,
-                            )
-
-    def _validate_template_sections(
-        self,
-        sections: list[TemplateSectionDef],
-        template_name: str,
-        section_path: str,
-    ) -> None:
-        """Recursively validate template section structure.
-
-        Args:
-            sections: List of section definitions to validate
-            template_name: Name of the template being validated
-            section_path: Current path in section hierarchy (for error messages)
-        """
-        section_ids: set[str] = set()
-
-        for idx, section in enumerate(sections):
-            # Validate required fields
-            if "id" not in section or not section["id"]:
-                raise ValueError(
-                    f"Section at index {idx} in template '{template_name}' "
-                    f"of stage '{self.name}' (path: {section_path}) is missing required 'id' field"
-                )
-            if "title" not in section or not section["title"]:
-                raise ValueError(
-                    f"Section '{section.get('id', idx)}' in template '{template_name}' "
-                    f"of stage '{self.name}' (path: {section_path}) is missing required 'title' field"
-                )
-            if "level" not in section:
-                raise ValueError(
-                    f"Section '{section['id']}' in template '{template_name}' "
-                    f"of stage '{self.name}' (path: {section_path}) is missing required 'level' field"
-                )
-
-            # Validate level range
-            level = section["level"]
-            if not isinstance(level, int) or level < 1 or level > 6:
-                raise ValueError(
-                    f"Section '{section['id']}' in template '{template_name}' "
-                    f"of stage '{self.name}' (path: {section_path}) has invalid level {level}. "
-                    f"Level must be an integer between 1 and 6."
-                )
-
-            # Check for duplicate section IDs
-            section_id = section["id"]
-            if section_id in section_ids:
-                raise ValueError(
-                    f"Duplicate section ID '{section_id}' in template '{template_name}' "
-                    f"of stage '{self.name}' (path: {section_path})"
-                )
-            section_ids.add(section_id)
-
-            # Recursively validate subsections if present
-            if "subsections" in section and section["subsections"]:
-                new_path = f"{section_path}.{section_id}"
-                self._validate_template_sections(
-                    section["subsections"], template_name, new_path
-                )
-
     def _validate_actions(self, actions: list[ActionDefinition]) -> None:
         """Verify that actions are valid and properly structured.
 
@@ -371,14 +151,12 @@ class Stage:
         - Required 'description' field is present
         - Optional 'name' field is a string if present
         - Optional 'instructions' field is a list of strings if present
-        - Optional 'template' field references an existing template
         - Action related properties are evaluated by gates
         - Emits warning for duplicate action names
         """
         import warnings
 
         action_names: set[str] = set()
-        template_names = {t["name"] for t in self.templates}
 
         for idx, action in enumerate(actions):
             # Validate required description field
@@ -422,20 +200,6 @@ class Stage:
                         f"Consider keeping instruction lists concise (3-7 items recommended).",
                         UserWarning,
                         stacklevel=3,
-                    )
-
-            # Validate optional template field
-            if "template" in action:
-                template_ref = action["template"]
-                if not isinstance(template_ref, str) or not template_ref:
-                    raise ValueError(
-                        f"Action at index {idx} in stage '{self.name}' has invalid 'template' field: must be non-empty string"
-                    )
-                # Validate template reference exists
-                if template_ref not in template_names:
-                    raise ValueError(
-                        f"Action at index {idx} in stage '{self.name}' references unknown template '{template_ref}'. "
-                        f"Available templates: {', '.join(sorted(template_names)) if template_names else 'none'}"
                     )
 
             # Validate related properties
@@ -577,6 +341,4 @@ class Stage:
             "expected_properties": self._base_schema,
             "is_final": self.is_final,
         }
-        if self.templates:
-            result["templates"] = self.templates
         return result

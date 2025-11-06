@@ -451,7 +451,7 @@ class ProcessManager:
                 )
 
             # Load process from external file
-            from stageflow.schema import load_process
+            from stageflow.loader import load_process
 
             process = load_process(import_path)
 

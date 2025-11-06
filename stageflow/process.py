@@ -2,41 +2,18 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import NotRequired, TypedDict
 
-from .element import Element
+from .elements import Element
 from .gate import Gate
 from .lock import BaseLock, SimpleLock
-from .stage import (
+from .models import (
     ExpectedObjectSchmema,
-    Stage,
+    ProcessDefinition,
+    ProcessElementEvaluationResult,
     StageDefinition,
-    StageEvaluationResult,
     StageObjectPropertyDefinition,
-    StageStatus,
 )
-
-
-class ProcessDefinition(TypedDict):
-    """TypedDict for process definition."""
-
-    name: str
-    description: str
-    initial_stage: str
-    final_stage: str
-    stage_prop: NotRequired[
-        str
-    ]  # Optional: property path to extract current stage from element
-    stages: dict[str, StageDefinition]
-
-
-class ProcessElementEvaluationResult(TypedDict):
-    """TypedDict for process element evaluation result."""
-
-    stage: str
-    stage_result: StageEvaluationResult
-    regression: bool
-    expected_actions: list  # List of ActionDefinition from stage configuration
+from .stage import Stage, StageEvaluationResult, StageStatus
 
 
 class PathSearch:
@@ -721,7 +698,7 @@ class Process:
         regresion = len(previus_stage_fails) > 0
         return ProcessElementEvaluationResult(
             stage=current_stage._id,
-            stage_result=current_stage_result,
+            stage_result=current_stage_result,  # type: ignore[typeddict-item]
             regression=regresion,
             expected_actions=current_stage.stage_actions,
         )

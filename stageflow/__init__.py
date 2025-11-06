@@ -34,16 +34,15 @@ Example Usage:
 __version__ = "0.1.0"
 
 # Public API exports - Core functionality
-from .element import DictElement, Element, create_element, create_element_from_config
+from .elements import DictElement, Element, create_element, create_element_from_config
 from .gate import Gate, GateDefinition, GateResult
-from .lock import Lock, LockDefinition, LockResult, LockType
-from .process import Process, ProcessDefinition, ProcessElementEvaluationResult
-from .schema.loader import (
-    Loader,
+from .loader import (
     LoadError,
     load_element,
     load_process,
 )
+from .lock import Lock, LockDefinition, LockResult, LockType
+from .process import Process, ProcessDefinition, ProcessElementEvaluationResult
 from .stage import Action, Stage, StageDefinition, StageEvaluationResult
 
 # Optional manager functionality (imported separately)
@@ -57,7 +56,6 @@ __all__ = [
     "Stage",
     "Gate",
     "Lock",
-    "Loader",
     "load_process",
     "__version__",
     # Data types and results

@@ -4,18 +4,11 @@ This module provides a declarative way to compose validation rules using AND log
 """
 
 from dataclasses import dataclass, field
-from typing import TypedDict
+from typing import cast
 
-from stageflow.element import Element
+from stageflow.elements import Element
 from stageflow.lock import BaseLock, LockDefinition, LockFactory, LockResult
-
-
-class GateDefinition(TypedDict):
-    name: str
-    description: str
-    target_stage: str
-    parent_stage: str | None
-    locks: list[LockDefinition]
+from stageflow.models import GateDefinition
 
 
 @dataclass(frozen=True)
@@ -130,12 +123,28 @@ class Gate:
         """Get all property paths required by the gate."""
         paths = set()
         for lock in self._locks:
-            paths.add(lock.property_path)
+            self._collect_property_paths(lock, paths)
         return paths
+
+    def _collect_property_paths(self, lock: BaseLock, paths: set[str]) -> None:
+        """Recursively collect property paths from locks."""
+        from stageflow.lock import ConditionalLock, OrLogicLock
+
+        # For complex locks, recursively collect from sub-locks
+        if isinstance(lock, ConditionalLock):
+            for sub_lock in lock.if_locks + lock.then_locks + lock.else_locks:
+                self._collect_property_paths(sub_lock, paths)
+        elif isinstance(lock, OrLogicLock):
+            for group in lock.condition_groups:
+                for sub_lock in group:
+                    self._collect_property_paths(sub_lock, paths)
+        else:
+            # For simple locks, add the property path
+            paths.add(lock.property_path)
 
     def lock_to_dict(self) -> list[LockDefinition]:
         """Serialize locks to a list of dictionaries."""
-        return [lock.to_dict() for lock in self._locks]
+        return [cast(LockDefinition, lock.to_dict()) for lock in self._locks]
 
     def to_dict(self) -> GateDefinition:
         """Serialize gate to a dictionary."""

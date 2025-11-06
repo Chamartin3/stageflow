@@ -12,8 +12,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from stageflow.loader import LoadError, load_process
 from stageflow.process import Process, ProcessDefinition
-from stageflow.schema import LoadError, load_process
 
 from .config import ManagerConfig, ProcessFileFormat
 

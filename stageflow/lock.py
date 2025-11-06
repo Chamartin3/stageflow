@@ -1,204 +1,18 @@
 """Lock types and validation logic for StageFlow."""
 
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, TypeAlias, TypedDict
+from typing import Any, cast
 
-from stageflow.element import Element
-
-# Custom validator registry
-
-
-class LockMetaData(TypedDict, total=False):
-    expected_value: Any
-    min_value: int | None
-    max_value: int | None
-
-
-class LockType(Enum):
-    """
-    Built-in lock types for common validation scenarios.
-    """
-
-    EXISTS = "exists"
-    EQUALS = "equals"
-    GREATER_THAN = "greater_than"
-    LESS_THAN = "less_than"
-    CONTAINS = "contains"
-    REGEX = "regex"
-    TYPE_CHECK = "type_check"
-    RANGE = "range"
-    LENGTH = "length"
-    NOT_EMPTY = "not_empty"
-    IN_LIST = "in_list"
-    NOT_IN_LIST = "not_in_list"
-    CONDITIONAL = "conditional"
-    OR_LOGIC = "or_logic"
-    OR_GROUP = "or_group"
-
-    def failure_message(
-        self, property_path: str, actual_value: Any, expected_value: Any = None
-    ) -> str:
-        """Generate human-readable failure message for this lock type.
-
-        Args:
-            property_path: Path of the property being validated
-            actual_value: The actual value that failed validation
-            expected_value: The expected value or criteria for validation
-
-        Returns:
-            Descriptive error message
-        """
-        if self == LockType.EXISTS:
-            return f"Property '{property_path}' is required but missing or empty"
-
-        if self == LockType.EQUALS:
-            return f"Property '{property_path}' should equal '{expected_value}' but is '{actual_value}'"
-
-        if self == LockType.GREATER_THAN:
-            return f"Property '{property_path}' should be greater than {expected_value} but is {actual_value}"
-
-        if self == LockType.LESS_THAN:
-            return f"Property '{property_path}' should be less than {expected_value} but is {actual_value}"
-
-        if self == LockType.REGEX:
-            return f"Property '{property_path}' should match pattern '{expected_value}' but is '{actual_value}'"
-
-        if self == LockType.IN_LIST:
-            return f"Property '{property_path}' should be one of {expected_value} but is '{actual_value}'"
-
-        if self == LockType.NOT_IN_LIST:
-            return f"Property '{property_path}' should not be one of {expected_value} but is '{actual_value}'"
-
-        if self == LockType.CONTAINS:
-            return f"Property '{property_path}' should contain '{expected_value}' but is '{actual_value}'"
-
-        if self == LockType.TYPE_CHECK:
-            expected_type = (
-                expected_value
-                if isinstance(expected_value, str)
-                else getattr(expected_value, "__name__", str(expected_value))
-            )
-            actual_type = type(actual_value).__name__
-            return f"Property '{property_path}' should be of type '{expected_type}' but is '{actual_type}' with value '{actual_value}'"
-
-        if self == LockType.RANGE:
-            if isinstance(expected_value, (list | tuple)) and len(expected_value) == 2:
-                min_val, max_val = expected_value
-                return f"Property '{property_path}' should be between {min_val} and {max_val} but is {actual_value}"
-
-        return (
-            f"Property '{property_path}' failed validation for lock type '{self.value}'"
-        )
-
-    def validate(self, value: Any, lock_meta: LockMetaData) -> bool:
-        lock_type = self
-        if lock_type == LockType.EXISTS:
-            return value is not None and (
-                not isinstance(value, str) or len(value.strip()) > 0
-            )
-
-        if lock_type == LockType.NOT_EMPTY:
-            if isinstance(value, str):
-                return len(value.strip()) > 0
-            elif hasattr(value, "__len__"):
-                return len(value) > 0
-            else:
-                return value is not None
-
-        expected_value = lock_meta.get("expected_value")
-        if lock_type == LockType.EQUALS:
-            return value == expected_value
-
-        # Size/length checks
-        if lock_type == LockType.LENGTH:
-            try:
-                length = len(value)
-                if isinstance(expected_value, int):
-                    return length == expected_value
-                else:
-                    return False
-            except TypeError:
-                return False
-        if lock_type in [LockType.GREATER_THAN, LockType.LESS_THAN, LockType.RANGE]:
-            expected_value = lock_meta.get("expected_value", 0)
-            expected_value = float(expected_value) if expected_value is not None else 0
-            value = value if value is not None else 0
-            min_val = lock_meta.get("min_value", 0)
-            min_val = float(min_val) if min_val is not None else 0
-            max_val = lock_meta.get("max_value", 0)
-            max_val = float(max_val) if max_val is not None else 0
-
-            if lock_type == LockType.GREATER_THAN:
-                return float(value) > expected_value
-            if lock_type == LockType.LESS_THAN:
-                return float(value) < expected_value
-            if lock_type == LockType.RANGE:
-                return float(min_val) <= float(value) <= float(max_val)
-
-        # Text comparisons
-        if lock_type == LockType.REGEX:
-            if not isinstance(value, str):
-                return False
-            try:
-                return bool(re.match(str(expected_value), value))
-            except re.error:
-                return False
-
-        # Collection checks
-        if lock_type == LockType.CONTAINS:
-            try:
-                if isinstance(value, str) and isinstance(expected_value, str):
-                    return expected_value in value
-                elif hasattr(value, "__contains__"):
-                    # For collections, check if expected_value is in the collection
-                    # or if string representation matches any element
-                    # Type ignore needed because value could be various types
-                    return (
-                        expected_value in value  # type: ignore[operator]
-                        or str(expected_value) in [str(item) for item in value]
-                    )  # type: ignore[arg-type]
-                else:
-                    return False
-            except (TypeError, AttributeError):
-                return False
-        if lock_type == LockType.IN_LIST:
-            if not isinstance(expected_value, (list | tuple | set)):
-                return False
-            return value in expected_value
-
-        if lock_type == LockType.NOT_IN_LIST:
-            return value not in expected_value
-
-        if lock_type == LockType.TYPE_CHECK:
-            if isinstance(expected_value, str):
-                # Handle string type names
-                type_map = {
-                    "str": str,
-                    "string": str,
-                    "int": int,
-                    "integer": int,
-                    "float": float,
-                    "bool": bool,
-                    "boolean": bool,
-                    "list": list,
-                    "dict": dict,
-                    "dictionary": dict,
-                    "tuple": tuple,
-                    "set": set,
-                }
-                expected_type = type_map.get(expected_value.lower())
-                if expected_type:
-                    return isinstance(value, expected_type)
-                else:
-                    return False
-            elif isinstance(expected_value, type):
-                return isinstance(value, expected_value)
-            else:
-                return False
-        raise ValueError(f"Unsupported lock type: {lock_type}")
+from stageflow.elements import Element
+from stageflow.models import (
+    ConditionalLockDict,
+    LockDefinition,
+    LockDefinitionDict,
+    LockMetaData,
+    LockType,
+    SpecialLockType,
+)
 
 
 @dataclass(frozen=True)
@@ -263,28 +77,8 @@ class LockResult:
         return "\n".join(lines)
 
 
-class LockDefinitionDict(TypedDict, total=False):
-    """Lock configuration with optional custom error message."""
-
-    type: LockType
-    property_path: str
-    expected_value: str | int | LockMetaData
-    error_message: str
-
-
-class LockShorthandDict(TypedDict, total=False):
-    exists: str | None
-    is_true: str | None
-    is_false: str | None
-    error_message: str
-
-
-# ConditionalLockDict uses dict instead of TypedDict because 'if', 'then', 'else'
-# are Python keywords and cannot be used as TypedDict field names
-# Structure: {"type": LockType.CONDITIONAL, "if": [...], "then": [...], "else": [...]}
-ConditionalLockDict: TypeAlias = dict[str, Any]
-
-LockDefinition = LockDefinitionDict | LockShorthandDict | ConditionalLockDict
+# LockMetaData, LockDefinitionDict, LockShorthandDict, and ConditionalLockDict
+# are now imported from stageflow.models above
 
 
 class BaseLock(ABC):
@@ -797,29 +591,24 @@ class LockFactory:
         lock_type = lock_definition.get("type")
 
         # Handle CONDITIONAL lock type
-        if lock_type == "CONDITIONAL":
-            return cls._create_conditional(dict(lock_definition))
+        if lock_type == SpecialLockType.CONDITIONAL:
+            return cls._create_conditional(cast(dict[str, Any], lock_definition))
 
         # Handle OR_LOGIC lock type
-        if lock_type == "OR_LOGIC":
-            return cls._create_or_logic(dict(lock_definition))
+        if lock_type == SpecialLockType.OR_LOGIC:
+            return cls._create_or_logic(cast(dict[str, Any], lock_definition))
 
-        # Prioritize explicit "type" field over shorthand syntax
-        # Only use shorthand if no explicit "type" is provided
+        # TODO: Handle shorthand
         if not lock_type:
-            # Handle shorthand syntax
-            for key in cls.SHORTHAND_KEYS:
-                if key in lock_definition and lock_definition[key] is not None:
-                    lock_type, expected_value = LockShorhands[key]
-                    lock_config = {
-                        "type": lock_type,
-                        "property_path": lock_definition[key],  # type: ignore[assignment]
-                        "expected_value": expected_value,
-                    }
-                    # Add error_message if present
-                    if "error_message" in lock_definition:
-                        lock_config["error_message"] = lock_definition["error_message"]  # type: ignore[assignment]
-                    return SimpleLock(lock_config)  # type: ignore[arg-type]
+            lock_dict = cast(dict[str, Any], lock_definition)
+            if any(
+                k
+                for k in lock_dict.keys()
+                if k in cls.SHORTHAND_KEYS and lock_dict.get(k) is not None
+            ):
+                return cls._create_from_shorthand(lock_definition)
+            else:
+                raise ValueError("Invalid lock definition format")
 
         # Handle full type/property_path syntax for SimpleLock
         if "type" in lock_definition and "property_path" in lock_definition:
@@ -838,6 +627,33 @@ class LockFactory:
             return SimpleLock(lock_config)
 
         raise ValueError("Invalid lock definition format")
+
+    @classmethod
+    def _create_from_shorthand(cls, lock_definition) -> SimpleLock:
+        # Find which shorthand key exists in the lock definition with a non-None value
+        key = next(
+            (
+                k
+                for k in cls.SHORTHAND_KEYS
+                if k in lock_definition and lock_definition[k] is not None
+            ),
+            None,
+        )
+        if not key:
+            raise ValueError(
+                f"No valid shorthand key found in lock definition: {lock_definition}"
+            )
+
+        lock_type, expected_value = LockShorhands[key]
+        lock_config = {
+            "type": lock_type,
+            "property_path": lock_definition[key],  # type: ignore[assignment]
+            "expected_value": expected_value,
+        }
+        # Add error_message if present
+        if "error_message" in lock_definition:
+            lock_config["error_message"] = lock_definition["error_message"]  # type: ignore[assignment]
+        return SimpleLock(lock_config)  # type: ignore[arg-type]
 
     @classmethod
     def _create_conditional(cls, lock_definition: dict[str, Any]) -> ConditionalLock:
