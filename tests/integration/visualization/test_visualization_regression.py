@@ -12,6 +12,30 @@ from typing import Any
 import pytest
 
 
+@pytest.fixture(scope="module")
+def test_data_dir() -> Path:
+    """Get the test data directory."""
+    data_path = Path(__file__).parent.parent / "data"
+    assert data_path.exists(), f"Test data directory not found at {data_path}"
+    return data_path
+
+
+@pytest.fixture(scope="module")
+def convergence_flow_file(test_data_dir: Path) -> Path:
+    """Get the convergence flow example file."""
+    file_path = test_data_dir / "visualization" / "complex" / "convergence_flow.yaml"
+    assert file_path.exists(), f"Convergence flow file not found at {file_path}"
+    return file_path
+
+
+@pytest.fixture(scope="module")
+def branching_flow_file(test_data_dir: Path) -> Path:
+    """Get the branching flow example file."""
+    file_path = test_data_dir / "visualization" / "simple" / "branching_flow.yaml"
+    assert file_path.exists(), f"Branching flow file not found at {file_path}"
+    return file_path
+
+
 class TestVisualizationRegression:
     """Regression test suite for previously fixed visualization bugs."""
 
@@ -46,7 +70,7 @@ class TestVisualizationRegression:
         except Exception as e:
             pytest.fail(f"Failed to run CLI command: {e}")
 
-    def test_convergence_flow_not_linear_regression(self):
+    def test_convergence_flow_not_linear_regression(self, convergence_flow_file: Path):
         """
         Regression test for the bug where convergence flows were visualized as linear
         chains instead of proper branching/convergence patterns.
@@ -55,13 +79,6 @@ class TestVisualizationRegression:
         the correct branching pattern where S0 branches to S1, S6, S8 and they
         converge at S2.
         """
-        examples_dir = Path(__file__).parent.parent.parent / "examples"
-        convergence_file = (
-            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
-        )
-
-        if not convergence_file.exists():
-            pytest.skip("Convergence flow example not found")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
@@ -69,7 +86,7 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli(
-                ["diagram", str(convergence_file), "-o", str(output_file)],
+                ["process", "diagram", str(convergence_flow_file), "-o", str(output_file)],
                 expect_success=True,
             )
 
@@ -118,7 +135,7 @@ class TestVisualizationRegression:
         finally:
             output_file.unlink(missing_ok=True)
 
-    def test_final_stage_styling_position_bug_regression(self):
+    def test_final_stage_styling_position_bug_regression(self, convergence_flow_file: Path):
         """
         Regression test for the bug where final stage styling was based on
         stage_order array position instead of actual process.final_stage.
@@ -126,13 +143,6 @@ class TestVisualizationRegression:
         Bug: The last stage in the sorted array was marked as 'final' instead of
         the actual final stage from the process configuration.
         """
-        examples_dir = Path(__file__).parent.parent.parent / "examples"
-        convergence_file = (
-            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
-        )
-
-        if not convergence_file.exists():
-            pytest.skip("Convergence flow example not found")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
@@ -140,7 +150,7 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli(
-                ["diagram", str(convergence_file), "-o", str(output_file)],
+                ["process", "diagram", str(convergence_flow_file), "-o", str(output_file)],
                 expect_success=True,
             )
 
@@ -201,7 +211,7 @@ class TestVisualizationRegression:
         finally:
             output_file.unlink(missing_ok=True)
 
-    def test_transition_generation_follows_gates_not_ordering(self):
+    def test_transition_generation_follows_gates_not_ordering(self, branching_flow_file: Path):
         """
         Regression test for the bug where transitions were generated based on
         sequential stage ordering instead of actual gate target relationships.
@@ -209,15 +219,6 @@ class TestVisualizationRegression:
         Bug: Transitions were generated as stage[i] -> stage[i+1] instead of
         following gate.target_stage relationships.
         """
-        examples_dir = Path(__file__).parent.parent.parent / "examples"
-
-        # Test with a simple branching flow that should NOT be linear
-        branching_file = (
-            examples_dir / "case3_visualization" / "simple" / "branching_flow.yaml"
-        )
-
-        if not branching_file.exists():
-            pytest.skip("Branching flow example not found")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
             output_file = Path(tmp.name)
@@ -225,7 +226,7 @@ class TestVisualizationRegression:
         try:
             # Generate visualization
             result = self.run_stageflow_cli(
-                ["diagram", str(branching_file), "-o", str(output_file)],
+                ["process", "diagram", str(branching_flow_file), "-o", str(output_file)],
                 expect_success=True,
             )
 
@@ -283,7 +284,7 @@ class TestVisualizationRegression:
         finally:
             output_file.unlink(missing_ok=True)
 
-    def test_stage_order_independence(self):
+    def test_stage_order_independence(self, convergence_flow_file: Path):
         """
         Test that visualization results are independent of the internal stage ordering
         and depend only on the actual process structure.
@@ -291,18 +292,10 @@ class TestVisualizationRegression:
         This is a meta-test that verifies the visualization system correctly represents
         the logical process structure regardless of how stages are internally ordered.
         """
-        from stageflow.schema.loader import load_process
-
-        examples_dir = Path(__file__).parent.parent.parent / "examples"
-        convergence_file = (
-            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
-        )
-
-        if not convergence_file.exists():
-            pytest.skip("Convergence flow example not found")
+        from stageflow.loader import load_process
 
         # Load the process to understand its structure
-        process = load_process(str(convergence_file))
+        process = load_process(str(convergence_flow_file))
 
         # Generate visualization
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
@@ -310,7 +303,7 @@ class TestVisualizationRegression:
 
         try:
             self.run_stageflow_cli(
-                ["diagram", str(convergence_file), "-o", str(output_file)],
+                ["process", "diagram", str(convergence_flow_file), "-o", str(output_file)],
                 expect_success=True,
             )
 

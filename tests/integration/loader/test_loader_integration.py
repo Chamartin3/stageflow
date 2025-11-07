@@ -8,92 +8,16 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from stageflow import Loader, LoadError, load_element, load_process
-from stageflow.element import Element
+from stageflow import LoadError, load_element, load_process
+from stageflow.elements import Element
 from stageflow.process import Process
 
 
-class TestDualInterfaceConsistency:
-    """Test that function-based and class-based interfaces return identical results."""
+class TestLoaderAPI:
+    """Test that loader API functions work correctly."""
 
-    def test_process_loading_consistency(self, tmp_path):
-        """Test that Loader.process() and load_process() return identical Process objects."""
-        process_data = {
-            "process": {
-                "name": "test_process",
-                "initial_stage": "start",
-                "final_stage": "end",
-                "stages": {
-                    "start": {
-                        "gates": {
-                            "to_end": {
-                                "target_stage": "end",
-                                "locks": [{"property_path": "ready", "type": "exists"}],
-                            }
-                        }
-                    },
-                    "end": {"is_final": True},
-                },
-            }
-        }
-
-        # Create temporary YAML file
-        process_file = tmp_path / "test_process.yaml"
-        yaml = YAML()
-        with open(process_file, "w") as f:
-            yaml.dump(process_data, f)
-
-        # Load using both interfaces
-        process_class = Loader.process(process_file)
-        process_func = load_process(process_file)
-
-        # Verify they are equivalent Process objects
-        assert isinstance(process_class, Process)
-        assert isinstance(process_func, Process)
-        assert process_class.name == process_func.name == "test_process"
-        assert (
-            process_class.initial_stage._id == process_func.initial_stage._id == "start"
-        )
-        assert process_class.final_stage._id == process_func.final_stage._id == "end"
-
-    def test_element_loading_consistency(self, tmp_path):
-        """Test that Loader.element() and load_element() return identical Element objects."""
-        element_data = {"user_id": 123, "email": "test@example.com", "ready": True}
-
-        # Create temporary JSON file
-        element_file = tmp_path / "test_element.json"
-        with open(element_file, "w") as f:
-            json.dump(element_data, f)
-
-        # Load using both interfaces
-        element_class = Loader.element(element_file)
-        element_func = load_element(element_file)
-
-        # Verify they are equivalent Element objects
-        assert isinstance(element_class, Element)
-        assert isinstance(element_func, Element)
-        assert (
-            element_class.get_property("user_id")
-            == element_func.get_property("user_id")
-            == 123
-        )
-        assert (
-            element_class.get_property("email")
-            == element_func.get_property("email")
-            == "test@example.com"
-        )
-        assert (
-            element_class.get_property("ready")
-            == element_func.get_property("ready")
-            is True
-        )
-
-
-class TestBackwardCompatibility:
-    """Test that existing code patterns continue to work."""
-
-    def test_existing_process_patterns(self, tmp_path):
-        """Test that existing process loading patterns still work."""
+    def test_process_loading(self, tmp_path):
+        """Test that process loading works correctly."""
         # Test with a complex process from examples
         example_process = Path(
             "examples/case1_process_creation/valid_processes/simple_2stage.yaml"
@@ -108,8 +32,8 @@ class TestBackwardCompatibility:
             assert process.initial_stage
             assert process.final_stage
 
-    def test_existing_element_patterns(self, tmp_path):
-        """Test that existing element loading patterns still work."""
+    def test_element_loading(self, tmp_path):
+        """Test that element loading works correctly."""
         # Test with an example element
         example_element = Path(
             "examples/case2_element_validation/normal_flow/ready_elements/user_ready_for_activation.json"
@@ -124,10 +48,10 @@ class TestBackwardCompatibility:
 
 
 class TestCLIIntegration:
-    """Test that CLI works with new element loading."""
+    """Test that CLI works with loader API."""
 
     def test_cli_process_loading(self, tmp_path):
-        """Test CLI can load processes using new loader."""
+        """Test CLI can load processes correctly."""
         process_data = {
             "process": {
                 "name": "cli_test_process",
@@ -156,7 +80,7 @@ class TestCLIIntegration:
 
         # Test CLI process validation
         result = subprocess.run(
-            ["uv", "run", "stageflow", "view", str(process_file)],
+            ["uv", "run", "stageflow", "process", "view", str(process_file)],
             capture_output=True,
             text=True,
             cwd=Path.cwd(),
@@ -167,7 +91,7 @@ class TestCLIIntegration:
         assert "Valid" in result.stdout
 
     def test_cli_element_evaluation(self, tmp_path):
-        """Test CLI can evaluate elements using new loader."""
+        """Test CLI can evaluate elements correctly."""
         # Create process file
         process_data = {
             "process": {
@@ -233,7 +157,7 @@ class TestErrorMessageQuality:
             load_process(nonexistent_file)
 
         error_msg = str(exc_info.value)
-        assert "File not found" in error_msg
+        assert "Process file not found" in error_msg
         assert str(nonexistent_file) in error_msg
 
     def test_invalid_yaml_error(self, tmp_path):
@@ -246,7 +170,7 @@ class TestErrorMessageQuality:
             load_process(invalid_yaml_file)
 
         error_msg = str(exc_info.value)
-        assert "Error parsing YAML" in error_msg
+        assert "Failed to read file" in error_msg
 
     def test_invalid_json_error(self, tmp_path):
         """Test helpful error message for invalid JSON."""
@@ -272,11 +196,7 @@ class TestErrorMessageQuality:
             load_process(wrong_file)
 
         error_msg = str(exc_info.value)
-        assert (
-            "File must contain either a 'process' key or process definition at root level"
-            in error_msg
-        )
-        assert "use load_element() instead" in error_msg
+        assert "Process missing required field" in error_msg
 
 
 class TestPerformanceCharacteristics:
@@ -387,55 +307,3 @@ class TestRealWorldUsage:
                 assert isinstance(element, Element)
                 # Should have some common properties
                 assert element.get_property("email") or element.get_property("user_id")
-
-
-class TestLoaderClassInterface:
-    """Test the Loader class interface specifically."""
-
-    def test_loader_class_methods(self, tmp_path):
-        """Test that Loader class methods work correctly."""
-        # Create test files
-        process_data = {
-            "process": {
-                "name": "loader_class_test",
-                "initial_stage": "init",
-                "final_stage": "done",
-                "stages": {
-                    "init": {
-                        "gates": {
-                            "advance": {
-                                "target_stage": "done",
-                                "locks": [{"property_path": "ready", "type": "exists"}],
-                            }
-                        }
-                    },
-                    "done": {"is_final": True},
-                },
-            }
-        }
-
-        element_data = {"ready": True, "user_id": 789}
-
-        process_file = tmp_path / "loader_test.yaml"
-        element_file = tmp_path / "loader_test.json"
-
-        yaml = YAML()
-        with open(process_file, "w") as f:
-            yaml.dump(process_data, f)
-        with open(element_file, "w") as f:
-            json.dump(element_data, f)
-
-        # Test Loader class methods
-        process = Loader.process(process_file)
-        element = Loader.element(element_file)
-
-        assert isinstance(process, Process)
-        assert isinstance(element, Element)
-        assert process.name == "loader_class_test"
-        assert element.get_property("user_id") == 789
-
-        # Test evaluation works
-        result = process.evaluate(element)
-        assert result is not None
-        assert "stage" in result
-        assert "stage_result" in result

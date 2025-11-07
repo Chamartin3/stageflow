@@ -1,8 +1,8 @@
 import os
 import tempfile
 
-from stageflow.element import DictElement
-from stageflow.schema import load_process
+from stageflow.elements import DictElement
+from stageflow.loader import load_process
 
 
 def test_load_process_with_or_logic():
