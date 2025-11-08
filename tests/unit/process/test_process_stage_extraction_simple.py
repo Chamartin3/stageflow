@@ -2,8 +2,8 @@
 
 import pytest
 
-from stageflow.element import create_element
-from stageflow.schema import load_process
+from stageflow.elements import create_element
+from stageflow.loader import load_process
 
 
 def test_stage_extraction_from_yaml(tmp_path):

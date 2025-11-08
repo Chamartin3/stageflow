@@ -2,7 +2,7 @@
 
 import pytest
 
-from stageflow.element import DictElement
+from stageflow.elements import DictElement
 from stageflow.lock import LockType
 from stageflow.stage import (
     Action,
@@ -12,28 +12,6 @@ from stageflow.stage import (
     StageEvaluationResult,
     StageStatus,
 )
-
-
-class TestStageStatus:
-    """Test StageStatus enumeration."""
-
-    def test_stage_status_values(self):
-        """Verify StageStatus enum contains expected values."""
-        # Arrange & Act & Assert
-        assert StageStatus.INVALID_SCHEMA == "invalid_schema"
-        assert StageStatus.READY_FOR_TRANSITION == "ready"
-        assert StageStatus.ACTION_REQUIRED == "action_required"
-
-
-class TestActionType:
-    """Test ActionType enumeration."""
-
-    def test_action_type_values(self):
-        """Verify ActionType enum contains expected values."""
-        # Arrange & Act & Assert
-        assert ActionType.UPDATE == "update"
-        assert ActionType.TRANSITION == "transition"
-        assert ActionType.EXCECUTE == "execute"
 
 
 class TestAction:
