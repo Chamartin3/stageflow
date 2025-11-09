@@ -112,7 +112,7 @@ def schema_command(
         # Output to stdout
         if json_output:
             # Machine-readable JSON output
-            cli_ctx.console.print(schema_content)
+            cli_ctx.console.print(schema_content, highlight=False, markup=False)
         else:
-            # Human-readable output
-            cli_ctx.console.print(schema_content)
+            # Human-readable output - disable Rich formatting to preserve YAML structure
+            cli_ctx.console.print(schema_content, highlight=False, markup=False)
