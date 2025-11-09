@@ -345,7 +345,7 @@ class SchemaGenerator:
         return schema
 
     def _convert_properties_to_json_schema(
-        self, props: dict[str, Any], required_fields: set[str] = None, prefix: str = ""
+        self, props: dict[str, Any], required_fields: set[str] | None = None, prefix: str = ""
     ) -> dict[str, Any]:
         """Recursively convert StageFlow expected_properties to JSON Schema format.
 
@@ -632,6 +632,12 @@ class SchemaGenerator:
         Returns:
             YAML formatted string
         """
+        import json
+
+        # Convert to plain Python types by JSON round-trip to avoid
+        # ruamel.yaml serialization issues with CommentedMap/CommentedSeq
+        schema_plain = json.loads(json.dumps(schema))
+
         yaml_instance = YAML(typ="safe", pure=True)
         yaml_instance.preserve_quotes = True
         yaml_instance.indent(mapping=2, sequence=4, offset=2)
@@ -639,7 +645,7 @@ class SchemaGenerator:
         from io import StringIO
 
         string_stream = StringIO()
-        yaml_instance.dump(schema, string_stream)
+        yaml_instance.dump(schema_plain, string_stream)
         return string_stream.getvalue()
 
     def to_json(self, schema: dict[str, Any]) -> str:

@@ -377,14 +377,18 @@ class ProcessLoader:
         if not isinstance(stages, dict):
             return
 
-        for stage_id, stage_config in stages.items():
+        for _stage_id, stage_config in stages.items():
             if not isinstance(stage_config, dict):
                 continue
 
-            # Check if stage has schema.required_fields
-            schema_section = stage_config.get("schema", {})
+            # Ensure schema section exists
+            if "schema" not in stage_config:
+                stage_config["schema"] = {}
+
+            schema_section = stage_config["schema"]
             if not isinstance(schema_section, dict):
-                continue
+                stage_config["schema"] = {}
+                schema_section = stage_config["schema"]
 
             required_fields = schema_section.get("required_fields", [])
             if not required_fields:
@@ -422,6 +426,9 @@ class ProcessLoader:
             field_path: Property path to add
         """
         import re
+
+        if expected_props is None:
+            return
 
         # Parse the path
         parts = field_path.split(".")

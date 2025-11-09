@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import cast
 
 from .elements import Element
 from .gate import Gate
@@ -415,6 +416,9 @@ class Process:
         self._stage_index = set()
         for name in index:
             stage_config = stage_definition[name]
+            if not isinstance(stage_config, dict):
+                # Handle stages that are None or not dict (e.g., empty YAML entries)
+                stage_config = cast(StageDefinition, {})
             is_final = name == final
             stage_config["is_final"] = is_final
             self._add_stage(name, stage_config)
