@@ -32,6 +32,8 @@ process:
           - content
           - author
           - reviewer
+          - review
+          - review.decision
 
       gates:
         approve_document:
@@ -50,6 +52,7 @@ process:
           - author
           - reviewer
           - approval_date
+          - publication_ready
 
       gates:
         publish_document:

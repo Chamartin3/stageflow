@@ -13,6 +13,7 @@ process:
           - request_id
           - request_type
           - requestor
+          - requestor.auto_approve_eligible
 
       gates:
         auto_approve_simple:
@@ -45,6 +46,8 @@ process:
           - request_id
           - assigned_reviewer
           - review_priority
+          - review
+          - review.decision
 
       gates:
         approve_request:
