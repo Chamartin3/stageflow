@@ -26,71 +26,75 @@ process:
               expected_value: "^[^@]+@[^@]+\\.[^@]+$"
 
     profile_completion:
-      name: "Profile Completion"
-      description: "Complete profile information required"
-      schema:
-        required_fields:
-          - email
-          - user_type
-          - first_name
-          - last_name
-          - phone
-          - address
+       name: "Profile Completion"
+       description: "Complete profile information required"
+       schema:
+         required_fields:
+           - email
+           - user_type
+           - first_name
+           - last_name
+           - phone
+           - address
+           - address.street
+           - address.city
+           - address.zip
 
-      gates:
-        profile_complete:
-          target_stage: verification
-          locks:
-            - exists: "first_name"
-            - exists: "last_name"
-            - exists: "phone"
-            - exists: "address.street"
-            - exists: "address.city"
-            - exists: "address.zip"
+       gates:
+         profile_complete:
+           target_stage: verification
+           locks:
+             - exists: "first_name"
+             - exists: "last_name"
+             - exists: "phone"
+             - exists: "address.street"
+             - exists: "address.city"
+             - exists: "address.zip"
 
     verification:
-      name: "Verification"
-      description: "Identity and contact verification required"
-      schema:
-        required_fields:
-          - email
-          - user_type
-          - first_name
-          - last_name
-          - phone
-          - address
-          - email_verified_at
-          - phone_verified_at
-          - identity_verified_at
+       name: "Verification"
+       description: "Identity and contact verification required"
+       schema:
+         required_fields:
+           - email
+           - user_type
+           - first_name
+           - last_name
+           - phone
+           - address
+           - email_verified_at
+           - phone_verified_at
+           - identity_verified_at
+           - identity_status
 
-      gates:
-        all_verifications_complete:
-          target_stage: approved
-          locks:
-            - exists: "email_verified_at"
-            - exists: "phone_verified_at"
-            - exists: "identity_verified_at"
-            - type: "equals"
-              property_path: "identity_status"
-              expected_value: "verified"
+       gates:
+         all_verifications_complete:
+           target_stage: approved
+           locks:
+             - exists: "email_verified_at"
+             - exists: "phone_verified_at"
+             - exists: "identity_verified_at"
+             - type: "equals"
+               property_path: "identity_status"
+               expected_value: "verified"
 
     approved:
-      name: "Approved"
-      description: "All requirements met, user approved"
-      schema:
-        required_fields:
-          - email
-          - user_type
-          - first_name
-          - last_name
-          - phone
-          - address
-          - email_verified_at
-          - phone_verified_at
-          - identity_verified_at
-          - approval_status
+       name: "Approved"
+       description: "All requirements met, user approved"
+       schema:
+         required_fields:
+           - email
+           - user_type
+           - first_name
+           - last_name
+           - phone
+           - address
+           - email_verified_at
+           - phone_verified_at
+           - identity_verified_at
+           - approval_status
 
-      gates: []  # Final stage
+       gates: []  # Final stage
 
   allow_stage_skipping: false
   regression_detection: true

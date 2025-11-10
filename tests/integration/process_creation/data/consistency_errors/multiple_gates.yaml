@@ -1,20 +1,15 @@
-# Case 1.1: Process with Multiple Gates per Stage
-# Tests: Stages with multiple exit gates and complex routing
+# Case 1.7: Multiple Gates Process
+# Tests: Content moderation process with multiple gates
+# Expected: Process loads and demonstrates various gate types
 
 process:
-  name: content_moderation
+  name: multiple_gates
   description: "Content moderation process with multiple gates"
   initial_stage: submitted
   final_stage: published
 
   stages:
     submitted:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - submission_date
-
       gates:
         auto_approve:
           target_stage: published
@@ -28,139 +23,80 @@ process:
               expected_value: 500
 
         send_to_moderation:
-          target_stage: under_review
+          target_stage: moderation
           locks:
-            - type: not_empty
-              property_path: "content.text"
             - type: greater_than
               property_path: "content.word_count"
-              expected_value: 0
-
-        auto_reject:
-          target_stage: rejected
-          locks:
+              expected_value: 500
             - exists: "flags.spam_detected"
-            - type: equals
-              property_path: "flags.spam_detected"
-              expected_value: true
 
-    under_review:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - assigned_moderator
-
+    moderation:
       gates:
-        approve_content:
-          target_stage: published
+        approve:
+          target_stage: senior_review
           locks:
-            - exists: "moderation.decision"
             - type: equals
               property_path: "moderation.decision"
-              expected_value: "approved"
+              expected_value: "approve"
             - exists: "moderation.reviewed_by"
 
-        reject_content:
+        reject:
           target_stage: rejected
           locks:
-            - exists: "moderation.decision"
             - type: equals
               property_path: "moderation.decision"
-              expected_value: "rejected"
+              expected_value: "reject"
             - exists: "moderation.rejection_reason"
 
-        request_revision:
-          target_stage: revision_requested
+        needs_revision:
+          target_stage: revision
           locks:
-            - exists: "moderation.decision"
             - type: equals
               property_path: "moderation.decision"
-              expected_value: "needs_revision"
+              expected_value: "revise"
             - exists: "moderation.revision_notes"
 
-        escalate_to_senior:
+        escalate:
           target_stage: senior_review
           locks:
             - exists: "flags.escalation_requested"
-            - type: equals
-              property_path: "flags.escalation_requested"
-              expected_value: true
-
-    revision_requested:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - revision_notes
-
-      gates:
-        resubmit:
-          target_stage: under_review
-          locks:
-            - exists: "content.revised_text"
-            - type: not_empty
-              property_path: "content.revised_text"
-            - exists: "revision.submitted_date"
-
-        abandon_revision:
-          target_stage: abandoned
-          locks:
-            - exists: "revision.abandoned"
-            - type: equals
-              property_path: "revision.abandoned"
-              expected_value: true
 
     senior_review:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - escalation_notes
-          - senior_moderator
-
       gates:
-        senior_approve:
+        final_approve:
           target_stage: published
           locks:
-            - exists: "senior_review.decision"
             - type: equals
               property_path: "senior_review.decision"
-              expected_value: "approved"
+              expected_value: "approve"
 
-        senior_reject:
+        final_reject:
           target_stage: rejected
           locks:
-            - exists: "senior_review.decision"
             - type: equals
               property_path: "senior_review.decision"
-              expected_value: "rejected"
+              expected_value: "reject"
 
-    published:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - publication_date
+    revision:
+      gates:
+        resubmit:
+          target_stage: submitted
+          locks:
+            - exists: "content.revised_text"
+            - exists: "revision.submitted_date"
+            - type: equals
+              property_path: "revision.abandoned"
+              expected_value: false
 
     rejected:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - rejection_reason
+      gates: []
 
-    abandoned:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - abandonment_date
+    published:
+      gates: []
 
   allow_stage_skipping: false
   regression_detection: true
 
   metadata:
-    description: "Content moderation with multiple gates per stage"
-    version: "1.0.0"
-    test_case: "valid_multiple_gates"
+    description: "Content moderation process with multiple gates"
+    test_case: "consistency_multiple_gates"

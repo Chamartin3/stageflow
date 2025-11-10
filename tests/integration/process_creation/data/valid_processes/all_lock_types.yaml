@@ -8,14 +8,17 @@ process:
   final_stage: validated
 
   stages:
-    data_entry:
-      schema:
-        required_fields:
-          - user_info
-          - preferences
-          - metrics
-
-      gates:
+     data_entry:
+       schema:
+         required_fields:
+           - user_info
+           - user_info.email
+           - user_info.status
+           - user_info.name
+           - user_info.age
+           - preferences
+           - metrics
+       gates:
         basic_validation:
           target_stage: advanced_validation
           locks:
@@ -36,15 +39,22 @@ process:
               property_path: "user_info.age"
               expected_value: "int"
 
-    advanced_validation:
-      schema:
-        required_fields:
-          - user_info
-          - preferences
-          - metrics
-          - verification
-
-      gates:
+     advanced_validation:
+       schema:
+         required_fields:
+           - user_info
+           - user_info.email
+           - user_info.status
+           - user_info.name
+           - user_info.age
+           - user_info.phone
+           - user_info.role
+           - preferences
+           - preferences.features
+           - metrics
+           - metrics.score
+           - verification
+       gates:
         comprehensive_validation:
           target_stage: final_checks
           locks:
@@ -88,16 +98,25 @@ process:
               property_path: "user_info.status"
               expected_value: ["banned", "suspended", "pending"]
 
-    final_checks:
-      schema:
-        required_fields:
-          - user_info
-          - preferences
-          - metrics
-          - verification
-          - final_approval
-
-      gates:
+     final_checks:
+       schema:
+         required_fields:
+           - user_info
+           - user_info.email
+           - user_info.status
+           - user_info.name
+           - user_info.age
+           - user_info.phone
+           - user_info.role
+           - preferences
+           - preferences.features
+           - metrics
+           - metrics.score
+           - verification
+           - final_approval
+           - final_approval.approved_by
+           - final_approval.status
+       gates:
         completion:
           target_stage: validated
           locks:
@@ -106,14 +125,24 @@ process:
               property_path: "final_approval.status"
               expected_value: true
 
-    validated:
-      schema:
-        required_fields:
-          - user_info
-          - preferences
-          - metrics
-          - verification
-          - final_approval
+     validated:
+       schema:
+         required_fields:
+           - user_info
+           - user_info.email
+           - user_info.status
+           - user_info.name
+           - user_info.age
+           - user_info.phone
+           - user_info.role
+           - preferences
+           - preferences.features
+           - metrics
+           - metrics.score
+           - verification
+           - final_approval
+           - final_approval.approved_by
+           - final_approval.status
 
   allow_stage_skipping: false
   regression_detection: true

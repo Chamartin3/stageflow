@@ -26,66 +26,69 @@ process:
             - exists: "first_name"
 
     extended_profile:
-      name: "Extended Profile"
-      description: "Extended profile with additional information"
-      schema:
-        required_fields:
-          - user_id
-          - email
-          - first_name
-          - last_name
-          - phone
-          - address
+       name: "Extended Profile"
+       description: "Extended profile with additional information"
+       schema:
+         required_fields:
+           - user_id
+           - email
+           - first_name
+           - last_name
+           - phone
+           - address
+           - address.street
+           - address.city
 
-      gates:
-        extended_complete:
-          target_stage: verified_profile
-          locks:
-            - exists: "last_name"
-            - exists: "phone"
-            - exists: "address.street"
-            - exists: "address.city"
+       gates:
+         extended_complete:
+           target_stage: verified_profile
+           locks:
+             - exists: "last_name"
+             - exists: "phone"
+             - exists: "address.street"
+             - exists: "address.city"
 
     verified_profile:
-      name: "Verified Profile"
-      description: "Profile with verified contact information"
-      schema:
-        required_fields:
-          - user_id
-          - email
-          - first_name
-          - last_name
-          - phone
-          - address
-          - email_verified_at
-          - phone_verified_at
+       name: "Verified Profile"
+       description: "Profile with verified contact information"
+       schema:
+         required_fields:
+           - user_id
+           - email
+           - first_name
+           - last_name
+           - phone
+           - address
+           - email_verified_at
+           - phone_verified_at
+           - verification_status
 
-      gates:
-        verification_complete:
-          target_stage: complete_profile
-          locks:
-            - exists: "email_verified_at"
-            - exists: "phone_verified_at"
-            - type: "equals"
-              property_path: "verification_status"
-              expected_value: "verified"
+       gates:
+         verification_complete:
+           target_stage: complete_profile
+           locks:
+             - exists: "email_verified_at"
+             - exists: "phone_verified_at"
+             - type: "equals"
+               property_path: "verification_status"
+               expected_value: "verified"
 
     complete_profile:
-      name: "Complete Profile"
-      description: "Fully completed and verified user profile"
-      schema:
-        required_fields:
-          - user_id
-          - email
-          - first_name
-          - last_name
-          - phone
-          - address
-          - email_verified_at
-          - phone_verified_at
-          - profile_completion_date
+       name: "Complete Profile"
+       description: "Fully completed and verified user profile"
+       schema:
+         required_fields:
+           - user_id
+           - email
+           - first_name
+           - last_name
+           - phone
+           - address
+           - email_verified_at
+           - phone_verified_at
+           - profile_completion_date
 
-      gates: []  # Final stage
+       gates: []  # Final stage
 
   allow_stage_skipping: false
   regression_detection: true

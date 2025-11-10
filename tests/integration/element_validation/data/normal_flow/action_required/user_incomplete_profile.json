@@ -1,12 +1,14 @@
 {
   "email": "incomplete.profile@example.com",
   "user_type": "standard",
-  "first_name": "Incomplete",
-  "phone": "+1-555-0123",
-  "address": {
-    "street": "123 Main St",
-    "city": "Somewhere"
-  },
+   "first_name": "Incomplete",
+   "last_name": null,
+   "phone": "+1-555-0123",
+   "address": {
+     "street": "123 Main St",
+     "city": "Somewhere",
+     "zip": null
+   },
   "verification": {
     "email_verified_at": "2024-01-15T10:00:00Z"
   },

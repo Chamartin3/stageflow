@@ -1,21 +1,17 @@
-# Case 1.1: Complex Multi-Stage Process
-# Tests: Complex process with multiple stages and branching paths
+# Case 1.6: Complex Multi-Stage Process
+# Tests: Complex e-commerce order processing workflow
+# Expected: Process loads but may have consistency issues
 
 process:
-  name: ecommerce_order_processing
+  name: complex_multistage
   description: "Complex multi-stage ecommerce order processing"
   initial_stage: cart
   final_stage: completed
 
   stages:
     cart:
-      schema:
-        required_fields:
-          - items
-          - customer_id
-
       gates:
-        proceed_to_checkout:
+        add_to_cart:
           target_stage: checkout
           locks:
             - exists: "items"
@@ -24,13 +20,6 @@ process:
             - exists: "customer_id"
 
     checkout:
-      schema:
-        required_fields:
-          - items
-          - customer_id
-          - shipping_address
-          - billing_address
-
       gates:
         submit_payment:
           target_stage: payment_processing
@@ -40,11 +29,6 @@ process:
             - exists: "payment_method"
 
     payment_processing:
-      schema:
-        required_fields:
-          - payment_method
-          - total_amount
-
       gates:
         payment_success:
           target_stage: fulfillment
@@ -62,11 +46,6 @@ process:
               expected_value: "failed"
 
     payment_retry:
-      schema:
-        required_fields:
-          - payment_method
-          - retry_count
-
       gates:
         retry_payment:
           target_stage: payment_processing
@@ -84,11 +63,6 @@ process:
               expected_value: 2
 
     fulfillment:
-      schema:
-        required_fields:
-          - shipping_carrier
-          - tracking_number
-
       gates:
         order_shipped:
           target_stage: shipped
@@ -98,11 +72,6 @@ process:
               property_path: "tracking_number"
 
     shipped:
-      schema:
-        required_fields:
-          - tracking_number
-          - shipped_date
-
       gates:
         order_delivered:
           target_stage: completed
@@ -113,16 +82,10 @@ process:
               expected_value: "delivered"
 
     completed:
-      schema:
-        required_fields:
-          - delivery_date
-          - order_status
+      gates: []
 
     abandoned:
-      schema:
-        required_fields:
-          - abandonment_reason
-          - abandonment_date
+      gates: []
 
   allow_stage_skipping: false
   regression_detection: true

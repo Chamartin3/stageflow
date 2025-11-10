@@ -32,22 +32,25 @@ process:
           - email
           # These would be required but have defaults available:
           - preferences  # Should get default preferences
+          - preferences.theme
           - settings     # Should get default settings
+          - settings.auto_save
           - profile      # Should get default profile
+          - profile.visibility
 
         # Documentation of what defaults should be applied
         default_recommendations:
-          preferences:
-            theme: "light"
-            language: "en"
-            notifications: true
-          settings:
-            auto_save: true
-            privacy_level: "standard"
-            analytics: false
-          profile:
-            visibility: "private"
-            show_email: false
+        preferences:
+          theme: "light"
+          language: "en"
+          notifications: true
+        settings:
+          auto_save: true
+          privacy_level: "standard"
+          analytics: false
+        profile:
+          visibility: "private"
+          show_email: false
 
       gates:
         # This gate will fail for elements missing configuration, showing action_required

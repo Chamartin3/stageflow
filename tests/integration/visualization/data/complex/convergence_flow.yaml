@@ -83,6 +83,7 @@ process:
         required_fields:
           - order_id
           - payment_method
+          - payment_status
 
       gates:
         payment_completed:
@@ -118,6 +119,7 @@ process:
         required_fields:
           - order_id
           - backorder_eta
+          - backorder_fulfilled_date
 
       gates:
         backorder_fulfilled:
@@ -131,6 +133,7 @@ process:
           - order_id
           - fulfillment_center
           - shipping_label
+          - tracking_number
 
       gates:
         order_shipped:

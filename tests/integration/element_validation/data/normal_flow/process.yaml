@@ -13,6 +13,8 @@ process:
         required_fields:
           - email
           - password
+          - verification
+          - verification.email_verified_at
 
       gates:
         email_verification:
@@ -30,6 +32,8 @@ process:
           - email
           - password
           - profile
+          - profile.first_name
+          - profile.last_name
 
       gates:
         profile_completion:
@@ -49,6 +53,9 @@ process:
           - password
           - profile
           - verification
+          - verification.identity_verified_at
+          - verification.phone_verified_at
+          - verification.status
 
       gates:
         identity_verified:

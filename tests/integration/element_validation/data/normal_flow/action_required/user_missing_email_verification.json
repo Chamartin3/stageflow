@@ -9,9 +9,10 @@
     "city": "Pending City",
     "zip": "12345"
   },
-  "verification": {
-    "verification_token": "token_sent_but_not_verified"
-  },
+   "email_verified_at": null,
+   "phone_verified_at": "2024-01-15T10:00:00Z",
+   "identity_verified_at": "2024-01-15T10:30:00Z",
+   "identity_status": "verified",
   "meta": {
     "created_at": "2024-01-15T11:00:00Z",
     "user_id": "user_22222",
