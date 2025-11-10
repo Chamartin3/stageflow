@@ -4,7 +4,7 @@ Test suite for custom error messages functionality.
 Tests cover basic custom error message support in Lock validation.
 """
 
-from stageflow.element import DictElement
+from stageflow.elements import DictElement
 from stageflow.lock import Lock, LockFactory, LockType
 
 

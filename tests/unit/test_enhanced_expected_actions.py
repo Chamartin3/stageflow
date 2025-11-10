@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 
-from stageflow.element import DictElement
+from stageflow.elements import DictElement
 from stageflow.lock import LockType
 from stageflow.stage import Stage, StageDefinition
 

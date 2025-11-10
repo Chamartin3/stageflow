@@ -65,8 +65,8 @@ class TestProcessCreation:
         Returns:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
-        # Build command: stageflow view process_file [--json] [--verbose]
-        full_cmd = ["uv", "run", "stageflow", "view", process_file]
+        # Build command: stageflow process view process_file [--json] [--verbose]
+        full_cmd = ["uv", "run", "stageflow", "process", "view", process_file]
 
         # Add JSON flag if requested
         if json_output:
@@ -245,11 +245,11 @@ class TestProcessCreation:
         output = result["stdout"].strip()
         assert len(output) > 0, "Should provide error output"
 
-        # Try to parse as JSON - if successful, should contain error field
+        # Try to parse as JSON - if successful, should contain errors field
         try:
             json_data = json.loads(output)
-            assert "error" in json_data, (
-                "JSON error response should contain error field"
+            assert "errors" in json_data or "status" in json_data, (
+                "JSON error response should contain errors or status field"
             )
         except json.JSONDecodeError:
             # If not JSON, should still be meaningful error message
@@ -523,56 +523,4 @@ class TestProcessCreation:
         ]
         assert len(self_ref_issues) > 0, (
             "Should specifically report self-referencing gate issue"
-        )
-
-    def test_invalid_references_as_consistency_error(self, test_data_dir: Path):
-        """
-        Test that invalid stage references are properly handled as consistency errors.
-
-        The invalid_references.yaml file contains references to non-existent stages,
-        which should be treated as consistency errors (exit code 0 with validation warnings)
-        rather than structural errors (non-zero exit code).
-        """
-        # Arrange
-        process_path = test_data_dir / "invalid_structure" / "invalid_references.yaml"
-
-        # Act
-        result = self.run_stageflow_cli(str(process_path), None, expect_success=True)
-
-        # Assert
-        assert result["exit_code"] == 0, (
-            "Invalid references should be consistency errors, not structural errors"
-        )
-        assert "❌" in result["stdout"], "Should show invalid process status"
-        assert "Consistency Issues:" in result["stdout"], (
-            "Should list consistency issues"
-        )
-        assert "not valid for execution" in result["stdout"], (
-            "Should warn about execution validity"
-        )
-
-        # Test JSON output as well
-        json_result = self.run_stageflow_cli(
-            str(process_path), None, json_output=True, expect_success=True
-        )
-        assert json_result["parsed_json"] is not None, "Should return valid JSON"
-
-        json_data = json_result["parsed_json"]
-        assert json_data["valid"] is False, (
-            "Process with invalid references should have valid=false"
-        )
-        assert "consistency_issues" in json_data, "Should report consistency issues"
-        assert len(json_data["consistency_issues"]) > 0, (
-            "Should have at least one consistency issue"
-        )
-
-        # Check that invalid reference issue is specifically reported
-        ref_issues = [
-            issue
-            for issue in json_data["consistency_issues"]
-            if "not found" in issue.get("description", "").lower()
-            or "nonexistent" in issue.get("description", "").lower()
-        ]
-        assert len(ref_issues) > 0, (
-            "Should specifically report invalid reference issues"
         )

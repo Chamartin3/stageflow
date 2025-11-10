@@ -956,7 +956,7 @@ class TestProcessManagerImportExport:
         mock_process = Mock(spec=Process)
 
         # Act
-        with patch("stageflow.schema.load_process", return_value=mock_process):
+        with patch("stageflow.loader.load_process", return_value=mock_process):
             with patch.object(Path, "exists", return_value=True):
                 result = manager.import_process(import_path, "new_process")
 
@@ -991,7 +991,7 @@ class TestProcessManagerImportExport:
         mock_process = Mock(spec=Process)
 
         # Act
-        with patch("stageflow.schema.load_process", return_value=mock_process):
+        with patch("stageflow.loader.load_process", return_value=mock_process):
             with patch.object(Path, "exists", return_value=True):
                 result = manager.import_process(
                     import_path, "existing_process", overwrite=True
@@ -1023,7 +1023,7 @@ class TestProcessManagerImportExport:
         mock_process = Mock(spec=Process)
 
         # Act
-        with patch("stageflow.schema.load_process", return_value=mock_process):
+        with patch("stageflow.loader.load_process", return_value=mock_process):
             with patch.object(Path, "exists", return_value=True):
                 result = manager.import_process(import_path)
 

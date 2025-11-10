@@ -8,7 +8,6 @@ structure and comprehensive coverage of edge cases.
 
 import importlib
 import sys
-from unittest.mock import patch
 
 import pytest
 
@@ -150,7 +149,7 @@ class TestStageflowPublicAPIExports:
         """Verify Element export is the expected abstract base class."""
         # Arrange
         import stageflow
-        from stageflow.element import Element as DirectElement
+        from stageflow.elements import Element as DirectElement
 
         # Act
         exported_element = stageflow.Element
@@ -165,7 +164,7 @@ class TestStageflowPublicAPIExports:
         """Verify create_element_from_config export is callable function."""
         # Arrange
         import stageflow
-        from stageflow.element import create_element_from_config as DirectFunction
+        from stageflow.elements import create_element_from_config as DirectFunction
 
         # Act
         exported_function = stageflow.create_element_from_config
@@ -196,7 +195,7 @@ class TestStageflowImportBehavior:
         """Verify expected submodules can be imported."""
         # Arrange
         expected_submodules = [
-            "stageflow.element",
+            "stageflow.elements",
         ]
 
         # Act & Assert
@@ -371,17 +370,21 @@ class TestStageflowPackageStructure:
         # Assert
         # Note: In test environment, conftest.py imports may cause additional modules to appear
         # This documents the current state - ideally this should be cleaned up
-        expected_leaked = {"element"}  # Known leaked import from current implementation
+        expected_leaked = {
+            "elements",
+            "templates",
+        }  # Known leaked imports from current implementation
         # In testing environment, test imports may add modules to namespace
         allowed_test_artifacts = {
             "gate",
             "lock",
             "stage",
             "process",
-            "schema",
+            "loader",
             "visualization",
             "cli",
             "manager",
+            "models",  # Internal models module exposed through imports
         }  # Artifacts from test imports
 
         unexpected_leaked = (
@@ -451,7 +454,6 @@ class TestStageflowCompatibility:
     def test_python_version_compatibility(self):
         """Verify package works with current Python version."""
         # Arrange
-        import sys
 
         # Act
         current_python = sys.version_info
@@ -528,8 +530,8 @@ class TestStageflowIntegration:
         """Verify exported items match their actual implementations."""
         # Arrange
         import stageflow
-        from stageflow.element import Element as ElementImpl
-        from stageflow.element import create_element_from_config as ConfigImpl
+        from stageflow.elements import Element as ElementImpl
+        from stageflow.elements import create_element_from_config as ConfigImpl
 
         # Act & Assert
         assert stageflow.Element is ElementImpl
@@ -608,7 +610,6 @@ class TestStageflowPerformance:
     def test_package_import_is_fast(self):
         """Verify package import doesn't take excessive time."""
         # Arrange
-        import sys
         import time
 
         # Remove from cache to test fresh import

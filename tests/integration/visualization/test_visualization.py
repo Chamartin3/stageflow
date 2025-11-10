@@ -60,11 +60,12 @@ class TestVisualization:
         Returns:
             Dictionary containing exit_code, stdout, stderr, and parsed_json (if applicable)
         """
-        # Build command: stageflow diagram process_file --output output_file [--json]
+        # Build command: stageflow process diagram process_file --output output_file [--json]
         full_cmd = [
             "uv",
             "run",
             "stageflow",
+            "process",
             "diagram",
             process_file,
             "--output",
@@ -305,7 +306,7 @@ class TestVisualization:
         # Act - Test missing source file parameter by calling CLI directly
         try:
             result = subprocess.run(
-                ["uv", "run", "stageflow", "diagram"],
+                ["uv", "run", "stageflow", "process", "diagram"],
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -544,16 +545,15 @@ class TestVisualization:
         not linear stage ordering. This test detects the bug where transitions were
         generated linearly instead of following actual gate targets.
         """
-        from stageflow.schema.loader import load_process
+        from stageflow.loader import load_process
 
         # Test with convergence flow that has non-linear transitions
-        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+        test_data_dir = Path(__file__).parent.parent / "data"
         convergence_file = (
-            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+            test_data_dir / "visualization" / "complex" / "convergence_flow.yaml"
         )
 
-        if not convergence_file.exists():
-            pytest.skip("Convergence flow example not found")
+        assert convergence_file.exists(), "Convergence flow test data should exist"
 
         output_file = tmp_path / "convergence_test.md"
 
@@ -635,16 +635,15 @@ class TestVisualization:
         not based on array position. This detects the bug where final stage
         styling was based on stage_order position instead of actual final_stage.
         """
-        from stageflow.schema.loader import load_process
+        from stageflow.loader import load_process
 
         # Test with convergence flow where final stage is not last in stage order
-        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+        test_data_dir = Path(__file__).parent.parent / "data"
         convergence_file = (
-            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+            test_data_dir / "visualization" / "complex" / "convergence_flow.yaml"
         )
 
-        if not convergence_file.exists():
-            pytest.skip("Convergence flow example not found")
+        assert convergence_file.exists(), "Convergence flow test data should exist"
 
         output_file = tmp_path / "styling_test.md"
 
@@ -713,7 +712,7 @@ class TestVisualization:
         Test that complex convergence patterns are properly represented in visualizations.
         This ensures multiple paths correctly converge at common stages.
         """
-        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+        test_data_dir = Path(__file__).parent.parent / "data"
 
         # Test files that should show convergence patterns
         convergence_files = [
@@ -722,7 +721,7 @@ class TestVisualization:
         ]
 
         for filename, category in convergence_files:
-            process_file = examples_dir / "case3_visualization" / category / filename
+            process_file = test_data_dir / "visualization" / category / filename
 
             if not process_file.exists():
                 continue
@@ -778,17 +777,16 @@ class TestVisualization:
         Test that visualization properly handles stages that might be orphaned
         or unreachable due to the sorting algorithm.
         """
-        from stageflow.schema.loader import load_process
+        from stageflow.loader import load_process
 
-        examples_dir = Path(__file__).parent.parent.parent.parent / "examples"
+        test_data_dir = Path(__file__).parent.parent / "data"
 
         # Test with a complex process
         process_file = (
-            examples_dir / "case3_visualization" / "complex" / "convergence_flow.yaml"
+            test_data_dir / "visualization" / "complex" / "convergence_flow.yaml"
         )
 
-        if not process_file.exists():
-            pytest.skip("Test process file not found")
+        assert process_file.exists(), "Test process file should exist"
 
         output_file = tmp_path / "orphaned_test.md"
 

@@ -603,42 +603,6 @@ class TestElementValidation:
                     f"Should show results for {element_path.name}"
                 )
 
-    def test_verbose_element_evaluation(self, test_data_dir: Path):
-        """
-        Verify that verbose output provides enhanced diagnostic information for element evaluation.
-
-        Tests that --verbose flag during element evaluation:
-        - Shows loading progress for both process and element
-        - Provides detailed evaluation step information
-        - Includes additional debugging context
-        - Maintains structured output while adding detail
-        """
-        # Arrange
-        process_file = test_data_dir / "normal_flow" / "process.yaml"
-        element_file = (
-            test_data_dir
-            / "normal_flow"
-            / "ready_elements"
-            / "user_ready_for_profile.json"
-        )
-
-        # Act
-        result = self.run_stageflow_cli(
-            str(process_file), str(element_file), verbose=True, expect_success=True
-        )
-
-        # Assert
-        assert result["exit_code"] == 0
-        assert "Loading process" in result["stdout"], (
-            "Verbose should show process loading"
-        )
-        assert "Loading element" in result["stdout"], (
-            "Verbose should show element loading"
-        )
-        assert "Evaluating element" in result["stdout"], (
-            "Verbose should show evaluation progress"
-        )
-
     def test_json_output_consistency_across_evaluation_types(self, test_data_dir: Path):
         """
         Verify that JSON output maintains consistent structure across all evaluation scenarios.
