@@ -17,9 +17,9 @@ stages:
           - exists: "pipeline_id"
           - exists: "data_source"
           - exists: "raw_data"
-          - in_list:
-              property_path: "data_source"
-              expected_value: ["api", "file", "database", "stream"]
+          - type: "in_list"
+            property_path: "data_source"
+            expected_value: ["api", "file", "database", "stream"]
 
   data_cleaning:
     name: "Data Cleaning"
@@ -35,17 +35,17 @@ stages:
         locks:
           - exists: "cleaned_data"
           - exists: "quality_score"
-          - greater_than:
-              property_path: "quality_score"
-              expected_value: 0.79
+          - type: "greater_than"
+            property_path: "quality_score"
+            expected_value: 0.79
       - name: "quality_check_failed"
         description: "Data quality below threshold"
         target_stage: "quality_review"
         locks:
           - exists: "quality_score"
-          - less_than:
-              property_path: "quality_score"
-              expected_value: 0.8
+          - type: "less_than"
+            property_path: "quality_score"
+            expected_value: 0.8
 
   quality_review:
     name: "Quality Review"
@@ -62,17 +62,17 @@ stages:
         target_stage: "data_transformation"
         locks:
           - exists: "review.reviewer"
-          - equals:
-              property_path: "review.action_required"
-              expected_value: "approve"
+          - type: "equals"
+            property_path: "review.action_required"
+            expected_value: "approve"
           - exists: "review.approval_reason"
       - name: "reject_and_retry"
         description: "Reject data and retry cleaning"
         target_stage: "data_cleaning"
         locks:
-          - equals:
-              property_path: "review.action_required"
-              expected_value: "retry"
+          - type: "equals"
+            property_path: "review.action_required"
+            expected_value: "retry"
 
   data_transformation:
     name: "Data Transformation"
@@ -105,19 +105,19 @@ stages:
         description: "Data passes all validation rules"
         target_stage: "data_enrichment"
         locks:
-          - equals:
-              property_path: "schema_compliance"
-              expected_value: true
-          - equals:
-              property_path: "validation_errors"
-              expected_value: []
+          - type: "equals"
+            property_path: "schema_compliance"
+            expected_value: true
+          - type: "equals"
+            property_path: "validation_errors"
+            expected_value: []
       - name: "validation_failed"
         description: "Data fails validation rules"
         target_stage: "validation_review"
         locks:
-          - equals:
-              property_path: "schema_compliance"
-              expected_value: false
+          - type: "equals"
+            property_path: "schema_compliance"
+            expected_value: false
 
   validation_review:
     name: "Validation Review"
@@ -133,16 +133,16 @@ stages:
         description: "Fix issues and re-transform"
         target_stage: "data_transformation"
         locks:
-          - equals:
-              property_path: "review.resolution_plan"
-              expected_value: "fix_and_retry"
+          - type: "equals"
+            property_path: "review.resolution_plan"
+            expected_value: "fix_and_retry"
       - name: "override_validation"
         description: "Override validation with approval"
         target_stage: "data_enrichment"
         locks:
-          - equals:
-              property_path: "review.resolution_plan"
-              expected_value: "override"
+          - type: "equals"
+            property_path: "review.resolution_plan"
+            expected_value: "override"
           - exists: "review.override_justification"
 
   data_enrichment:
@@ -159,9 +159,9 @@ stages:
         locks:
           - exists: "enriched_data"
           - exists: "enrichment_sources"
-          - greater_than:
-              property_path: "enrichment_score"
-              expected_value: 0.5
+          - type: "greater_than"
+            property_path: "enrichment_score"
+            expected_value: 0.5
 
   final_processing:
     name: "Final Processing"
@@ -178,9 +178,9 @@ stages:
           - exists: "final_output"
           - exists: "output_format"
           - exists: "processed_at"
-          - in_list:
-              property_path: "output_format"
-              expected_value: ["json", "csv", "parquet", "database"]
+          - type: "in_list"
+            property_path: "output_format"
+            expected_value: ["json", "csv", "parquet", "database"]
 
   completed:
     name: "Pipeline Completed"
