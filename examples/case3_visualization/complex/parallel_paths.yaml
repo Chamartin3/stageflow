@@ -12,7 +12,9 @@ process:
         required_fields:
           - application_id
           - applicant_info
+          - applicant_info.employment_info
           - loan_amount
+          - collateral_info
 
       gates:
         start_parallel_processing:
@@ -38,6 +40,8 @@ process:
         required_fields:
           - application_id
           - credit_bureau_request_sent
+          - credit_report
+          - credit_score
 
       gates:
         credit_check_completed:
@@ -53,6 +57,8 @@ process:
         required_fields:
           - application_id
           - income_verification_request_sent
+          - income_verification
+          - income_verification.verified
 
       gates:
         income_verification_completed:
@@ -68,6 +74,7 @@ process:
         required_fields:
           - application_id
           - collateral_appraisal_ordered
+          - collateral_value
 
       gates:
         collateral_assessment_completed:
@@ -124,6 +131,7 @@ process:
           - credit_decision
           - income_decision
           - collateral_decision
+          - overall_decision
 
       gates:
         approve_loan:

@@ -36,6 +36,9 @@ process:
           - last_name
           - phone
           - address
+          - address.street
+          - address.city
+          - address.zip
 
       gates:
         profile_complete:
@@ -62,6 +65,7 @@ process:
           - email_verified_at
           - phone_verified_at
           - identity_verified_at
+          - identity_status
 
       gates:
         all_verifications_complete:

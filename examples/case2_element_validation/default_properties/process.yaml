@@ -15,6 +15,7 @@ process:
         required_fields:
           - email
           - password
+          - email_verified_at
 
       gates:
         email_verified:
@@ -68,8 +69,10 @@ process:
           - notification_preferences
           - privacy_settings
           - theme_preferences
+          - theme_preferences.color_scheme
           - accessibility_options
           - language_preferences
+          - language_preferences.primary_language
 
         # Additional defaults for this stage
         default_values:

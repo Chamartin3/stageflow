@@ -16,6 +16,8 @@ process:
           - project_id
           - design_type
           - stakeholders
+          - design_approved_by
+          - design_status
 
       gates:
         design_approved:
@@ -43,6 +45,8 @@ process:
           - stakeholders
           - development_team
           - tech_stack
+          - development_status
+          - qa_enabled
 
       gates:
         ready_for_testing:
@@ -68,6 +72,8 @@ process:
           - development_team
           - tech_stack
           - test_results
+          - test_status
+          - test_coverage
 
       gates:
         tests_passed:
@@ -95,6 +101,7 @@ process:
           - project_id
           - qa_team
           - qa_checklist
+          - qa_status
 
       gates:
         qa_approved:
@@ -119,6 +126,8 @@ process:
           - project_id
           - staging_url
           - performance_metrics
+          - staging_status
+          - performance_score
 
       gates:
         staging_validated:
@@ -144,6 +153,7 @@ process:
           - staging_url
           - performance_metrics
           - deployment_plan
+          - deployment_approved
 
       gates:
         deploy_to_production:

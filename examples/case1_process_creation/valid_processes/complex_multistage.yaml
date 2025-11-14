@@ -31,7 +31,10 @@ process:
           - items
           - customer_id
           - shipping_address
+          - shipping_address.street
           - billing_address
+          - billing_address.street
+          - payment_method
 
       gates:
          submit_payment:
@@ -48,6 +51,8 @@ process:
       schema:
         required_fields:
           - payment_method
+          - payment_status
+          - transaction_id
           - total_amount
 
       gates:
@@ -108,6 +113,8 @@ process:
       schema:
         required_fields:
           - tracking_number
+          - delivery_date
+          - delivery_status
           - shipped_date
 
       gates:
@@ -123,6 +130,7 @@ process:
       schema:
         required_fields:
           - delivery_date
+          - delivery_status
           - order_status
 
     abandoned:

@@ -38,6 +38,8 @@ process:
           - status
           - reviewer_id
           - review_stage_entered_at
+          - review_status
+          - review_completed_at
 
       gates:
         review_passed:

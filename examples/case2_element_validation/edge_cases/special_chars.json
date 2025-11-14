@@ -32,7 +32,7 @@
     "mathematical_symbols": "∑∏∫∂∇∆√∞±≠≤≥≈",
     "currency_symbols": "$€£¥₹₿",
     "arrows_and_symbols": "→←↑↓⇒⇐⇑⇓⟨⟩⟪⟫",
-    "quotation_marks": "\"'`''""«»",
+    "quotation_marks": "\"'`''\u201c\u201d«»",
     "diacritics": "àáâãäåæçèéêëìíîïñòóôõöøùúûüýÿ",
     "cyrillic": "Привет мир ЁЖИКЪ ёжикъ",
     "arabic": "مرحبا بالعالم اختبار النص",
@@ -41,8 +41,8 @@
     "korean": "안녕하세요 세계 테스트 텍스트",
     "emoji_text": "Hello 👋 World 🌍! Testing 🧪 with emoji 😀🎉🚀",
     "zero_width_chars": "Zero\u200Bwidth\u200Cjoiner\u200Dtest",
-    "control_chars": "Line\nbreak\ttab\rcarriage\fform\vvertical",
-    "escape_sequences": "Quotes: \\\"test\\\" Backslash: \\\\ Null: \\0"
+    "control_chars": "Line\nbreak\ttab\rcarriage\fform\u000Bvertical",
+    "escape_sequences": "Quotes: \\\"test\\\" Backslash: \\\\ Null: \\u0000"
   },
   "file_paths": {
     "unix_style": "/home/user/documents/file with spaces.txt",

@@ -32,8 +32,11 @@ process:
           - email
           # These would be required but have defaults available:
           - preferences  # Should get default preferences
+          - preferences.theme
           - settings     # Should get default settings
+          - settings.auto_save
           - profile      # Should get default profile
+          - profile.visibility
 
         # Documentation of what defaults should be applied
         default_recommendations:

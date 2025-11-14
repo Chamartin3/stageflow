@@ -13,6 +13,8 @@ process:
           - content_id
           - content_type
           - author_id
+          - author.trust_level
+          - content.word_count
 
       gates:
         auto_publish_trusted:
@@ -58,6 +60,7 @@ process:
           - content_id
           - assigned_moderator
           - moderation_priority
+          - moderation.decision
 
       gates:
         approve_basic:
@@ -87,6 +90,7 @@ process:
           - content_id
           - senior_moderator
           - detailed_review_required
+          - advanced_moderation.decision
 
       gates:
         approve_advanced:
@@ -123,6 +127,9 @@ process:
           - content_id
           - specialist_reviewer
           - technical_review_completed
+          - special_review.technical_approved
+          - special_review.content_approved
+          - special_review.final_decision
 
       gates:
         approve_special:
@@ -148,6 +155,9 @@ process:
           - content_id
           - revision_notes
           - revision_deadline
+          - revision.resubmitted_content
+          - revision.author_revised
+          - revision.abandoned
 
       gates:
         resubmit_after_revision:
@@ -171,6 +181,8 @@ process:
           - content_id
           - committee_members
           - review_meeting_scheduled
+          - committee.decision
+          - committee.approval_votes
 
       gates:
         committee_approve:
@@ -196,6 +208,8 @@ process:
           - content_id
           - publication_date
           - approval_path
+          - next_review_date
+          - lifecycle.archive_requested
 
       gates:
         schedule_review:
@@ -216,6 +230,7 @@ process:
           - content_id
           - review_date
           - reviewer_id
+          - periodic_review.decision
 
       gates:
         keep_published:

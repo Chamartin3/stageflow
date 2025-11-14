@@ -11,6 +11,10 @@ process:
       schema:
         required_fields:
           - user_info
+          - user_info.email
+          - user_info.status
+          - user_info.name
+          - user_info.age
           - preferences
           - metrics
 
@@ -39,8 +43,16 @@ process:
       schema:
         required_fields:
           - user_info
+          - user_info.email
+          - user_info.status
+          - user_info.name
+          - user_info.age
+          - user_info.phone
+          - user_info.role
           - preferences
+          - preferences.features
           - metrics
+          - metrics.score
           - verification
 
       gates:
@@ -95,6 +107,8 @@ process:
           - metrics
           - verification
           - final_approval
+          - final_approval.approved_by
+          - final_approval.status
 
       gates:
         completion:

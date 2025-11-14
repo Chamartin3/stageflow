@@ -66,25 +66,26 @@ process:
               expected_value: true
 
     store_validation:
-      schema:
-        required_fields:
-          - order_id
-          - store_location
-          - pos_transaction_id
+       schema:
+         required_fields:
+           - order_id
+           - store_location
+           - pos_transaction_id
 
-      gates:
-        store_validated:
-          target_stage: inventory_check
-          locks:
-            - exists: "pos_transaction_id"
+       gates:
+         store_validated:
+           target_stage: inventory_check
+           locks:
+             - exists: "pos_transaction_id"
 
     payment_processing:
-      schema:
-        required_fields:
-          - order_id
-          - payment_method
+       schema:
+         required_fields:
+           - order_id
+           - payment_method
+           - payment_status
 
-      gates:
+       gates:
         payment_completed:
           target_stage: inventory_check
           locks:
@@ -114,25 +115,27 @@ process:
               expected_value: false
 
     backorder_processing:
-      schema:
-        required_fields:
-          - order_id
-          - backorder_eta
+       schema:
+         required_fields:
+           - order_id
+           - backorder_eta
+           - backorder_fulfilled_date
 
-      gates:
+       gates:
         backorder_fulfilled:
           target_stage: fulfillment
           locks:
             - exists: "backorder_fulfilled_date"
 
     fulfillment:
-      schema:
-        required_fields:
-          - order_id
-          - fulfillment_center
-          - shipping_label
+       schema:
+         required_fields:
+           - order_id
+           - fulfillment_center
+           - shipping_label
+           - tracking_number
 
-      gates:
+       gates:
         order_shipped:
           target_stage: order_fulfilled
           locks:

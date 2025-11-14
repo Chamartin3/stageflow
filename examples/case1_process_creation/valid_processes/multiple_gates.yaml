@@ -11,7 +11,12 @@ process:
       schema:
         required_fields:
           - content
+          - content.word_count
+          - content.text
           - author_id
+          - author.trusted_status
+          - flags
+          - flags.spam_detected
           - submission_date
 
       gates:
@@ -49,6 +54,13 @@ process:
           - content
           - author_id
           - assigned_moderator
+          - moderation
+          - moderation.decision
+          - moderation.reviewed_by
+          - moderation.rejection_reason
+          - moderation.revision_notes
+          - flags
+          - flags.escalation_requested
 
       gates:
         approve_content:
@@ -90,8 +102,12 @@ process:
       schema:
         required_fields:
           - content
+          - content.revised_text
           - author_id
           - revision_notes
+          - revision
+          - revision.submitted_date
+          - revision.abandoned
 
       gates:
         resubmit:
@@ -117,6 +133,8 @@ process:
           - author_id
           - escalation_notes
           - senior_moderator
+          - senior_review
+          - senior_review.decision
 
       gates:
         senior_approve:

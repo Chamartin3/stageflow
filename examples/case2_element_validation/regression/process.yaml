@@ -31,6 +31,8 @@ process:
           - id
           - status
           - processed_data
+          - processed_data.validation_passed
+          - processed_data.processing_date
 
       gates:
         advance_to_advanced:
@@ -51,6 +53,9 @@ process:
           - status
           - processed_data
           - advanced_features
+          - advanced_features.feature_a_enabled
+          - advanced_features.feature_b_configured
+          - advanced_features.configuration_score
 
       gates:
         complete:

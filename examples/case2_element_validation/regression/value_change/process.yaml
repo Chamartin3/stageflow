@@ -40,6 +40,7 @@ process:
           - reviewer_id
           - review_started_at
           - risk_score
+          - risk_assessment_completed_at
 
       gates:
         risk_assessment_passed:
@@ -71,6 +72,7 @@ process:
           - risk_score
           - background_check_id
           - identity_verified
+          - background_check_status
 
       gates:
         background_cleared:
@@ -104,6 +106,8 @@ process:
           - risk_score
           - senior_reviewer_id
           - additional_documentation
+          - senior_review_status
+          - additional_documentation_verified
 
       gates:
         enhanced_approval:

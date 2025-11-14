@@ -16,7 +16,10 @@ process:
           - content_id
           - title
           - body
+          - body_word_count
           - author_id
+          - author_status
+          - content_risk_score
           - submission_date
 
       gates:
@@ -53,6 +56,8 @@ process:
           - submission_date
           - review_assigned_to
           - review_started_at
+          - review_completed_at
+          - review_decision
 
       gates:
         review_approved:
@@ -83,6 +88,7 @@ process:
           - submission_date
           - approval_date
           - publication_scheduled
+          - publication_ready
 
       gates:
         ready_to_publish:
