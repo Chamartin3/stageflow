@@ -1,0 +1,16 @@
+{
+  "email": "john.doe@example.com",
+  "password": "securePassword123!",
+  "first_name": "John",
+  "last_name": "Doe",
+  "verification_token": "abc123def456",
+  "email_verified_at": "2024-01-15T10:30:00Z",
+  "date_of_birth": "1990-05-15",
+  "phone_number": "+1-555-0123",
+  "address": {
+    "city": "San Francisco",
+    "country": "USA"
+  },
+  "account_status": "active",
+  "created_at": "2024-01-15T10:00:00Z"
+}

@@ -1,0 +1,14 @@
+{
+  "user_id": "user_12345",
+  "profile": {
+    "basic_info": {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone": "+1-555-0123"
+    }
+  },
+  "metadata": {
+    "created_at": "2024-01-15T10:00:00Z",
+    "source": "web_registration"
+  }
+}

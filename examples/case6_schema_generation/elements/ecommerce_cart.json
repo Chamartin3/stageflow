@@ -1,0 +1,11 @@
+{
+  "cart_id": "cart_12345",
+  "customer_id": "cust_67890",
+  "items": [
+    {
+      "product_id": "prod_001",
+      "quantity": 2,
+      "price": 29.99
+    }
+  ]
+}

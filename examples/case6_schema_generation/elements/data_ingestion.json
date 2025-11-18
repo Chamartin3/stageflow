@@ -1,0 +1,7 @@
+{
+  "dataset_id": "dataset_001",
+  "source_system": "external_api",
+  "ingestion_timestamp": "2024-01-15T10:00:00Z",
+  "raw_data_format": "json",
+  "estimated_size_mb": 150.5
+}

@@ -1,0 +1,103 @@
+# Simple User Profile Process - Basic Schema Generation
+# Demonstrates basic schema generation with simple nested structures
+
+process:
+  name: simple_user_profile
+  description: Basic user profile workflow for schema generation testing
+  initial_stage: registration
+  final_stage: active
+
+  stages:
+    registration:
+      name: "User Registration"
+      description: "Initial user registration with basic information"
+      schema:
+        required_fields:
+          - email
+          - password
+          - first_name
+          - last_name
+
+      gates:
+        basic_info_complete:
+          target_stage: email_verification
+          locks:
+            - exists: "email"
+            - exists: "password"
+            - exists: "first_name"
+            - exists: "last_name"
+
+    email_verification:
+      name: "Email Verification"
+      description: "Email verification process"
+      schema:
+        required_fields:
+          - email
+          - password
+          - first_name
+          - last_name
+          - verification_token
+          - email_verified_at
+
+      gates:
+        email_verified:
+          target_stage: profile_completion
+          locks:
+            - exists: "verification_token"
+            - exists: "email_verified_at"
+
+    profile_completion:
+      name: "Profile Completion"
+      description: "Complete user profile information"
+      schema:
+        required_fields:
+          - email
+          - password
+          - first_name
+          - last_name
+          - verification_token
+          - email_verified_at
+          - date_of_birth
+          - phone_number
+          - address.city
+          - address.country
+
+      gates:
+        profile_complete:
+          target_stage: active
+          locks:
+            - exists: "date_of_birth"
+            - exists: "phone_number"
+            - exists: "address.city"
+            - exists: "address.country"
+
+    active:
+      name: "Active User"
+      description: "Fully active user account"
+      schema:
+        required_fields:
+          - email
+          - password
+          - first_name
+          - last_name
+          - verification_token
+          - email_verified_at
+          - date_of_birth
+          - phone_number
+          - address.city
+          - address.country
+          - account_status
+          - created_at
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Simple user profile process for basic schema generation testing"
+    test_case: "simple_schema_generation"
+    expected_outcomes:
+      - "Schema generation handles basic nested properties"
+      - "Required fields accumulate across stages"
+      - "Simple property paths work correctly"

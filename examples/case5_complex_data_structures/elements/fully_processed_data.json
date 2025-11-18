@@ -1,0 +1,131 @@
+{
+  "user_id": "user_12345",
+  "profile": {
+    "basic_info": {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone": "+1-555-0123"
+    },
+    "detailed_info": {
+      "age": 28,
+      "gender": "male",
+      "occupation": "Software Engineer",
+      "addresses": [
+        {
+          "type": "home",
+          "street": "123 Main Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "zip_code": "94102",
+          "country": "USA",
+          "coordinates": {
+            "latitude": 37.7749,
+            "longitude": -122.4194
+          }
+        }
+      ],
+      "emergency_contacts": [
+        {
+          "name": "Jane Doe",
+          "relationship": "spouse",
+          "phone": "+1-555-0456",
+          "email": "jane.doe@example.com"
+        }
+      ]
+    },
+    "preferences": {
+      "notifications": {
+        "email": true,
+        "sms": false,
+        "push": true,
+        "marketing": false
+      },
+      "privacy": {
+        "profile_visible": true,
+        "contact_info_public": false,
+        "activity_tracking": true
+      },
+      "theme": "dark",
+      "language": "en-US"
+    },
+    "activity_history": [
+      {
+        "action": "profile_created",
+        "timestamp": "2024-01-15T10:00:00Z",
+        "details": {
+          "source": "web_registration",
+          "ip_address": "192.168.1.100",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+      },
+      {
+        "action": "email_verified",
+        "timestamp": "2024-01-15T10:05:00Z",
+        "details": {
+          "verification_method": "email_link",
+          "token_used": "abc123def456"
+        }
+      },
+      {
+        "action": "profile_updated",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "details": {
+          "fields_changed": ["phone", "addresses"],
+          "change_reason": "initial_setup"
+        }
+      }
+    ]
+  },
+  "computed_data": {
+    "score": 0.87,
+    "risk_level": "low",
+    "tags": [
+      "premium_user",
+      "verified_email",
+      "complete_profile",
+      "high_engagement"
+    ],
+    "analytics": {
+      "views": 42,
+      "engagement_rate": 0.73,
+      "last_active": "2024-01-15T10:30:00Z",
+      "session_count": 5,
+      "average_session_duration": 180,
+      "preferred_times": {
+        "morning": 0.6,
+        "afternoon": 0.3,
+        "evening": 0.1
+      },
+      "device_breakdown": {
+        "desktop": 0.7,
+        "mobile": 0.3
+      }
+    },
+    "recommendations": [
+      {
+        "type": "content",
+        "items": ["tech_news", "programming_tutorials"],
+        "confidence": 0.85
+      },
+      {
+        "type": "features",
+        "items": ["advanced_analytics", "team_collaboration"],
+        "confidence": 0.72
+      }
+    ]
+  },
+  "metadata": {
+    "created_at": "2024-01-15T10:00:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "processed_at": "2024-01-15T10:35:00Z",
+    "finalized_at": "2024-01-15T10:40:00Z",
+    "source": "web_registration",
+    "version": "1.0",
+    "tags": ["premium", "verified"],
+    "processing_stats": {
+      "total_time_ms": 2500,
+      "stages_completed": 4,
+      "data_quality_score": 0.95
+    }
+  }
+}

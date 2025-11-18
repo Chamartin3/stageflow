@@ -1,0 +1,148 @@
+# E-commerce Order Process - Array Schema Generation
+# Demonstrates schema generation with arrays and complex validation
+
+process:
+  name: ecommerce_order
+  description: E-commerce order processing workflow for array schema generation
+  initial_stage: cart
+  final_stage: delivered
+
+  stages:
+    cart:
+      name: "Shopping Cart"
+      description: "Items added to cart"
+      schema:
+        required_fields:
+          - cart_id
+          - customer_id
+          - items[0].product_id
+          - items[0].quantity
+          - items[0].price
+
+      gates:
+        items_added:
+          target_stage: checkout
+          locks:
+            - exists: "cart_id"
+            - exists: "customer_id"
+            - type: "length"
+              property_path: "items"
+              expected_value: 1
+
+    checkout:
+      name: "Checkout"
+      description: "Order checkout and payment information"
+      schema:
+        required_fields:
+          - cart_id
+          - customer_id
+          - items[0].product_id
+          - items[0].quantity
+          - items[0].price
+          - shipping_address.street
+          - shipping_address.city
+          - shipping_address.zip_code
+          - payment_method.type
+          - payment_method.card_number
+
+      gates:
+        payment_complete:
+          target_stage: processing
+          locks:
+            - exists: "shipping_address.street"
+            - exists: "shipping_address.city"
+            - exists: "payment_method.type"
+            - exists: "payment_method.card_number"
+
+    processing:
+      name: "Order Processing"
+      description: "Order being prepared for shipment"
+      schema:
+        required_fields:
+          - cart_id
+          - customer_id
+          - items[0].product_id
+          - items[0].quantity
+          - items[0].price
+          - shipping_address.street
+          - shipping_address.city
+          - shipping_address.zip_code
+          - payment_method.type
+          - payment_method.card_number
+          - order_id
+          - order_status
+          - processing_started_at
+
+      gates:
+        ready_for_shipment:
+          target_stage: shipped
+          locks:
+            - exists: "order_id"
+            - exists: "processing_started_at"
+            - type: "equals"
+              property_path: "order_status"
+              expected_value: "processing"
+
+    shipped:
+      name: "Shipped"
+      description: "Order has been shipped"
+      schema:
+        required_fields:
+          - cart_id
+          - customer_id
+          - items[0].product_id
+          - items[0].quantity
+          - items[0].price
+          - shipping_address.street
+          - shipping_address.city
+          - shipping_address.zip_code
+          - payment_method.type
+          - payment_method.card_number
+          - order_id
+          - order_status
+          - processing_started_at
+          - tracking_number
+          - shipped_at
+
+      gates:
+        delivered:
+          target_stage: delivered
+          locks:
+            - exists: "tracking_number"
+            - exists: "shipped_at"
+
+    delivered:
+      name: "Delivered"
+      description: "Order successfully delivered"
+      schema:
+        required_fields:
+          - cart_id
+          - customer_id
+          - items[0].product_id
+          - items[0].quantity
+          - items[0].price
+          - shipping_address.street
+          - shipping_address.city
+          - shipping_address.zip_code
+          - payment_method.type
+          - payment_method.card_number
+          - order_id
+          - order_status
+          - processing_started_at
+          - tracking_number
+          - shipped_at
+          - delivered_at
+          - delivery_confirmed
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "E-commerce order process demonstrating array schema generation"
+    test_case: "array_schema_generation"
+    expected_outcomes:
+      - "Schema generation handles array indexing correctly"
+      - "Array length validation works in schema"
+      - "Complex nested structures with arrays are supported"

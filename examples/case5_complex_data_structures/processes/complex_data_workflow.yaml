@@ -1,0 +1,126 @@
+# Complex Data Structures Process Definition
+# Demonstrates schema generation with deeply nested objects, arrays, and mixed data types
+
+process:
+  name: complex_data_workflow
+  description: Process for testing element schema generation with complex data structures
+  initial_stage: data_collection
+  final_stage: data_processed
+
+  stages:
+    data_collection:
+      name: "Data Collection"
+      description: "Initial data gathering with basic nested structures"
+      schema:
+        required_fields:
+          - user_id
+          - profile.basic_info.name
+          - profile.basic_info.email
+          - metadata.created_at
+
+      gates:
+        basic_data_complete:
+          target_stage: data_validation
+          locks:
+            - exists: "user_id"
+            - exists: "profile.basic_info.name"
+            - exists: "profile.basic_info.email"
+            - type: "not_empty"
+              property_path: "profile.basic_info.name"
+
+    data_validation:
+      name: "Data Validation"
+      description: "Validate collected data with complex structures"
+      schema:
+        required_fields:
+          - user_id
+          - profile.basic_info.name
+          - profile.basic_info.email
+          - profile.detailed_info.age
+          - profile.detailed_info.addresses[0].street
+          - profile.preferences.notifications.email
+          - metadata.created_at
+          - metadata.updated_at
+
+      gates:
+        validation_passed:
+          target_stage: data_enrichment
+          locks:
+            - exists: "profile.detailed_info.age"
+            - type: "greater_than"
+              property_path: "profile.detailed_info.age"
+              expected_value: 18
+            - type: "length"
+              property_path: "profile.detailed_info.addresses"
+              expected_value: 1
+            - exists: "profile.preferences.notifications.email"
+
+    data_enrichment:
+      name: "Data Enrichment"
+      description: "Add computed and enriched data with complex arrays"
+      schema:
+        required_fields:
+          - user_id
+          - profile.basic_info.name
+          - profile.basic_info.email
+          - profile.detailed_info.age
+          - profile.detailed_info.addresses[0].street
+          - profile.preferences.notifications.email
+          - profile.activity_history[0].action
+          - profile.activity_history[0].timestamp
+          - computed_data.score
+          - computed_data.tags[0]
+          - metadata.created_at
+          - metadata.updated_at
+          - metadata.processed_at
+
+      gates:
+        enrichment_complete:
+          target_stage: data_processed
+          locks:
+            - exists: "computed_data.score"
+            - type: "greater_than"
+              property_path: "computed_data.score"
+              expected_value: 0.5
+            - type: "length"
+              property_path: "profile.activity_history"
+              expected_value: 1
+            - type: "length"
+              property_path: "computed_data.tags"
+              expected_value: 1
+
+    data_processed:
+      name: "Data Processed"
+      description: "Final processed data with all complex structures"
+      schema:
+        required_fields:
+          - user_id
+          - profile.basic_info.name
+          - profile.basic_info.email
+          - profile.detailed_info.age
+          - profile.detailed_info.addresses[0].street
+          - profile.preferences.notifications.email
+          - profile.activity_history[0].action
+          - profile.activity_history[0].timestamp
+          - computed_data.score
+          - computed_data.tags[0]
+          - computed_data.analytics.views
+          - computed_data.analytics.engagement_rate
+          - metadata.created_at
+          - metadata.updated_at
+          - metadata.processed_at
+          - metadata.finalized_at
+
+      gates: []  # Final stage
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Test case for complex data structures in schema generation"
+    test_case: "complex_data_structures"
+    expected_outcomes:
+      - "Schema generation handles nested objects correctly"
+      - "Array indexing in required_fields works"
+      - "Mixed data types are properly represented"
+      - "Deep nesting (4+ levels) is supported"

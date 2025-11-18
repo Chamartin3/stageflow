@@ -1,0 +1,27 @@
+{
+  "cart_id": "cart_12345",
+  "customer_id": "cust_67890",
+  "items": [
+    {
+      "product_id": "prod_001",
+      "quantity": 2,
+      "price": 29.99
+    }
+  ],
+  "shipping_address": {
+    "street": "123 Main Street",
+    "city": "San Francisco",
+    "zip_code": "94102"
+  },
+  "payment_method": {
+    "type": "credit_card",
+    "card_number": "****-****-****-1234"
+  },
+  "order_id": "order_98765",
+  "order_status": "delivered",
+  "processing_started_at": "2024-01-15T11:00:00Z",
+  "tracking_number": "TRK123456789",
+  "shipped_at": "2024-01-15T14:00:00Z",
+  "delivered_at": "2024-01-16T10:30:00Z",
+  "delivery_confirmed": true
+}
