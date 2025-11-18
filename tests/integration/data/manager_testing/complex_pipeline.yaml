@@ -1,0 +1,196 @@
+name: "complex_pipeline"
+description: "Complex data processing pipeline with multiple validation stages"
+stages:
+  data_ingestion:
+    name: "Data Ingestion"
+    description: "Raw data ingestion from various sources"
+    expected_properties:
+      pipeline_id: {type: "str"}
+      data_source: {type: "str"}
+      raw_data: {type: "dict"}
+      ingested_at: {type: "str"}
+    gates:
+      - name: "data_validation"
+        description: "Initial data validation"
+        target_stage: "data_cleaning"
+        locks:
+          - exists: "pipeline_id"
+          - exists: "data_source"
+          - exists: "raw_data"
+          - type: "in_list"
+            property_path: "data_source"
+            expected_value: ["api", "file", "database", "stream"]
+
+  data_cleaning:
+    name: "Data Cleaning"
+    description: "Clean and normalize raw data"
+    expected_properties:
+      cleaned_data: {type: "dict"}
+      cleaning_stats: {type: "dict"}
+      quality_score: {type: "float"}
+    gates:
+      - name: "quality_check_passed"
+        description: "Data quality meets minimum threshold"
+        target_stage: "data_transformation"
+        locks:
+          - exists: "cleaned_data"
+          - exists: "quality_score"
+          - type: "greater_than"
+            property_path: "quality_score"
+            expected_value: 0.79
+      - name: "quality_check_failed"
+        description: "Data quality below threshold"
+        target_stage: "quality_review"
+        locks:
+          - exists: "quality_score"
+          - type: "less_than"
+            property_path: "quality_score"
+            expected_value: 0.8
+
+  quality_review:
+    name: "Quality Review"
+    description: "Manual review of data quality issues"
+    expected_properties:
+      review:
+        reviewer: {type: "str"}
+        issues_identified: {type: "list"}
+        action_required: {type: "str"}
+        approval_reason: {type: "str"}
+    gates:
+      - name: "approve_for_processing"
+        description: "Approve data despite quality issues"
+        target_stage: "data_transformation"
+        locks:
+          - exists: "review.reviewer"
+          - type: "equals"
+            property_path: "review.action_required"
+            expected_value: "approve"
+          - exists: "review.approval_reason"
+      - name: "reject_and_retry"
+        description: "Reject data and retry cleaning"
+        target_stage: "data_cleaning"
+        locks:
+          - type: "equals"
+            property_path: "review.action_required"
+            expected_value: "retry"
+
+  data_transformation:
+    name: "Data Transformation"
+    description: "Transform data according to business rules"
+    expected_properties:
+      transformed_data: {type: "dict"}
+      transformation_config: {type: "dict"}
+      schema_version: {type: "str"}
+      transformation:
+        completed_at: {type: "str"}
+    gates:
+      - name: "transformation_complete"
+        description: "Data transformation completed successfully"
+        target_stage: "data_validation"
+        locks:
+          - exists: "transformed_data"
+          - exists: "transformation_config"
+          - exists: "schema_version"
+          - exists: "transformation.completed_at"
+
+  data_validation:
+    name: "Data Validation"
+    description: "Validate transformed data against schema"
+    expected_properties:
+      validation_results: {type: "dict"}
+      schema_compliance: {type: "bool"}
+      validation_errors: {type: "list"}
+    gates:
+      - name: "validation_passed"
+        description: "Data passes all validation rules"
+        target_stage: "data_enrichment"
+        locks:
+          - type: "equals"
+            property_path: "schema_compliance"
+            expected_value: true
+          - type: "equals"
+            property_path: "validation_errors"
+            expected_value: []
+      - name: "validation_failed"
+        description: "Data fails validation rules"
+        target_stage: "validation_review"
+        locks:
+          - type: "equals"
+            property_path: "schema_compliance"
+            expected_value: false
+
+  validation_review:
+    name: "Validation Review"
+    description: "Review validation failures"
+    expected_properties:
+      review:
+        validation_reviewer: {type: "str"}
+        error_analysis: {type: "dict"}
+        resolution_plan: {type: "str"}
+        override_justification: {type: "str"}
+    gates:
+      - name: "fix_validation_issues"
+        description: "Fix issues and re-transform"
+        target_stage: "data_transformation"
+        locks:
+          - type: "equals"
+            property_path: "review.resolution_plan"
+            expected_value: "fix_and_retry"
+      - name: "override_validation"
+        description: "Override validation with approval"
+        target_stage: "data_enrichment"
+        locks:
+          - type: "equals"
+            property_path: "review.resolution_plan"
+            expected_value: "override"
+          - exists: "review.override_justification"
+
+  data_enrichment:
+    name: "Data Enrichment"
+    description: "Enrich data with additional information"
+    expected_properties:
+      enriched_data: {type: "dict"}
+      enrichment_sources: {type: "list"}
+      enrichment_score: {type: "float"}
+    gates:
+      - name: "enrichment_complete"
+        description: "Data enrichment completed"
+        target_stage: "final_processing"
+        locks:
+          - exists: "enriched_data"
+          - exists: "enrichment_sources"
+          - type: "greater_than"
+            property_path: "enrichment_score"
+            expected_value: 0.5
+
+  final_processing:
+    name: "Final Processing"
+    description: "Final processing and output generation"
+    expected_properties:
+      final_output: {type: "dict"}
+      output_format: {type: "str"}
+      processed_at: {type: "str"}
+    gates:
+      - name: "processing_complete"
+        description: "Pipeline processing completed"
+        target_stage: "completed"
+        locks:
+          - exists: "final_output"
+          - exists: "output_format"
+          - exists: "processed_at"
+          - type: "in_list"
+            property_path: "output_format"
+            expected_value: ["json", "csv", "parquet", "database"]
+
+  completed:
+    name: "Pipeline Completed"
+    description: "Data pipeline processing completed successfully"
+    expected_properties:
+      completion_status: {type: "str"}
+      output_location: {type: "str"}
+      pipeline_metrics: {type: "dict"}
+    gates: []
+    is_final: true
+
+initial_stage: "data_ingestion"
+final_stage: "completed"

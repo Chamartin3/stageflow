@@ -1,0 +1,160 @@
+# Case 3.2: Multi-path Convergence Flow
+# Tests: Complex process with multiple paths converging to common stages
+
+process:
+  name: multi_channel_order_processing
+  initial_stage: order_received
+  final_stage: order_fulfilled
+
+  stages:
+    order_received:
+      schema:
+        required_fields:
+          - order_id
+          - channel
+          - customer_id
+
+      gates:
+        online_order:
+          target_stage: online_validation
+          locks:
+            - type: equals
+              property_path: "channel"
+              expected_value: "online"
+
+        phone_order:
+          target_stage: phone_validation
+          locks:
+            - type: equals
+              property_path: "channel"
+              expected_value: "phone"
+
+        in_store_order:
+          target_stage: store_validation
+          locks:
+            - type: equals
+              property_path: "channel"
+              expected_value: "in_store"
+
+    online_validation:
+      schema:
+        required_fields:
+          - order_id
+          - online_payment_verified
+
+      gates:
+        online_validated:
+          target_stage: inventory_check
+          locks:
+            - type: equals
+              property_path: "online_payment_verified"
+              expected_value: true
+
+    phone_validation:
+      schema:
+        required_fields:
+          - order_id
+          - phone_agent_id
+          - customer_verified
+
+      gates:
+        phone_validated:
+          target_stage: payment_processing
+          locks:
+            - type: equals
+              property_path: "customer_verified"
+              expected_value: true
+
+    store_validation:
+       schema:
+         required_fields:
+           - order_id
+           - store_location
+           - pos_transaction_id
+
+       gates:
+         store_validated:
+           target_stage: inventory_check
+           locks:
+             - exists: "pos_transaction_id"
+
+    payment_processing:
+       schema:
+         required_fields:
+           - order_id
+           - payment_method
+           - payment_status
+
+       gates:
+        payment_completed:
+          target_stage: inventory_check
+          locks:
+            - type: equals
+              property_path: "payment_status"
+              expected_value: "completed"
+
+    inventory_check:
+      schema:
+        required_fields:
+          - order_id
+          - inventory_verified
+
+      gates:
+        items_available:
+          target_stage: fulfillment
+          locks:
+            - type: equals
+              property_path: "inventory_verified"
+              expected_value: true
+
+        backorder_required:
+          target_stage: backorder_processing
+          locks:
+            - type: equals
+              property_path: "inventory_verified"
+              expected_value: false
+
+    backorder_processing:
+       schema:
+         required_fields:
+           - order_id
+           - backorder_eta
+           - backorder_fulfilled_date
+
+       gates:
+        backorder_fulfilled:
+          target_stage: fulfillment
+          locks:
+            - exists: "backorder_fulfilled_date"
+
+    fulfillment:
+       schema:
+         required_fields:
+           - order_id
+           - fulfillment_center
+           - shipping_label
+           - tracking_number
+
+       gates:
+        order_shipped:
+          target_stage: order_fulfilled
+          locks:
+            - exists: "tracking_number"
+            - type: not_empty
+              property_path: "tracking_number"
+
+    order_fulfilled:
+      schema:
+        required_fields:
+          - order_id
+          - tracking_number
+          - fulfillment_date
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Multi-channel order process with convergence points for visualization testing"
+    version: "1.0.0"
+    test_case: "visualization_convergence_flow"
+    visualization_notes: "Should show multiple entry paths converging at inventory_check and fulfillment stages"

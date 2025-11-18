@@ -1,0 +1,171 @@
+# Case 3.2: Parallel Processing Paths
+# Tests: Complex process with parallel execution paths
+
+process:
+  name: parallel_loan_processing
+  initial_stage: application_submitted
+  final_stage: loan_decision
+
+  stages:
+    application_submitted:
+      schema:
+        required_fields:
+          - application_id
+          - applicant_info
+          - applicant_info.employment_info
+          - loan_amount
+          - collateral_info
+
+      gates:
+        start_parallel_processing:
+          target_stage: credit_check_initiated
+          locks:
+            - exists: "application_id"
+            - type: greater_than
+              property_path: "loan_amount"
+              expected_value: 0
+
+        concurrent_income_verification:
+          target_stage: income_verification_initiated
+          locks:
+            - exists: "applicant_info.employment_info"
+
+        concurrent_collateral_assessment:
+          target_stage: collateral_assessment_initiated
+          locks:
+            - exists: "collateral_info"
+
+    credit_check_initiated:
+      schema:
+        required_fields:
+          - application_id
+          - credit_bureau_request_sent
+          - credit_report
+          - credit_score
+
+      gates:
+        credit_check_completed:
+          target_stage: credit_analysis_complete
+          locks:
+            - exists: "credit_report"
+            - type: greater_than
+              property_path: "credit_score"
+              expected_value: 0
+
+    income_verification_initiated:
+      schema:
+        required_fields:
+          - application_id
+          - income_verification_request_sent
+          - income_verification
+          - income_verification.verified
+
+      gates:
+        income_verification_completed:
+          target_stage: income_analysis_complete
+          locks:
+            - exists: "income_verification.verified"
+            - type: equals
+              property_path: "income_verification.verified"
+              expected_value: true
+
+    collateral_assessment_initiated:
+      schema:
+        required_fields:
+          - application_id
+          - collateral_appraisal_ordered
+          - collateral_value
+
+      gates:
+        collateral_assessment_completed:
+          target_stage: collateral_analysis_complete
+          locks:
+            - exists: "collateral_value"
+            - type: greater_than
+              property_path: "collateral_value"
+              expected_value: 0
+
+    credit_analysis_complete:
+      schema:
+        required_fields:
+          - application_id
+          - credit_score
+          - credit_decision
+
+      gates:
+        wait_for_other_analyses:
+          target_stage: comprehensive_review
+          locks:
+            - exists: "credit_decision"
+
+    income_analysis_complete:
+      schema:
+        required_fields:
+          - application_id
+          - verified_income
+          - income_decision
+
+      gates:
+        wait_for_other_analyses:
+          target_stage: comprehensive_review
+          locks:
+            - exists: "income_decision"
+
+    collateral_analysis_complete:
+      schema:
+        required_fields:
+          - application_id
+          - collateral_value
+          - collateral_decision
+
+      gates:
+        wait_for_other_analyses:
+          target_stage: comprehensive_review
+          locks:
+            - exists: "collateral_decision"
+
+    comprehensive_review:
+      schema:
+        required_fields:
+          - application_id
+          - credit_decision
+          - income_decision
+          - collateral_decision
+          - overall_decision
+
+      gates:
+        approve_loan:
+          target_stage: loan_decision
+          locks:
+            - type: equals
+              property_path: "credit_decision"
+              expected_value: "approved"
+            - type: equals
+              property_path: "income_decision"
+              expected_value: "approved"
+            - type: equals
+              property_path: "collateral_decision"
+              expected_value: "approved"
+
+        reject_loan:
+          target_stage: loan_decision
+          locks:
+            - type: in_list
+              property_path: "overall_decision"
+              expected_value: ["rejected", "denied"]
+
+    loan_decision:
+      schema:
+        required_fields:
+          - application_id
+          - final_decision
+          - decision_date
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Parallel loan processing workflow for visualization testing"
+    version: "1.0.0"
+    test_case: "visualization_parallel_paths"
+    visualization_notes: "Should show three parallel processing paths that converge at comprehensive_review"
