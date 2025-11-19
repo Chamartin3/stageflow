@@ -4,19 +4,6 @@ version = "0.1.0"
 description = "A declarative multi-stage validation framework that provides reusable, non-mutating evaluation of data-bearing elements within multi-stage processes"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [
-    {name = "StageFlow Team", email = "team@stageflow.dev"}
-]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Software Development :: Quality Assurance"
-]
 dependencies = [
     "pydantic>=2.0.0",
     "ruamel.yaml>=0.18.0",
@@ -35,7 +22,8 @@ dev = [
     "pytest-html>=3.1.0",
     "ruff>=0.1.0",
     "pyright>=1.1.0",
-    "hypothesis>=6.0.0"
+    "hypothesis>=6.0.0",
+    "jsonschema>=4.0.0"
 ]
 
 [project.scripts]
@@ -56,17 +44,10 @@ dev-dependencies = [
     "pytest-html>=3.1.0",
     "ruff>=0.1.0",
     "pyright>=1.1.0",
-    "hypothesis>=6.0.0"
+    "hypothesis>=6.0.0",
+    "jsonschema>=4.0.0"
 ]
 
-# UV scripts will be available in a future version
-# For now, use commands directly:
-# uv run pytest
-# uv run ruff check .
-# uv run ruff check --fix .
-# uv run pyright
-# uv run ruff format .
-# uv run pytest --cov=stageflow --cov-report=term-missing
 
 [tool.ruff]
 line-length = 88
@@ -107,15 +88,6 @@ addopts = [
 markers = [
     "unit: Fast unit tests that test individual components in isolation",
     "integration: Integration tests that test multiple components working together",
-    "property: Property-based tests using Hypothesis to validate invariants",
-    "slow: Tests that take longer than 1 second to complete",
-    "database: Tests that require database access or setup",
-    "external: Tests that require external services or network access",
-    "benchmark: Performance benchmarking tests",
-    "asyncio: Tests that use async/await functionality",
-    "mock: Tests that heavily use mocking",
-    "regression: Tests that verify bug fixes remain fixed",
-    "smoke: Quick smoke tests for basic functionality"
 ]
 filterwarnings = [
     "error",
@@ -140,7 +112,6 @@ omit = [
     "examples/*",
     "tests/*",
     "*/__init__.py",
-    "*/migrations/*",
     "*/venv/*",
     "*/.venv/*",
     "*/site-packages/*",
