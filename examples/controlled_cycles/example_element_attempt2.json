@@ -1,0 +1,9 @@
+{
+  "payment": {
+    "amount": 100.00,
+    "status": "failed",
+    "error_code": "insufficient_funds"
+  },
+  "attempt_number": 2,
+  "timestamp": "2025-11-20T10:01:00Z"
+}

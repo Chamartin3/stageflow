@@ -1,0 +1,9 @@
+{
+  "payment": {
+    "amount": 100.00,
+    "status": "failed",
+    "error_code": "network_timeout"
+  },
+  "attempt_number": 1,
+  "timestamp": "2025-11-20T10:00:00Z"
+}

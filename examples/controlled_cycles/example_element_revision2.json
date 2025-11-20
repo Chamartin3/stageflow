@@ -1,0 +1,19 @@
+{
+  "document": {
+    "content": "Revised technical specification with security section added...",
+    "title": "API Design Document"
+  },
+  "revision_number": 2,
+  "quality_score": 65,
+  "quality_score_previous": 45,
+  "error_count": 8,
+  "error_count_previous": 15,
+  "review": {
+    "status": "needs_revision",
+    "comments": [
+      "Good progress on security section",
+      "Authentication flow is clearer now",
+      "Still need examples for rate limiting"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "payment": {
+    "amount": 100.00,
+    "status": "success",
+    "transaction_id": "TXN-2025-11-20-001"
+  },
+  "attempt_number": 3,
+  "timestamp": "2025-11-20T10:02:00Z"
+}

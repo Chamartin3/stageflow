@@ -1,0 +1,21 @@
+{
+  "document": {
+    "content": "Final technical specification with all sections complete...",
+    "title": "API Design Document"
+  },
+  "revision_number": 3,
+  "quality_score": 92,
+  "quality_score_previous": 65,
+  "error_count": 0,
+  "error_count_previous": 8,
+  "review": {
+    "status": "approved",
+    "comments": [
+      "Excellent work!",
+      "All requirements met",
+      "Ready for publication"
+    ]
+  },
+  "published_date": "2025-11-20",
+  "final_quality_score": 92
+}

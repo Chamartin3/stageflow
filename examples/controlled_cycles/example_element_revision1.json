@@ -1,0 +1,19 @@
+{
+  "document": {
+    "content": "Initial draft of the technical specification...",
+    "title": "API Design Document"
+  },
+  "revision_number": 1,
+  "quality_score": 45,
+  "quality_score_previous": 0,
+  "error_count": 15,
+  "error_count_previous": 20,
+  "review": {
+    "status": "needs_revision",
+    "comments": [
+      "Add security considerations section",
+      "Clarify authentication flow",
+      "Fix grammar in introduction"
+    ]
+  }
+}
