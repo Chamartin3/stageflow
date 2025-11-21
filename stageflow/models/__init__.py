@@ -55,6 +55,13 @@ from .errors import (
     ProcessLoadResultDict,
 )
 
+# Consistency models
+from .consistency import (
+    ConsistencyIssue,
+    ProcessIssueTypes,
+    TerminationAnalysis,
+)
+
 __all__ = [
     # Enums
     "LoadResultStatus",
@@ -65,11 +72,17 @@ __all__ = [
     "LockTypeShorthand",
     "SpecialLockType",
     "LockType",
+
     # Error models
     "LoadError",
     "ProcessLoadResult",
     "ProcessLoadResultDict",
     "ErrorContextDict",
+
+    # Consistency models
+    "ConsistencyIssue",
+    "ProcessIssueTypes",
+    "TerminationAnalysis",
     # Lock types
     "LockMetaData",
     "LockDefinitionDict",

@@ -8,8 +8,6 @@ process:
 
   stages:
     draft:
-      name: "Draft"
-      description: "Author creates and edits document content"
       schema:
         required_fields:
           - title
@@ -27,8 +25,6 @@ process:
               property_path: "title"
 
     under_review:
-      name: "Under Review"
-      description: "Document is being reviewed by assigned reviewer"
       schema:
         required_fields:
           - title
@@ -47,8 +43,6 @@ process:
               expected_value: "approved"
 
     approved:
-      name: "Approved"
-      description: "Document approved and prepared for publication"
       schema:
         required_fields:
           - title
@@ -69,8 +63,6 @@ process:
               expected_value: true
 
     published:
-      name: "Published"
-      description: "Document has been published and is available to readers"
       schema:
         required_fields:
           - title
@@ -79,7 +71,6 @@ process:
           - reviewer
           - approval_date
           - publication_date
-      is_final: true
 
   allow_stage_skipping: false
   regression_detection: true
