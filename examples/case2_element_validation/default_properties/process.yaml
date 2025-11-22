@@ -23,46 +23,46 @@ process:
           locks:
             - exists: "email_verified_at"
 
-     profile_setup:
-       name: "Profile Setup"
-       description: "User completes profile - all required fields must be provided"
-       schema:
-         required_fields:
-           - email
-           - password
-           - email_verified_at
-           - first_name
-           - last_name
-           - notification_preferences
-           - privacy_settings
+    profile_setup:
+      name: "Profile Setup"
+      description: "User completes profile - all required fields must be provided"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
 
-       gates:
-         ready_for_preferences:
-           target_stage: preferences_config
-           locks:
-             # Basic profile requirements (always required)
-             - exists: "first_name"
-             - exists: "last_name"
-             - exists: "notification_preferences"
-             - exists: "privacy_settings"
+      gates:
+        ready_for_preferences:
+          target_stage: preferences_config
+          locks:
+            # Basic profile requirements (always required)
+            - exists: "first_name"
+            - exists: "last_name"
+            - exists: "notification_preferences"
+            - exists: "privacy_settings"
 
-     preferences_config:
-       name: "Preferences Configuration"
-       description: "Advanced preferences configuration"
-       schema:
-         required_fields:
-           - email
-           - password
-           - email_verified_at
-           - first_name
-           - last_name
-           - notification_preferences
-           - privacy_settings
-           - theme_preferences
-           - theme_preferences.color_scheme
-           - accessibility_options
-           - language_preferences
-           - language_preferences.primary_language
+    preferences_config:
+      name: "Preferences Configuration"
+      description: "Advanced preferences configuration"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
+          - theme_preferences
+          - theme_preferences.color_scheme
+          - accessibility_options
+          - language_preferences
+          - language_preferences.primary_language
 
       gates:
         preferences_set:
@@ -71,22 +71,22 @@ process:
             - exists: "theme_preferences.color_scheme"
             - exists: "language_preferences.primary_language"
 
-     active_user:
-       name: "Active User"
-       description: "Fully configured user account"
-       schema:
-         required_fields:
-           - email
-           - password
-           - email_verified_at
-           - first_name
-           - last_name
-           - notification_preferences
-           - privacy_settings
-           - theme_preferences
-           - accessibility_options
-           - language_preferences
-           - account_status
+    active_user:
+      name: "Active User"
+      description: "Fully configured user account"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
+          - theme_preferences
+          - accessibility_options
+          - language_preferences
+          - account_status
 
   allow_stage_skipping: false
   regression_detection: true
