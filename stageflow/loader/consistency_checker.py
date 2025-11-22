@@ -43,10 +43,10 @@ class ProcessConsistencyChecker:
         for stage_name, stage in stages.items():
             if not isinstance(stage, dict):
                 continue
-            gates = stage.get("gates", [])
-            if not isinstance(gates, list):
+            gates = stage.get("gates", {})
+            if not isinstance(gates, dict):
                 continue
-            for gate in gates:
+            for gate in gates.values():
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
@@ -67,10 +67,10 @@ class ProcessConsistencyChecker:
         for stage_name, stage in stages.items():
             if not isinstance(stage, dict):
                 continue
-            gates = stage.get("gates", [])
-            if not isinstance(gates, list):
+            gates = stage.get("gates", {})
+            if not isinstance(gates, dict):
                 continue
-            for gate in gates:
+            for gate in gates.values():
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
@@ -148,14 +148,14 @@ class ProcessConsistencyChecker:
                 rec_stack.remove(stage_id)
                 return
 
-            gates = stage.get("gates", [])
-            if not isinstance(gates, list):
+            gates = stage.get("gates", {})
+            if not isinstance(gates, dict):
                 path.pop()
                 rec_stack.remove(stage_id)
                 return
 
             # Check all outgoing transitions
-            for gate in gates:
+            for gate in gates.values():
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
@@ -226,12 +226,12 @@ class ProcessConsistencyChecker:
         if not isinstance(stage, dict):
             return False
 
-        gates = stage.get("gates", [])
-        if not isinstance(gates, list):
+        gates = stage.get("gates", {})
+        if not isinstance(gates, dict):
             return False
 
         # Check all gates from this stage
-        for gate in gates:
+        for gate in gates.values():
             if not isinstance(gate, dict):
                 continue
             target = gate.get("target_stage")
@@ -333,12 +333,12 @@ class ProcessConsistencyChecker:
             if not isinstance(stage, dict):
                 continue
 
-            gates = stage.get("gates", [])
-            if not isinstance(gates, list):
+            gates = stage.get("gates", {})
+            if not isinstance(gates, dict):
                 continue
 
             # Check each gate in this stage
-            for gate in gates:
+            for gate in gates.values():
                 if not isinstance(gate, dict):
                     continue
                 target_stage = gate.get("target_stage")
@@ -741,7 +741,11 @@ class ProcessConsistencyChecker:
                 analysis = self._check_termination_lock(lock, gate)
                 if analysis and analysis.has_termination:
                     return analysis
-        return TerminationAnalysis(has_termination=False)
+        return TerminationAnalysis(
+            has_termination=False,
+            termination_type="none",
+            description="No individual lock termination patterns detected"
+        )
 
     def _analyze_complementary_gates(self, cycle_gates: list[dict]) -> TerminationAnalysis:
         """

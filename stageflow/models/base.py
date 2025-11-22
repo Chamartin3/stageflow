@@ -31,7 +31,6 @@ __all__ = [
     # Process types
     "ProcessDefinition",
     "ProcessElementEvaluationResult",
-    "RegressionDetails",
     # File format types
     "ProcessFileDict",
     "LegacyProcessFileDict",
@@ -326,115 +325,27 @@ class StageDefinition(TypedDict, total=False):
 
 
 class ProcessDefinition(TypedDict):
-    """TypedDict for process definition.
-
-    Defines the structure of a process configuration loaded from YAML/JSON.
-
-    Fields:
-        name: Process identifier
-        description: Human-readable process description
-        initial_stage: ID of the starting stage
-        final_stage: ID of the terminal stage
-        stage_prop: (Optional) Property path for auto-extracting stage from element
-        regression_policy: (Optional) How to handle regression detection.
-            One of: "ignore", "warn" (default), "block"
-        stages: Map of stage_id → StageDefinition
-
-    Examples:
-        >>> # Minimal process
-        >>> process: ProcessDefinition = {
-        ...     "name": "simple_flow",
-        ...     "description": "A simple process",
-        ...     "initial_stage": "start",
-        ...     "final_stage": "end",
-        ...     "stages": {...}
-        ... }
-
-        >>> # With regression policy
-        >>> process: ProcessDefinition = {
-        ...     "name": "strict_flow",
-        ...     "description": "Process with strict regression blocking",
-        ...     "initial_stage": "start",
-        ...     "final_stage": "end",
-        ...     "regression_policy": "block",  # Block transitions on regression
-        ...     "stages": {...}
-        ... }
-    """
+    """TypedDict for process definition."""
 
     name: str
     description: str
     initial_stage: str
     final_stage: str
-    stage_prop: NotRequired[str]
-    regression_policy: NotRequired[str]  # NEW: RegressionPolicy enum value, default="warn"
+    stage_prop: NotRequired[
+        str
+    ]  # Optional: property path to extract current stage from element
     stages: dict[str, StageDefinition]
 
 
-class RegressionDetails(TypedDict):
-    """Detailed information about regression detection.
-
-    Provides comprehensive data about which previous stages failed
-    re-evaluation and why, enabling targeted data repair.
-
-    This replaces the simple boolean 'regression' field with structured
-    information that helps users understand and fix data quality issues.
-
-    Fields:
-        detected: Whether regression was detected (any previous stage failed)
-        policy: Policy used for this evaluation (from RegressionPolicy enum)
-        failed_stages: List of stage IDs that failed re-evaluation
-        failed_statuses: Map of stage_id → status (incomplete/blocked)
-        missing_properties: (Optional) Map of stage_id → list of missing property paths
-        failed_gates: (Optional) Map of stage_id → list of failed gate names
-
-    Examples:
-        >>> # No regression detected
-        >>> details = RegressionDetails(
-        ...     detected=False,
-        ...     policy="warn",
-        ...     failed_stages=[],
-        ...     failed_statuses={}
-        ... )
-
-        >>> # Regression detected with details
-        >>> details = RegressionDetails(
-        ...     detected=True,
-        ...     policy="block",
-        ...     failed_stages=["registration", "verification"],
-        ...     failed_statuses={
-        ...         "registration": "incomplete",
-        ...         "verification": "blocked"
-        ...     },
-        ...     missing_properties={
-        ...         "registration": ["email", "password"]
-        ...     },
-        ...     failed_gates={
-        ...         "verification": ["email_verified"]
-        ...     }
-        ... )
-    """
-    detected: bool                      # Whether regression was detected
-    policy: str                         # Policy used (from RegressionPolicy enum)
-    failed_stages: list[str]           # Stage IDs that failed re-evaluation
-    failed_statuses: dict[str, str]    # stage_id → status (incomplete/blocked)
-    missing_properties: NotRequired[dict[str, list[str]]]  # stage_id → [property paths]
-    failed_gates: NotRequired[dict[str, list[str]]]        # stage_id → [gate names]
-
-
 class ProcessElementEvaluationResult(TypedDict):
-    """Result of process-level element evaluation.
+    """TypedDict for process element evaluation result."""
 
-    Includes both stage-level validation (current stage) and
-    process-level quality checks (regression detection).
-
-    Fields:
-        stage: Current stage ID
-        stage_result: Detailed stage evaluation result
-        regression_details: Enhanced regression information with details
-    """
     stage: str
     stage_result: "StageEvaluationResult"
-    regression_details: RegressionDetails
+    regression: bool
+    expected_actions: list[
+        ActionDefinition
+    ]  # List of ActionDefinition from stage configuration
 
 
 # ============================================================================

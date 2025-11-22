@@ -5,16 +5,13 @@ for display in CLI commands. All methods return strings ready for printing rathe
 than printing directly.
 """
 
-from typing import TYPE_CHECKING, NotRequired, TypedDict
+from typing import TypedDict
 
 from stageflow.models import (
     ActionDefinition,
     ExpectedObjectSchmema,
     ProcessLoadResult,
 )
-
-if TYPE_CHECKING:
-    from stageflow.models import RegressionDetails
 from stageflow.models.base import ProcessElementEvaluationResult
 from stageflow.process import Process
 
@@ -31,6 +28,7 @@ class StageInfo(TypedDict):
 
     id: str
     name: str
+    description: str
     expected_properties: list[str]
     gates: int
     target_stages: list[str]
@@ -73,9 +71,6 @@ class EvaluationData(TypedDict):
     regression: bool
     actions: list[ActionInfo]
     gate_results: dict[str, GateResultInfo]
-    regression_details: NotRequired["RegressionDetails"]
-    configured_actions: NotRequired[list[ActionDefinition]]
-    validation_messages: NotRequired[list[str]]
 
 
 class EvaluationJsonResult(TypedDict):
@@ -173,6 +168,7 @@ class ProcessFormatter:
                 stage_info: StageInfo = {
                     "id": stage._id,
                     "name": stage.name,
+                    "description": getattr(stage, "description", ""),
                     "expected_properties": list(stage._base_schema.keys())
                     if stage._base_schema
                     else [],
@@ -243,6 +239,9 @@ class ProcessFormatter:
                 targets_text = f" → {', '.join(stage['target_stages'])}"
 
             lines.append(f"{prefix} {stage['name']}{targets_text}{final_marker}")
+
+            if stage.get("description"):
+                lines.append(f"   Description: {stage['description']}")
 
             if stage["expected_properties"]:
                 props = ", ".join(stage["expected_properties"])
@@ -367,8 +366,8 @@ class EvaluationFormatter:
 
         status_emoji_map = {
             "ready": "✅",
-            "blocked": "⚠️",
-            "incomplete": "❌",
+            "action_required": "⚠️",
+            "invalid_schema": "❌",
         }
         status_emoji = status_emoji_map.get(status, "❓")
 
@@ -391,21 +390,16 @@ class EvaluationFormatter:
             Formatted transitions string with rich markup, empty if no actions
         """
         stage_result = result["stage_result"]
+        actions = stage_result.sugested_action
 
-        # Combine configured actions and validation messages
-        all_messages = []
-        all_messages.extend(stage_result.validation_messages)
-        for action_def in stage_result.configured_actions:
-            all_messages.append(action_def["description"])
-
-        if not all_messages:
+        if not actions:
             return ""
 
         lines = ["   [yellow]Possible Transitions:[/yellow]"]
 
-        # Group messages for better readability
-        for i, message in enumerate(all_messages):
-            description = message
+        # Group actions by gate transitions for better readability
+        for i, action in enumerate(actions):
+            description = action.description
 
             # Check if this is a gate header (starts with "To transition via")
             if description.startswith("To transition via"):
@@ -438,8 +432,8 @@ class EvaluationFormatter:
 
         passed_gates = [
             gate_name
-            for gate_name, gate_result in stage_result.results.items()
-            if gate_result.success
+            for gate_name, gate_result in stage_result.gate_results.items()
+            if gate_result.passed
         ]
 
         if not passed_gates:
@@ -464,66 +458,16 @@ class EvaluationFormatter:
             EvaluationFormatter.format_passed_gates(result),
         ]
 
-        # Add configured actions for blocked status
+        # Add expected actions for action_required status
         stage_result = result["stage_result"]
-        configured_actions = stage_result.configured_actions
-        if configured_actions and str(stage_result.status) == "blocked":
+        expected_actions = result.get("expected_actions", [])
+        if expected_actions and stage_result.status == "action_required":
             sections.append(
-                EvaluationFormatter.format_expected_actions(configured_actions)
-            )
-
-        # Add regression information
-        regression_details = result.get("regression_details")
-        if regression_details and regression_details["detected"]:
-            sections.append(
-                EvaluationFormatter.format_regression_details(regression_details)
-            )
-
-        # Add validation messages
-        validation_messages = stage_result.validation_messages
-        if validation_messages:
-            sections.append(
-                EvaluationFormatter.format_validation_messages(validation_messages)
+                EvaluationFormatter.format_expected_actions(expected_actions)
             )
 
         # Filter out empty sections
         return "\n".join(section for section in sections if section)
-
-    @staticmethod
-    def format_regression_details(details: "RegressionDetails") -> str:
-        """Format regression details for display."""
-        lines = [f"\n⚠️  [yellow]Regression Detected[/yellow] (policy: {details['policy']})"]
-        lines.append(f"   Failed Stages: {', '.join(details['failed_stages'])}")
-
-        for stage_id in details["failed_stages"]:
-            status = details["failed_statuses"].get(stage_id, "unknown")
-            lines.append(f"   • {stage_id}: {status}")
-
-            # Show missing properties if available
-            if "missing_properties" in details:
-                props = details.get("missing_properties", {}).get(stage_id, [])
-                if props:
-                    lines.append(f"     Missing: {', '.join(props)}")
-
-            # Show failed gates if available
-            if "failed_gates" in details:
-                gates = details.get("failed_gates", {}).get(stage_id, [])
-                if gates:
-                    lines.append(f"     Failed gates: {', '.join(gates)}")
-
-        return "\n".join(lines)
-
-    @staticmethod
-    def format_validation_messages(messages: list[str]) -> str:
-        """Format validation messages for display."""
-        if not messages:
-            return ""
-
-        lines = ["\n📝 [bold]Validation Messages:[/bold]"]
-        for msg in messages:
-            lines.append(f"   • {msg}")
-
-        return "\n".join(lines)
 
     @staticmethod
     def format_json_result(
@@ -547,22 +491,11 @@ class EvaluationFormatter:
 
         stage_result = evaluation_result["stage_result"]
 
-        # Format actions (backward compatibility - combine configured and generated)
-        actions: list[ActionInfo] = []
-
-        # Add configured actions
-        for action_def in stage_result.configured_actions:
-            actions.append(ActionInfo(
-                description=action_def["description"],
-                type="execute"  # Configured actions are execute type
-            ))
-
-        # Add validation messages as generated actions
-        for msg in stage_result.validation_messages:
-            actions.append(ActionInfo(
-                description=msg,
-                type="execute"  # Generated actions are execute type
-            ))
+        # Format actions
+        actions: list[ActionInfo] = [
+            ActionInfo(description=action.description, type=action.action_type)
+            for action in stage_result.sugested_action
+        ]
 
         # Format gate results
         gate_results: dict[str, GateResultInfo] = {
@@ -572,19 +505,16 @@ class EvaluationFormatter:
                 failed_locks=len(gate_result.failed),
                 passed_locks=len(gate_result.passed),
             )
-            for gate_name, gate_result in stage_result.results.items()
+            for gate_name, gate_result in stage_result.gate_results.items()
         }
 
         # Format evaluation section
         evaluation_data = EvaluationData(
             stage=evaluation_result["stage"],
             status=stage_result.status,
-            regression=evaluation_result["regression_details"]["detected"],
+            regression=evaluation_result["regression"],
             actions=actions,
             gate_results=gate_results,
-            regression_details=evaluation_result.get("regression_details"),
-            configured_actions=stage_result.configured_actions,
-            validation_messages=stage_result.validation_messages,
         )
 
         return EvaluationJsonResult(

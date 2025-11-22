@@ -120,34 +120,3 @@ class SpecialLockType(StrEnum):
 
     CONDITIONAL = "CONDITIONAL"
     OR_LOGIC = "OR_LOGIC"
-
-
-# ============================================================================
-# Regression Policy Enums
-# ============================================================================
-
-
-class RegressionPolicy(StrEnum):
-    """Policy for handling regression detection.
-
-    Determines how the system responds when an element at a later stage
-    no longer satisfies requirements from earlier stages.
-
-    Values:
-        IGNORE: Disable regression detection entirely
-        WARN: Detect and report regression but allow progression (default)
-        BLOCK: Prevent READY status when regression detected, force data repair
-
-    Examples:
-        >>> # No regression checking
-        >>> policy = RegressionPolicy.IGNORE
-
-        >>> # Report but allow (default)
-        >>> policy = RegressionPolicy.WARN
-
-        >>> # Block transition until fixed
-        >>> policy = RegressionPolicy.BLOCK
-    """
-    IGNORE = "ignore"  # No regression checking (default for simple workflows)
-    WARN = "warn"      # Report but allow progression (default, backward compatible)
-    BLOCK = "block"    # Prevent transition until regression resolved
