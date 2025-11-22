@@ -67,21 +67,19 @@ class TestStageEvaluationResult:
 
     def test_stage_evaluation_result_creation(self):
         """Verify StageEvaluationResult can be created with all fields."""
-        # Arrange
-        actions = [Action("Test action", ["field"], ActionType.UPDATE)]
-
         # Act
         result = StageEvaluationResult(
-            status=StageStatus.ACTION_REQUIRED,
-            gate_results={"gate1": "result1"},
-            sugested_action=actions,
+            status=StageStatus.BLOCKED,
+            results={"gate1": "result1"},
+            configured_actions=[],
+            validation_messages=["Test message"],
         )
 
         # Assert
-        assert result.status == StageStatus.ACTION_REQUIRED
-        assert result.gate_results == {"gate1": "result1"}
-        assert len(result.sugested_action) == 1
-        assert result.sugested_action[0].description == "Test action"
+        assert result.status == StageStatus.BLOCKED
+        assert result.results == {"gate1": "result1"}
+        assert result.configured_actions == []
+        assert result.validation_messages == ["Test message"]
 
     def test_stage_evaluation_result_immutability(self):
         """Verify StageEvaluationResult is immutable."""

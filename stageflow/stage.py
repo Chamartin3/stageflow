@@ -20,29 +20,163 @@ class ActionType(StrEnum):
     EXCECUTE = "execute"  # An external action is required to meet gate requirements
 
 
+class ActionSource(StrEnum):
+    """Source of an action in evaluation results.
+
+    Actions can come from two sources:
+    - CONFIGURED: Explicitly defined in the stage YAML configuration
+    - GENERATED: Auto-generated from validation failures
+
+    This distinction helps users understand which actions are custom guidance
+    vs. which are automatic feedback from the validation system.
+
+    Examples:
+        >>> # Action from YAML config
+        >>> Action(
+        ...     description="Contact support for verification",
+        ...     source=ActionSource.CONFIGURED,
+        ...     ...
+        ... )
+
+        >>> # Auto-generated from failed lock
+        >>> Action(
+        ...     description="Email must be verified",
+        ...     source=ActionSource.GENERATED,
+        ...     gate_name="verify_email",
+        ...     ...
+        ... )
+    """
+    CONFIGURED = "configured"  # From stage's expected_actions in YAML
+    GENERATED = "generated"    # Auto-generated from validation failures
+
+
 @dataclass(frozen=True)
 class Action:
-    """Action that can be taken to help an element progress through stages."""
+    """Action that can be taken to help an element progress through stages.
 
+    Actions provide guidance to users on what needs to be done to move an
+    element forward in the process. They can come from two sources:
+    1. CONFIGURED: Explicitly defined in stage YAML configuration
+    2. GENERATED: Auto-generated from validation failures
+
+    Fields:
+        description: Human-readable action description
+        related_properties: List of property paths this action affects
+        action_type: Type of action (UPDATE, TRANSITION, EXECUTE)
+        source: Where this action came from (CONFIGURED or GENERATED)
+        target_stage: (Optional) Target stage for TRANSITION actions
+        gate_name: (Optional) Gate that generated this action (for GENERATED actions)
+
+    Examples:
+        >>> # Configured action from YAML
+        >>> Action(
+        ...     description="Contact support for account verification",
+        ...     related_properties=["verified", "verification_code"],
+        ...     action_type=ActionType.EXECUTE,
+        ...     source=ActionSource.CONFIGURED
+        ... )
+
+        >>> # Generated action from failed gate
+        >>> Action(
+        ...     description="Email must be verified",
+        ...     related_properties=["verified"],
+        ...     action_type=ActionType.EXECUTE,
+        ...     source=ActionSource.GENERATED,
+        ...     gate_name="verify_email"
+        ... )
+    """
     description: str
     related_properties: list[str]
     action_type: ActionType
+    source: ActionSource = ActionSource.CONFIGURED  # NEW: default to configured
     target_stage: str | None = None
+    gate_name: str | None = None  # NEW: for generated actions
 
 
 class StageStatus(StrEnum):
-    INVALID_SCHEMA = "invalid_schema"  # The element is missing required properties for this stage | scoping
-    ACTION_REQUIRED = "action_required"  # The element has not met gate requirements and requires action | in progress
-    READY_FOR_TRANSITION = "ready"  # A gate has passed and the element can transition to the next stage | done
+    """Stage evaluation status indicating required action.
+
+    Status values are action-oriented and indicate what needs to happen next:
+    - INCOMPLETE: Element is missing required properties → Provide data
+    - BLOCKED: Element has data but fails validation → Resolve issues
+    - READY: Element passes all validation → Transition to next stage
+
+    The new names are more intuitive and action-oriented:
+    - "incomplete" clearly indicates missing data
+    - "blocked" indicates validation preventing progress
+    - "ready" indicates element can move forward
+
+    Examples:
+        >>> if status == StageStatus.INCOMPLETE:
+        ...     print("Missing required properties")
+        >>> elif status == StageStatus.BLOCKED:
+        ...     print("Validation failed")
+        >>> elif status == StageStatus.READY:
+        ...     print("Can transition")
+    """
+    INCOMPLETE = "incomplete"  # Missing required properties for this stage
+    BLOCKED = "blocked"        # Has properties but fails gate validation
+    READY = "ready"           # Passes all validation, can transition
 
 
 @dataclass(frozen=True)
 class StageEvaluationResult:
-    """Result of stage evaluation against an element."""
+    """Result of stage evaluation against an element.
 
+    Provides comprehensive evaluation results including:
+    - status: Evaluation outcome (INCOMPLETE, BLOCKED, or READY)
+    - results: Detailed gate validation results (renamed from gate_results)
+    - configured_actions: Actions explicitly defined in stage YAML
+    - validation_messages: Auto-generated messages from validation failures
+
+    The separation of configured_actions and validation_messages allows
+    users to distinguish between custom guidance (configured) and automatic
+    feedback (generated) from the validation system.
+
+    Fields:
+        status: Stage evaluation status (INCOMPLETE/BLOCKED/READY)
+        results: Map of gate_name → GateResult (detailed validation results)
+        configured_actions: Actions defined in stage configuration
+        validation_messages: Generated messages from failed validations
+
+    Examples:
+        >>> # INCOMPLETE status (missing properties)
+        >>> StageEvaluationResult(
+        ...     status=StageStatus.INCOMPLETE,
+        ...     results={},  # Gates not evaluated
+        ...     configured_actions=[...],
+        ...     validation_messages=[
+        ...         "Missing required property 'email' (suggested default: None)"
+        ...     ]
+        ... )
+
+        >>> # BLOCKED status (validation failed)
+        >>> StageEvaluationResult(
+        ...     status=StageStatus.BLOCKED,
+        ...     results={"verify_email": GateResult(success=False, ...)},
+        ...     configured_actions=[...],
+        ...     validation_messages=[
+        ...         "To transition via 'verify_email' to stage 'active':",
+        ...         "  → Email must be verified"
+        ...     ]
+        ... )
+
+        >>> # READY status (can transition)
+        >>> StageEvaluationResult(
+        ...     status=StageStatus.READY,
+        ...     results={"verify_email": GateResult(success=True)},
+        ...     configured_actions=[],
+        ...     validation_messages=[
+        ...         "Ready to transition to 'active' via gate 'verify_email'"
+        ...     ]
+        ... )
+    """
     status: StageStatus
-    gate_results: dict[str, GateResult]
-    sugested_action: list[Action]
+    results: dict[str, GateResult]              # Renamed from gate_results
+    configured_actions: list[ActionDefinition]  # From YAML config
+    validation_messages: list[str]              # Generated from gate failures
+
+
 
 
 # StageObjectPropertyDefinition, ExpectedObjectSchmema, and StageDefinition
@@ -256,47 +390,33 @@ class Stage:
         missing_properties = self._get_missing_properties(element)
         schema_valid = len(missing_properties) == 0
         if not schema_valid:
-            actions = [
-                Action(
-                    description=f"Add missing property '{prop}' with suggested default '{default}'",
-                    related_properties=[prop],
-                    action_type=ActionType.UPDATE,
-                )
+            validation_messages = [
+                f"Missing required property '{prop}' (suggested default: {default})"
                 for prop, default in missing_properties.items()
             ]
 
             return StageEvaluationResult(
-                status=StageStatus.INVALID_SCHEMA,
-                gate_results={},
-                sugested_action=actions,
+                status=StageStatus.INCOMPLETE,
+                results={},
+                configured_actions=self.stage_actions,
+                validation_messages=validation_messages,
             )
+
         gate_evaluation_results = {}
         for gate in self.gates:
             gate_result = gate.evaluate(element)
             if gate_result.success:
-                transition_action = Action(
-                    description=f"Element is ready to transition to {gate.target_stage} via gate '{gate.name}'",
-                    related_properties=[],
-                    action_type=ActionType.TRANSITION,
-                    target_stage=gate.target_stage,
-                )
+                transition_message = f"Ready to transition to '{gate.target_stage}' via gate '{gate.name}'"
                 return StageEvaluationResult(
-                    status=StageStatus.READY_FOR_TRANSITION,
-                    gate_results={gate.name: gate_result},
-                    sugested_action=[transition_action],
+                    status=StageStatus.READY,
+                    results={gate.name: gate_result},
+                    configured_actions=self.stage_actions,
+                    validation_messages=[transition_message],
                 )
             gate_evaluation_results[gate.name] = gate_result
 
-        gate_actions = []
-        for action_def in self.stage_actions:
-            action = Action(
-                description=action_def["description"],
-                related_properties=action_def.get("related_properties", []),
-                action_type=ActionType.EXCECUTE,
-            )
-            gate_actions.append(action)
-
-        # Add contextualized gate failure messages grouped by gate
+        # Collect validation messages from failed gates
+        validation_messages = []
         for gate in self.gates:
             gate_result = gate_evaluation_results.get(gate.name)
             if gate_result and not gate_result.success:
@@ -304,19 +424,13 @@ class Stage:
                 contextualized_msgs = gate_result.get_contextualized_messages(
                     gate_name=gate.name, target_stage=gate.target_stage
                 )
-                # Add each message as an action
-                for message in contextualized_msgs:
-                    gate_actions.append(
-                        Action(
-                            description=message,
-                            related_properties=[],
-                            action_type=ActionType.EXCECUTE,
-                        )
-                    )
+                validation_messages.extend(contextualized_msgs)
+
         return StageEvaluationResult(
-            status=StageStatus.ACTION_REQUIRED,
-            gate_results=gate_evaluation_results,
-            sugested_action=gate_actions,
+            status=StageStatus.BLOCKED,
+            results=gate_evaluation_results,
+            configured_actions=self.stage_actions,
+            validation_messages=validation_messages,
         )
 
     def get_schema(self) -> ExpectedObjectSchmema:

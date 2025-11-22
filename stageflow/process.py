@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import cast, Any
+from typing import cast
 
 from .elements import Element
 from .gate import Gate
@@ -11,11 +11,11 @@ from .models import (
     ExpectedObjectSchmema,
     ProcessDefinition,
     ProcessElementEvaluationResult,
+    RegressionDetails,
+    RegressionPolicy,
     StageDefinition,
     StageObjectPropertyDefinition,
 )
-from stageflow.models.consistency import ConsistencyIssue, ProcessIssueTypes
-
 from .stage import Stage, StageEvaluationResult, StageStatus
 
 
@@ -59,7 +59,25 @@ class PathSearch:
         return None
 
 
+class ProcessIssueTypes(StrEnum):
+    """Enumeration of process consistency issues types."""
 
+    MISSING_STAGE = "missing_stage"
+    INVALID_TRANSITION = "invalid_transition"
+    DEAD_END_STAGE = "dead_end_stage"
+    UNREACHABLE_STAGE = "unreachable_stage"
+    ORPHANED_STAGE = "orphaned_stage"
+    CIRCULAR_DEPENDENCY = "circular_dependency"
+    LOGICAL_CONFLICT = "logical_conflict"
+    MULTIPLE_GATES_SAME_TARGET = "multiple_gates_same_target"
+    SELF_REFERENCING_GATE = "self_referencing_gate"
+
+
+@dataclass(frozen=True)
+class ConsistencyIssue:
+    issue_type: ProcessIssueTypes
+    description: str
+    stages: list[str] = field(default_factory=list)
 
 
 class ProcessConsistencyChecker:
@@ -366,10 +384,20 @@ class Process:
         Args:
             config: Process configuration dictionary
         """
-        self.config = config  # Store original config for consistency checker
         self.name = config["name"]
         self.description = config.get("description", "")
         self.stage_prop = config.get("stage_prop", None)
+
+        # Validate regression policy if provided
+        regression_policy = config.get("regression_policy", "warn")
+        try:
+            RegressionPolicy(regression_policy)
+        except ValueError:
+            raise ValueError(
+                f"Invalid regression_policy '{regression_policy}'. "
+                f"Must be one of: {', '.join([p.value for p in RegressionPolicy])}"
+            )
+        self.regression_policy = regression_policy
 
         stages_definition = config.get("stages", {})
         initial_stage = config.get("initial_stage", "")
@@ -433,13 +461,14 @@ class Process:
         # This method is kept for backward compatibility but does nothing
         pass
 
-    def _get_consistency_checker(self) -> Any:
+    def _get_consistency_checker(self) -> ProcessConsistencyChecker:
         """Get a consistency checker for the process."""
-        # Import here to avoid circular imports
-        from .loader.consistency_checker import ProcessConsistencyChecker as NewProcessConsistencyChecker
-
-        # Use new consistency checker with ProcessDefinition
-        return NewProcessConsistencyChecker(self.config)
+        return ProcessConsistencyChecker(
+            stages=self.stages,
+            transitions=self._transition_map,
+            initial_stage=self.initial_stage,
+            final_stage=self.final_stage,
+        )
 
     # Path finding methods
     def _get_path_to_final(self, stage: Stage) -> list[Stage]:
@@ -455,6 +484,119 @@ class Process:
         previous_ids = search.get_path(current_stage._id, foward=False) or []
         stages = [self.get_stage(stage_id) for stage_id in previous_ids]
         return [stage for stage in stages if stage]
+
+    def _check_regression(
+        self,
+        element: Element,
+        current_stage: Stage,
+        policy: "RegressionPolicy"
+    ) -> "RegressionDetails":
+        """
+        Check if element has regressed from previous stages.
+
+        Re-evaluates all previous stages in the path and reports which
+        stages no longer pass validation.
+
+        Args:
+            element: Element being evaluated
+            current_stage: Current stage in process
+            policy: Regression policy being applied
+
+        Returns:
+            RegressionDetails with comprehensive regression information
+        """
+        previous_stages = self._get_previous_stages(current_stage)
+
+        if not previous_stages:
+            # No previous stages, no regression possible
+            return RegressionDetails(
+                detected=False,
+                policy=policy.value,
+                failed_stages=[],
+                failed_statuses={}
+            )
+
+        # Re-evaluate all previous stages
+        failed_stages = []
+        failed_statuses = {}
+        missing_properties = {}
+        failed_gates = {}
+
+        for stage in previous_stages:
+            result = stage.evaluate(element)
+
+            if result.status != StageStatus.READY:
+                failed_stages.append(stage._id)
+                failed_statuses[stage._id] = result.status.value
+
+                # Collect details based on status
+                if result.status == StageStatus.INCOMPLETE:
+                    # Extract missing properties from validation messages
+                    missing = self._extract_missing_properties(result)
+                    if missing:
+                        missing_properties[stage._id] = missing
+
+                elif result.status == StageStatus.BLOCKED:
+                    # Extract failed gate names
+                    gates = [name for name, res in result.results.items() if not res.success]
+                    if gates:
+                        failed_gates[stage._id] = gates
+
+        regression_detected = len(failed_stages) > 0
+
+        details = RegressionDetails(
+            detected=regression_detected,
+            policy=policy.value,
+            failed_stages=failed_stages,
+            failed_statuses=failed_statuses
+        )
+
+        # Add optional fields if present
+        if missing_properties:
+            details["missing_properties"] = missing_properties
+        if failed_gates:
+            details["failed_gates"] = failed_gates
+
+        return details
+
+    def _extract_missing_properties(self, result: StageEvaluationResult) -> list[str]:
+        """Extract missing property names from INCOMPLETE result."""
+        import re
+        missing = []
+        for msg in result.validation_messages:
+            # Parse "Missing required property 'email' ..."
+            if "Missing required property" in msg:
+                match = re.search(r"'([^']+)'", msg)
+                if match:
+                    missing.append(match.group(1))
+        return missing
+
+    def _format_regression_messages(self, details: RegressionDetails) -> list[str]:
+        """Format regression details into user-friendly messages."""
+        messages = []
+
+        for stage_id in details["failed_stages"]:
+            status = details["failed_statuses"].get(stage_id, "unknown")
+
+            if status == "incomplete":
+                props = details.get("missing_properties", {}).get(stage_id, [])
+                if props:
+                    messages.append(
+                        f"Stage '{stage_id}' is missing properties: {', '.join(props)}"
+                    )
+                else:
+                    messages.append(f"Stage '{stage_id}' is incomplete")
+
+            elif status == "blocked":
+                gates = details.get("failed_gates", {}).get(stage_id, [])
+                if gates:
+                    messages.append(
+                        f"Stage '{stage_id}' has failed gates: {', '.join(gates)}"
+                    )
+                else:
+                    messages.append(f"Stage '{stage_id}' validation failed")
+
+        return messages
 
     def _find_route(self, from_stage_id: str, to_stage_id: str) -> list[str] | None:
         """Find a route from one stage to another."""
@@ -499,6 +641,88 @@ class Process:
                 stage_order.append(stage._id)
 
         return stage_order
+
+    def evaluate(
+        self, element: Element, current_stage_name: str | None = None
+    ) -> ProcessElementEvaluationResult:
+        """
+        Evaluate element in process context.
+
+        Performs two levels of validation:
+        1. Stage-level: Can element satisfy current stage? (INCOMPLETE/BLOCKED/READY)
+        2. Process-level: Does element still satisfy previous stages? (regression)
+
+        Args:
+            element: Element to evaluate
+            current_stage_name: Optional explicit stage name
+
+        Returns:
+            ProcessElementEvaluationResult with stage result and regression details
+        """
+        if not self.checker.valid:
+            raise ValueError(
+                "Cannot evaluate element in an inconsistent process configuration"
+            )
+
+        # Determine current stage
+        stage_name = self._extract_current_stage(element, current_stage_name)
+        current_stage = self.get_stage(stage_name)
+
+        if not current_stage:
+            raise ValueError(f"Stage '{stage_name}' not found in process")
+
+        # Evaluate current stage
+        current_stage_result = current_stage.evaluate(element)
+
+        # Get regression policy
+        try:
+            policy = RegressionPolicy(self.regression_policy)
+        except ValueError:
+            # Invalid policy, default to WARN
+            policy = RegressionPolicy.WARN
+
+        # Check regression if not ignored
+        if policy == RegressionPolicy.IGNORE:
+            regression_details = RegressionDetails(
+                detected=False,
+                policy=policy.value,
+                failed_stages=[],
+                failed_statuses={}
+            )
+        else:
+            regression_details = self._check_regression(
+                element, current_stage, policy
+            )
+
+            # If policy is BLOCK and regression detected, override status
+            if policy == RegressionPolicy.BLOCK and regression_details["detected"]:
+                if current_stage_result.status == StageStatus.READY:
+                    # Override to BLOCKED
+                    current_stage_result = StageEvaluationResult(
+                        status=StageStatus.BLOCKED,
+                        results=current_stage_result.results,
+                        configured_actions=current_stage_result.configured_actions,
+                        validation_messages=[
+                            "Cannot transition: previous stages have data quality issues",
+                            *self._format_regression_messages(regression_details)
+                        ]
+                    )
+
+        return ProcessElementEvaluationResult(
+            stage=current_stage._id,
+            stage_result=current_stage_result,  # type: ignore[typeddict-item]
+            regression_details=regression_details
+        )
+
+    def _extract_current_stage(self, element: Element, override: str | None) -> str:
+        """Extract current stage from element or use override."""
+        if override:
+            return override
+        if self.stage_prop:
+            stage = element.get_property(self.stage_prop)
+            if stage:
+                return str(stage)
+        return self.initial_stage._id
 
     @property
     def consistensy_issues(self) -> list[ConsistencyIssue]:
@@ -681,7 +905,7 @@ class Process:
         previus_stage_fails = [
             res
             for res in previous_stage_results
-            if res.status != StageStatus.READY_FOR_TRANSITION
+            if res.status != StageStatus.READY
         ]
         regresion = len(previus_stage_fails) > 0
         return ProcessElementEvaluationResult(

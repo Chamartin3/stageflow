@@ -23,46 +23,71 @@ process:
           locks:
             - exists: "email_verified_at"
 
-     profile_setup:
-       name: "Profile Setup"
-       description: "User completes profile - all required fields must be provided"
-       schema:
-         required_fields:
-           - email
-           - password
-           - email_verified_at
-           - first_name
-           - last_name
-           - notification_preferences
-           - privacy_settings
+    profile_setup:
+      name: "Profile Setup"
+      description: "User completes profile - missing preferences will get defaults"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          # notification_preferences and privacy_settings are optional here
+          # They will be populated with defaults if missing
 
-       gates:
-         ready_for_preferences:
-           target_stage: preferences_config
-           locks:
-             # Basic profile requirements (always required)
-             - exists: "first_name"
-             - exists: "last_name"
-             - exists: "notification_preferences"
-             - exists: "privacy_settings"
+        # Default values for new properties introduced at this stage
+        default_values:
+          notification_preferences:
+            email_notifications: true
+            push_notifications: false
+            marketing_emails: false
+          privacy_settings:
+            profile_public: false
+            show_email: false
+            analytics_tracking: true
 
-     preferences_config:
-       name: "Preferences Configuration"
-       description: "Advanced preferences configuration"
-       schema:
-         required_fields:
-           - email
-           - password
-           - email_verified_at
-           - first_name
-           - last_name
-           - notification_preferences
-           - privacy_settings
-           - theme_preferences
-           - theme_preferences.color_scheme
-           - accessibility_options
-           - language_preferences
-           - language_preferences.primary_language
+      gates:
+        ready_for_preferences:
+          target_stage: preferences_config
+          locks:
+            # Basic profile requirements (always required)
+            - exists: "first_name"
+            - exists: "last_name"
+            # No additional requirements - system will handle missing preferences with defaults
+
+    preferences_config:
+      name: "Preferences Configuration"
+      description: "Advanced preferences with additional defaults"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
+          - theme_preferences
+          - theme_preferences.color_scheme
+          - accessibility_options
+          - language_preferences
+          - language_preferences.primary_language
+
+        # Additional defaults for this stage
+        default_values:
+          theme_preferences:
+            color_scheme: "light"
+            font_size: "medium"
+            compact_mode: false
+          accessibility_options:
+            high_contrast: false
+            screen_reader: false
+            keyboard_navigation: false
+          language_preferences:
+            primary_language: "en"
+            timezone: "UTC"
+            date_format: "YYYY-MM-DD"
 
       gates:
         preferences_set:
@@ -71,22 +96,30 @@ process:
             - exists: "theme_preferences.color_scheme"
             - exists: "language_preferences.primary_language"
 
-     active_user:
-       name: "Active User"
-       description: "Fully configured user account"
-       schema:
-         required_fields:
-           - email
-           - password
-           - email_verified_at
-           - first_name
-           - last_name
-           - notification_preferences
-           - privacy_settings
-           - theme_preferences
-           - accessibility_options
-           - language_preferences
-           - account_status
+    active_user:
+      name: "Active User"
+      description: "Fully configured user account"
+      schema:
+        required_fields:
+          - email
+          - password
+          - email_verified_at
+          - first_name
+          - last_name
+          - notification_preferences
+          - privacy_settings
+          - theme_preferences
+          - accessibility_options
+          - language_preferences
+          - account_status
+
+        # Final defaults
+        default_values:
+          account_status:
+            status: "active"
+            created_at: "current_timestamp"
+            last_login: null
+            login_count: 0
 
   allow_stage_skipping: false
   regression_detection: true
