@@ -1,8 +1,8 @@
 """Core Process class for StageFlow multi-stage validation orchestration."""
 
-from dataclasses import dataclass, field
-from enum import StrEnum
-from typing import cast, Any
+from typing import Any, cast
+
+from stageflow.models.consistency import ConsistencyIssue, ProcessIssueTypes
 
 from .elements import Element
 from .gate import Gate
@@ -14,8 +14,6 @@ from .models import (
     StageDefinition,
     StageObjectPropertyDefinition,
 )
-from stageflow.models.consistency import ConsistencyIssue, ProcessIssueTypes
-
 from .stage import Stage, StageEvaluationResult, StageStatus
 
 
@@ -436,7 +434,9 @@ class Process:
     def _get_consistency_checker(self) -> Any:
         """Get a consistency checker for the process."""
         # Import here to avoid circular imports
-        from .loader.consistency_checker import ProcessConsistencyChecker as NewProcessConsistencyChecker
+        from .loader.consistency_checker import (
+            ProcessConsistencyChecker as NewProcessConsistencyChecker,
+        )
 
         # Use new consistency checker with ProcessDefinition
         return NewProcessConsistencyChecker(self.config)

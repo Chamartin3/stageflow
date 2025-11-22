@@ -37,6 +37,13 @@ from .base import (
     StageDefinition,
     StageObjectPropertyDefinition,
 )
+
+# Consistency models
+from .consistency import (
+    ConsistencyIssue,
+    ProcessIssueTypes,
+    TerminationAnalysis,
+)
 from .enums import (
     ErrorSeverity,
     FileFormat,
@@ -53,13 +60,6 @@ from .errors import (
     LoadError,
     ProcessLoadResult,
     ProcessLoadResultDict,
-)
-
-# Consistency models
-from .consistency import (
-    ConsistencyIssue,
-    ProcessIssueTypes,
-    TerminationAnalysis,
 )
 
 __all__ = [
