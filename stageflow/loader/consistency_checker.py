@@ -36,6 +36,17 @@ class ProcessConsistencyChecker:
         self._check_logical_conflicts()
         # Other checks can be added here
 
+    def _normalize_gates(self, gates) -> list[tuple[str, dict]]:
+        """Normalize gates to list of (name, gate_dict) tuples.
+
+        Handles both dictionary format (YAML dict) and list format (old API).
+        """
+        if isinstance(gates, dict):
+            return list(gates.items())
+        elif isinstance(gates, list):
+            return [(g.get("name", "unknown"), g) for g in gates if isinstance(g, dict)]
+        return []
+
     def _check_invalid_transitions(self) -> None:
         """Identify transitions to non-existent stages."""
         stages = self.process_def.get("stages", {})
@@ -46,9 +57,7 @@ class ProcessConsistencyChecker:
             if not isinstance(stage, dict):
                 continue
             gates = stage.get("gates", {})
-            if not isinstance(gates, dict):
-                continue
-            for gate_name, gate in gates.items():
+            for gate_name, gate in self._normalize_gates(gates):
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
@@ -69,9 +78,7 @@ class ProcessConsistencyChecker:
             if not isinstance(stage, dict):
                 continue
             gates = stage.get("gates", {})
-            if not isinstance(gates, dict):
-                continue
-            for gate_name, gate in gates.items():
+            for gate_name, gate in self._normalize_gates(gates):
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
@@ -898,14 +905,11 @@ class ProcessConsistencyChecker:
                 continue
 
             gates = stage.get("gates", {})
-            if not isinstance(gates, dict):
-                continue
-
             # Track target stages and gate names
             target_stages: list[str] = []
             gate_names: list[str] = []
 
-            for gate_name, gate in gates.items():
+            for gate_name, gate in self._normalize_gates(gates):
                 if not isinstance(gate, dict):
                     continue
 
@@ -948,10 +952,7 @@ class ProcessConsistencyChecker:
                 continue
 
             gates = stage.get("gates", {})
-            if not isinstance(gates, dict):
-                continue
-
-            for gate_name, gate in gates.items():
+            for gate_name, gate in self._normalize_gates(gates):
                 if not isinstance(gate, dict):
                     continue
 

@@ -81,7 +81,7 @@ class ProcessEditor:
         self._process.checker = self._process._get_consistency_checker()
 
         if not self._process.checker.valid:
-            issues = self._process.consistensy_issues
+            issues = self._process.consistency_issues
             # Automatic rollback on validation failure
             self._restore_backup()
             raise ValidationFailedError(
@@ -110,7 +110,7 @@ class ProcessEditor:
     @property
     def consistency_issues(self) -> list[ConsistencyIssue]:
         """Get current consistency issues in the process."""
-        return self._process.consistensy_issues
+        return self._process.consistency_issues
 
     def add_stage(self, stage_id: str, config: StageDefinition) -> None:
         """
@@ -275,7 +275,7 @@ class ProcessEditor:
             ValidationFailedError: If current state has consistency issues
         """
         if not self._process.checker.valid:
-            issues = self._process.consistensy_issues
+            issues = self._process.consistency_issues
             raise ValidationFailedError(
                 f"Cannot sync process with consistency issues: "
                 f"{[issue.description for issue in issues]}",
@@ -293,7 +293,7 @@ class ProcessEditor:
         """
         # Update consistency checker to get latest state
         self._process.checker = self._process._get_consistency_checker()
-        return self._process.checker.valid, self._process.consistensy_issues
+        return self._process.checker.valid, self._process.consistency_issues
 
     def get_process_definition(self) -> ProcessDefinition:
         """

@@ -700,7 +700,7 @@ class Process:
         )
 
     @property
-    def consistensy_issues(self) -> list[ConsistencyIssue]:
+    def consistency_issues(self) -> list[ConsistencyIssue]:
         """Get current consistency issues in the process."""
         return self.checker.issues if self.checker else []
 

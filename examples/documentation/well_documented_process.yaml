@@ -21,9 +21,8 @@ process:
         proceed_to_checkout:
           target_stage: checkout
           locks:
-            - type: greater_than
-              property_path: "length(items)"
-              expected_value: 0
+            - type: not_empty
+              property_path: "items"
               error_message: "Add at least one item to your cart before proceeding to checkout"
 
     checkout:
@@ -34,8 +33,11 @@ process:
           - items
           - subtotal
           - shipping_address
+          - shipping_address.street
           - billing_address
+          - billing_address.street
           - payment_method
+          - payment_method.type
 
       gates:
         place_order:
@@ -129,9 +131,9 @@ process:
           target_stage: shipped
           locks:
             - exists: "tracking_number"
-            - type: equals
-              property_path: "length(picked_items)"
-              expected_value: "length(items)"
+            - exists: "picked_items"
+            - type: not_empty
+              property_path: "picked_items"
 
     shipped:
       name: "Shipped"
@@ -144,6 +146,7 @@ process:
           - tracking_number
           - shipped_at
           - carrier
+          - delivered_at
 
       gates:
         delivered:

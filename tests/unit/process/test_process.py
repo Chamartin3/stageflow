@@ -497,7 +497,7 @@ class TestProcess:
         process = Process(simple_two_stage_process)
 
         # Act
-        issues = process.consistensy_issues
+        issues = process.consistency_issues
 
         # Assert
         assert isinstance(issues, list)
@@ -671,7 +671,7 @@ class TestProcess:
         """Verify adding a stage updates the consistency checker."""
         # Arrange
         process = Process(simple_two_stage_process)
-        initial_issues_count = len(process.consistensy_issues)
+        initial_issues_count = len(process.consistency_issues)
 
         new_stage_config: StageDefinition = {
             "name": "New Stage",
@@ -703,7 +703,7 @@ class TestProcess:
         assert len(process.stages) == 3
         assert process.get_stage("new_stage") is not None
         # Consistency checker should be updated (may have new issues due to dead end)
-        assert len(process.consistensy_issues) >= initial_issues_count
+        assert len(process.consistency_issues) >= initial_issues_count
 
     def test_process_remove_stage_updates_transitions_and_checker(
         self, multi_stage_onboarding_process
