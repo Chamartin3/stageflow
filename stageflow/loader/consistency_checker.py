@@ -32,6 +32,8 @@ class ProcessConsistencyChecker:
         self._check_invalid_transitions()
         self._check_self_referencing_gates()
         self._check_circular_dependencies()
+        self._check_multiple_gates_same_target()
+        self._check_logical_conflicts()
         # Other checks can be added here
 
     def _check_invalid_transitions(self) -> None:
@@ -46,12 +48,11 @@ class ProcessConsistencyChecker:
             gates = stage.get("gates", {})
             if not isinstance(gates, dict):
                 continue
-            for gate in gates.values():
+            for gate_name, gate in gates.items():
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
                 if isinstance(target, str) and target not in stage_ids:
-                    gate_name = gate.get("name", "unknown")
                     issue = ConsistencyIssue(
                         issue_type=ProcessIssueTypes.INVALID_TRANSITION,
                         description=f"Gate '{gate_name}' in stage '{stage_name}' targets non-existent stage '{target}'",
@@ -70,15 +71,14 @@ class ProcessConsistencyChecker:
             gates = stage.get("gates", {})
             if not isinstance(gates, dict):
                 continue
-            for gate in gates.values():
+            for gate_name, gate in gates.items():
                 if not isinstance(gate, dict):
                     continue
                 target = gate.get("target_stage")
                 if isinstance(target, str) and target == stage_name:
-                    gate_name = gate.get("name", "unknown")
                     issue = ConsistencyIssue(
                         issue_type=ProcessIssueTypes.SELF_REFERENCING_GATE,
-                        description=f"Gate '{gate_name}' in stage '{stage_name}' targets itself, creating an infinite loop",
+                        description=f"Gate '{gate_name}' in stage '{stage_name}' references the same stage, creating an infinite self-loop",
                         stages=[stage_name],
                     )
                     self.issues.append(issue)
@@ -886,3 +886,165 @@ class ProcessConsistencyChecker:
         )
 
         return suggestions
+
+    def _check_multiple_gates_same_target(self) -> None:
+        """Check for multiple gates targeting the same stage within each stage."""
+        stages = self.process_def.get("stages", {})
+        if not isinstance(stages, dict):
+            return
+
+        for stage_name, stage in stages.items():
+            if not isinstance(stage, dict):
+                continue
+
+            gates = stage.get("gates", {})
+            if not isinstance(gates, dict):
+                continue
+
+            # Track target stages and gate names
+            target_stages: list[str] = []
+            gate_names: list[str] = []
+
+            for gate_name, gate in gates.items():
+                if not isinstance(gate, dict):
+                    continue
+
+                target_stage = gate.get("target_stage")
+                if not isinstance(target_stage, str):
+                    continue
+
+                # Check if this target already exists
+                if target_stage in target_stages:
+                    # Find all gates with the same target
+                    duplicate_gates = [
+                        gate_names[i]
+                        for i, target in enumerate(target_stages)
+                        if target == target_stage
+                    ]
+                    duplicate_gates.append(gate_name)
+
+                    issue = ConsistencyIssue(
+                        issue_type=ProcessIssueTypes.MULTIPLE_GATES_SAME_TARGET,
+                        description=(
+                            f"Stage '{stage_name}' has multiple gates targeting the same stage '{target_stage}': "
+                            f"{', '.join(duplicate_gates)}. Consider combining these gates into a single gate with multiple locks."
+                        ),
+                        stages=[stage_name],
+                        severity="warning",
+                    )
+                    self.issues.append(issue)
+
+                target_stages.append(target_stage)
+                gate_names.append(gate_name)
+
+    def _check_logical_conflicts(self) -> None:
+        """Identify logical conflicts within gate conditions."""
+        stages = self.process_def.get("stages", {})
+        if not isinstance(stages, dict):
+            return
+
+        for stage_name, stage in stages.items():
+            if not isinstance(stage, dict):
+                continue
+
+            gates = stage.get("gates", {})
+            if not isinstance(gates, dict):
+                continue
+
+            for gate_name, gate in gates.items():
+                if not isinstance(gate, dict):
+                    continue
+
+                locks = gate.get("locks", [])
+                if not isinstance(locks, list):
+                    continue
+
+                # Group locks by property path
+                locks_by_property: dict[str, list[dict]] = {}
+                for lock in locks:
+                    if not isinstance(lock, dict):
+                        continue
+
+                    # Extract property path from lock
+                    prop_path = lock.get("property_path")
+                    if isinstance(prop_path, str):
+                        if prop_path not in locks_by_property:
+                            locks_by_property[prop_path] = []
+                        locks_by_property[prop_path].append(lock)
+
+                # Check each property for conflicts
+                for prop_path, prop_locks in locks_by_property.items():
+                    conflict = self._detect_property_conflicts(prop_path, prop_locks)
+                    if conflict:
+                        issue = ConsistencyIssue(
+                            issue_type=ProcessIssueTypes.LOGICAL_CONFLICT,
+                            description=(
+                                f"Gate '{gate_name}' in stage '{stage_name}' has conflicting conditions "
+                                f"for property '{prop_path}': {conflict}"
+                            ),
+                            stages=[stage_name],
+                            severity="warning",
+                        )
+                        self.issues.append(issue)
+
+    def _detect_property_conflicts(self, prop_path: str, locks: list[dict]) -> str:
+        """Detect logical conflicts between locks on the same property."""
+        if len(locks) < 2:
+            return ""  # No conflict possible with single lock
+
+        # Check for EQUALS conflicts (multiple different expected values)
+        equals_locks = [
+            lock for lock in locks
+            if lock.get("type") == "equals"
+        ]
+        if len(equals_locks) >= 2:
+            values = [lock.get("expected_value") for lock in equals_locks]
+            unique_values = {str(v) for v in values if v is not None}
+            if len(unique_values) > 1:
+                return f"Property must equal multiple different values: {', '.join(unique_values)}"
+
+        # Check for GREATER_THAN + LESS_THAN conflicts (impossible range)
+        greater_locks = [
+            lock for lock in locks
+            if lock.get("type") in ["greater_than", "greater_than_or_equal"]
+        ]
+        less_locks = [
+            lock for lock in locks
+            if lock.get("type") in ["less_than", "less_than_or_equal"]
+        ]
+
+        if greater_locks and less_locks:
+            # Check if any combination creates an impossible condition
+            for gt_lock in greater_locks:
+                gt_value = gt_lock.get("expected_value")
+                if not isinstance(gt_value, (int, float)):
+                    continue
+
+                for lt_lock in less_locks:
+                    lt_value = lt_lock.get("expected_value")
+                    if not isinstance(lt_value, (int, float)):
+                        continue
+
+                    # Check for impossible combinations
+                    gt_type = gt_lock.get("type")
+                    lt_type = lt_lock.get("type")
+
+                    # Examples: value > 100 AND value < 50
+                    if gt_type == "greater_than" and lt_type == "less_than":
+                        if gt_value >= lt_value:
+                            return f"Property must be > {gt_value} AND < {lt_value} (impossible)"
+                    elif gt_type == "greater_than_or_equal" and lt_type == "less_than_or_equal":
+                        if gt_value > lt_value:
+                            return f"Property must be >= {gt_value} AND <= {lt_value} (impossible)"
+
+                    # Also check if an EQUALS value is outside the range
+                    for eq_lock in equals_locks:
+                        eq_value = eq_lock.get("expected_value")
+                        if isinstance(eq_value, (int, float)):
+                            # Check if equals value conflicts with range
+                            if gt_type == "greater_than" and eq_value <= gt_value:
+                                return f"Property must equal {eq_value} AND be > {gt_value} (impossible)"
+                            if lt_type == "less_than" and eq_value >= lt_value:
+                                return f"Property must equal {eq_value} AND be < {lt_value} (impossible)"
+
+        return ""  # No conflicts detected

@@ -280,8 +280,8 @@ class TestElementValidation:
         assert "⚠️" in result["stdout"], (
             "Schema validation failures should show warning indicator"
         )
-        assert "action_required" in result["stdout"], (
-            "Should show action_required status for validation failures"
+        assert "blocked" in result["stdout"], (
+            "Should show blocked status for validation failures"
         )
         assert "Type" in result["stdout"] or "should be of type" in result["stdout"], (
             "Should show type validation errors"

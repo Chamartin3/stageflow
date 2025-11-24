@@ -466,7 +466,8 @@ class Process:
         """Get a path of previous stages leading to the current stage."""
         search = PathSearch(self._transition_map, self.initial_stage._id)
         previous_ids = search.get_path(current_stage._id, foward=False) or []
-        stages = [self.get_stage(stage_id) for stage_id in previous_ids]
+        # Exclude the current stage itself from previous stages
+        stages = [self.get_stage(stage_id) for stage_id in previous_ids if stage_id != current_stage._id]
         return [stage for stage in stages if stage]
 
     def _check_regression(
