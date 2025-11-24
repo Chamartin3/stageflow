@@ -34,15 +34,9 @@ from .base import (
     ProcessElementEvaluationResult,
     ProcessFile,
     ProcessFileDict,
+    RegressionDetails,
     StageDefinition,
     StageObjectPropertyDefinition,
-)
-
-# Consistency models
-from .consistency import (
-    ConsistencyIssue,
-    ProcessIssueTypes,
-    TerminationAnalysis,
 )
 from .enums import (
     ErrorSeverity,
@@ -51,6 +45,7 @@ from .enums import (
     LoadResultStatus,
     LockTypeShorthand,
     ProcessSourceType,
+    RegressionPolicy,
     SpecialLockType,
 )
 
@@ -70,19 +65,14 @@ __all__ = [
     "ProcessSourceType",
     "FileFormat",
     "LockTypeShorthand",
+    "RegressionPolicy",
     "SpecialLockType",
     "LockType",
-
     # Error models
     "LoadError",
     "ProcessLoadResult",
     "ProcessLoadResultDict",
     "ErrorContextDict",
-
-    # Consistency models
-    "ConsistencyIssue",
-    "ProcessIssueTypes",
-    "TerminationAnalysis",
     # Lock types
     "LockMetaData",
     "LockDefinitionDict",
@@ -99,6 +89,7 @@ __all__ = [
     # Process types
     "ProcessDefinition",
     "ProcessElementEvaluationResult",
+    "RegressionDetails",
     # File format types
     "ProcessFileDict",
     "LegacyProcessFileDict",

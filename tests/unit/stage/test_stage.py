@@ -67,32 +67,33 @@ class TestStageEvaluationResult:
 
     def test_stage_evaluation_result_creation(self):
         """Verify StageEvaluationResult can be created with all fields."""
-        # Arrange
-        actions = [Action("Test action", ["field"], ActionType.UPDATE)]
-
         # Act
         result = StageEvaluationResult(
-            status=StageStatus.ACTION_REQUIRED,
-            gate_results={"gate1": "result1"},
-            sugested_action=actions,
+            status=StageStatus.BLOCKED,
+            results={"gate1": "result1"},
+            configured_actions=[],
+            validation_messages=["Test message"],
         )
 
         # Assert
-        assert result.status == StageStatus.ACTION_REQUIRED
-        assert result.gate_results == {"gate1": "result1"}
-        assert len(result.sugested_action) == 1
-        assert result.sugested_action[0].description == "Test action"
+        assert result.status == StageStatus.BLOCKED
+        assert result.results == {"gate1": "result1"}
+        assert result.configured_actions == []
+        assert result.validation_messages == ["Test message"]
 
     def test_stage_evaluation_result_immutability(self):
         """Verify StageEvaluationResult is immutable."""
         # Arrange
         result = StageEvaluationResult(
-            status=StageStatus.INVALID_SCHEMA, gate_results={}, sugested_action=[]
+            status=StageStatus.INCOMPLETE,
+            results={},
+            configured_actions=[],
+            validation_messages=[]
         )
 
         # Act & Assert
         with pytest.raises(AttributeError):
-            result.status = StageStatus.READY_FOR_TRANSITION  # Should raise
+            result.status = StageStatus.READY  # Should raise
 
 
 class TestStage:
@@ -305,11 +306,10 @@ class TestStage:
         result = stage.evaluate(element)
 
         # Assert
-        assert result.status == StageStatus.READY_FOR_TRANSITION
-        assert len(result.sugested_action) == 1
-        assert result.sugested_action[0].action_type == ActionType.TRANSITION
-        assert result.sugested_action[0].target_stage == "next_stage"
-        assert "user_validation" in result.gate_results
+        assert result.status == StageStatus.READY
+        assert len(result.configured_actions) == 0  # No explicit actions in YAML
+        assert "user_validation" in result.results
+        assert result.results["user_validation"].success
 
     def test_stage_evaluate_with_invalid_schema(self):
         """Verify stage evaluation returns INVALID_SCHEMA when required properties missing."""
@@ -358,12 +358,11 @@ class TestStage:
         result = stage.evaluate(element)
 
         # Assert
-        assert result.status == StageStatus.INVALID_SCHEMA
-        assert len(result.sugested_action) == 2  # Missing password and age
-        assert all(
-            action.action_type == ActionType.UPDATE for action in result.sugested_action
-        )
-        assert result.gate_results == {}  # No gates evaluated when schema invalid
+        assert result.status == StageStatus.INCOMPLETE
+        assert len(result.configured_actions) == 0  # No explicit actions in YAML
+        # Validation messages should indicate missing properties
+        assert len(result.validation_messages) > 0
+        assert result.results == {}  # No gates evaluated when schema invalid
 
     def test_stage_evaluate_with_valid_schema_but_failing_gates(self):
         """Verify stage evaluation returns ACTION_REQUIRED when gates fail."""
@@ -410,14 +409,14 @@ class TestStage:
         result = stage.evaluate(element)
 
         # Assert
-        assert result.status == StageStatus.ACTION_REQUIRED
-        assert len(result.sugested_action) >= 1  # At least one action suggested
+        assert result.status == StageStatus.BLOCKED
+        assert len(result.configured_actions) >= 1  # At least one action suggested
         assert any(
-            action.action_type == ActionType.EXCECUTE
-            for action in result.sugested_action
+            action["description"] == "Fix email format"
+            for action in result.configured_actions
         )
-        assert "email_validation" in result.gate_results
-        assert not result.gate_results["email_validation"].success
+        assert "email_validation" in result.results
+        assert not result.results["email_validation"].success
 
     def test_stage_schema_validation_with_nested_properties(self):
         """Verify stage validates nested property schemas correctly."""
@@ -626,10 +625,13 @@ class TestStageIntegration:
         result = stage.evaluate(element)
 
         # Assert
-        # First gate should pass, triggering READY_FOR_TRANSITION
-        assert result.status == StageStatus.READY_FOR_TRANSITION
-        assert result.sugested_action[0].action_type == ActionType.TRANSITION
-        assert result.sugested_action[0].target_stage == "profile_setup"
+        # First gate should pass, triggering READY status
+        assert result.status == StageStatus.READY
+        assert len(result.configured_actions) == 1
+        assert result.configured_actions[0]["description"] == "Complete profile verification"
+        # Verify gates were evaluated
+        assert "basic_requirements" in result.results
+        assert result.results["basic_requirements"].success
 
     def test_complex_nested_validation_scenario(self):
         """Test stage evaluation with complex nested data structures."""
@@ -726,9 +728,13 @@ class TestStageIntegration:
         result = stage.evaluate(element)
 
         # Assert
-        # First gate passes, so should be READY_FOR_TRANSITION to department_review
-        assert result.status == StageStatus.READY_FOR_TRANSITION
-        assert result.sugested_action[0].target_stage == "department_review"
+        # First gate passes, so should be READY status
+        assert result.status == StageStatus.READY
+        assert len(result.configured_actions) == 1
+        assert result.configured_actions[0]["description"] == "Verify all department heads"
+        # Verify at least one gate passed
+        assert "basic_info" in result.results
+        assert result.results["basic_info"].success
 
     def test_final_stage_evaluation(self):
         """Test evaluation of a final stage without gates."""
@@ -759,9 +765,9 @@ class TestStageIntegration:
 
         # Assert
         # Final stages with valid schema should show ACTION_REQUIRED with no actions
-        assert result.status == StageStatus.ACTION_REQUIRED
-        assert len(result.sugested_action) == 0  # No actions for final stage
-        assert result.gate_results == {}  # No gates to evaluate
+        assert result.status == StageStatus.BLOCKED
+        assert len(result.configured_actions) == 0  # No actions for final stage
+        assert result.results == {}  # No gates to evaluate
 
 
 class TestStageSchema:

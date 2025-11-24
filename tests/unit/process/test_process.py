@@ -6,7 +6,7 @@ This test suite covers all functionality in the Process class including:
 - Element evaluation against processes
 - Regression detection and consistency checking
 - Integration with Stage, Gate, and Lock components
-- 3-state evaluation model (INVALID_SCHEMA, ACTION_REQUIRED, READY_FOR_TRANSITION)
+- 3-state evaluation model (INCOMPLETE, BLOCKED, READY)
 - Process consistency validation and structural checks
 """
 
@@ -515,8 +515,8 @@ class TestProcess:
 
         # Assert
         assert result["stage"] == "start"
-        assert result["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert result["regression"] is False
+        assert result["stage_result"].status == StageStatus.READY
+        assert result["regression_details"]["detected"] is False
 
     def test_process_evaluate_with_inconsistent_process_raises_error(self):
         """Verify process evaluation fails with inconsistent process configuration."""
@@ -608,7 +608,7 @@ class TestProcess:
 
         # Assert
         assert result["stage"] == "start"  # Should default to initial stage
-        assert result["stage_result"].status == StageStatus.READY_FOR_TRANSITION
+        assert result["stage_result"].status == StageStatus.READY
 
     def test_process_evaluate_with_regression_detection(
         self, multi_stage_onboarding_process
@@ -632,7 +632,7 @@ class TestProcess:
 
         # Assert
         assert result["stage"] == "profile_setup"
-        assert result["regression"] is True  # Should detect regression
+        assert result["regression_details"]["detected"] is True  # Should detect regression
 
     def test_process_evaluate_without_regression(
         self, multi_stage_onboarding_process, valid_user_element
@@ -646,7 +646,7 @@ class TestProcess:
 
         # Assert
         assert result["stage"] == "profile_setup"
-        assert result["regression"] is False  # Should not detect regression
+        assert result["regression_details"]["detected"] is False  # Should not detect regression
 
     def test_process_evaluate_batch_with_multiple_elements(self, simple_two_stage_process):
         """Verify process batch evaluation works with multiple elements."""
@@ -663,9 +663,9 @@ class TestProcess:
 
         # Assert
         assert len(results) == 3
-        assert results[0]["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert results[1]["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert results[2]["stage_result"].status == StageStatus.INVALID_SCHEMA
+        assert results[0]["stage_result"].status == StageStatus.READY
+        assert results[1]["stage_result"].status == StageStatus.READY
+        assert results[2]["stage_result"].status == StageStatus.INCOMPLETE
 
     def test_process_add_stage_updates_consistency_checker(self, simple_two_stage_process):
         """Verify adding a stage updates the consistency checker."""
@@ -900,8 +900,8 @@ class TestProcessIntegration:
         # Act & Assert - Registration stage
         result = process.evaluate(element, "registration")
         assert result["stage"] == "registration"
-        assert result["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert result["regression"] is False
+        assert result["stage_result"].status == StageStatus.READY
+        assert result["regression_details"]["detected"] is False
 
         # User verifies email
         user_data["email_verified"] = True
@@ -910,8 +910,8 @@ class TestProcessIntegration:
         # Act & Assert - Verification stage
         result = process.evaluate(element, "verification")
         assert result["stage"] == "verification"
-        assert result["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert result["regression"] is False
+        assert result["stage_result"].status == StageStatus.READY
+        assert result["regression_details"]["detected"] is False
 
     def test_complex_regression_detection_scenario(self):
         """Test complex regression detection with multiple stage dependencies."""
@@ -1013,7 +1013,7 @@ class TestProcessIntegration:
         # Assert
         assert result["stage"] == "validation"
         assert (
-            result["regression"] is True
+            result["regression_details"]["detected"] is True
         )  # Should detect missing name in earlier stage
 
     def test_process_with_multiple_transition_paths(self):
@@ -1127,15 +1127,15 @@ class TestProcessIntegration:
         element_a = DictElement({"route": "a", "a_data": "processed"})
 
         result_a = process.evaluate(element_a, "start")
-        assert result_a["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert result_a["stage_result"].sugested_action[0].target_stage == "stage_a"
+        assert result_a["stage_result"].status == StageStatus.READY
+        assert result_a["stage_result"].configured_actions[0].target_stage == "stage_a"
 
         # Test route B
         element_b = DictElement({"route": "b", "b_data": "processed"})
 
         result_b = process.evaluate(element_b, "start")
-        assert result_b["stage_result"].status == StageStatus.READY_FOR_TRANSITION
-        assert result_b["stage_result"].sugested_action[0].target_stage == "stage_b"
+        assert result_b["stage_result"].status == StageStatus.READY
+        assert result_b["stage_result"].configured_actions[0].target_stage == "stage_b"
 
     def test_process_edge_case_empty_configuration(self):
         """Test process handles edge cases gracefully."""
@@ -1188,7 +1188,7 @@ class TestProcessIntegration:
 
         assert result["stage"] == "start"
         # With no locks, gate should pass immediately
-        assert result["stage_result"].status == StageStatus.READY_FOR_TRANSITION
+        assert result["stage_result"].status == StageStatus.READY
 
 
 class TestProcessSchema:

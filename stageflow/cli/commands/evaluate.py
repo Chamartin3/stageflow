@@ -108,7 +108,7 @@ def evaluate_command(
     - If omitted, reads JSON from stdin (useful for piping data)
 
     Schema hints:
-    - Automatically shown when element has INVALID_SCHEMA or ACTION_REQUIRED status
+    - Automatically shown when element has INCOMPLETE or BLOCKED status
     - Use --show-schema to always display schema hints
     - Use --cumulative-schema to show properties from all previous stages
     """

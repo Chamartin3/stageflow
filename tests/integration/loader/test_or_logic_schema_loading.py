@@ -44,12 +44,12 @@ final_stage: "done"
         # Test normal completion path
         element1 = DictElement({"work_done": "yes"})
         result1 = process.evaluate(element1, "in_progress")
-        assert result1["regression"] is False
+        assert result1["regression_details"]["detected"] is False
 
         # Test cancellation path
         element2 = DictElement({"cancelled": True, "cancellation_reason": "Duplicate"})
         result2 = process.evaluate(element2, "in_progress")
-        assert result2["regression"] is False
+        assert result2["regression_details"]["detected"] is False
     finally:
         # Clean up the temporary file
         os.unlink(temp_path)

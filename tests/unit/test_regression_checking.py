@@ -1,10 +1,8 @@
 """Tests for regression checking functionality."""
 
-import pytest
 from stageflow.elements import create_element
 from stageflow.models import RegressionPolicy
 from stageflow.process import Process
-from stageflow.stage import StageStatus
 
 
 def test_check_regression_no_previous_stages():
@@ -13,11 +11,23 @@ def test_check_regression_no_previous_stages():
         "name": "test",
         "description": "Test process",
         "initial_stage": "stage1",
-        "final_stage": "stage1",
+        "final_stage": "stage2",
         "stages": {
             "stage1": {
                 "name": "Stage 1",
                 "description": "First stage",
+                "gates": [{
+                    "name": "to_stage2",
+                    "target_stage": "stage2",
+                    "locks": [{"exists": "ready"}]
+                }],
+                "expected_actions": [],
+                "expected_properties": {},
+                "is_final": False
+            },
+            "stage2": {
+                "name": "Stage 2",
+                "description": "Second stage",
                 "gates": [],
                 "expected_actions": [],
                 "expected_properties": {},
@@ -75,4 +85,4 @@ def test_check_regression_previous_stage_failed():
 
     assert details["detected"]
     assert "stage1" in details["failed_stages"]
-    assert details["failed_statuses"]["stage1"] == "incomplete"
+    assert details["failed_statuses"]["stage1"] == "blocked"

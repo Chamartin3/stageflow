@@ -581,5 +581,5 @@ class TestStageExtractionIntegration:
 
         # Should evaluate at profile_setup stage
         assert result["stage"] == "profile_setup"
-        # Should require action (missing last_name)
-        assert result["stage_result"].status == "action_required"
+        # Should be blocked (missing last_name)
+        assert result["stage_result"].status == "blocked"

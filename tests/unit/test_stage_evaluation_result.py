@@ -1,11 +1,6 @@
 """Tests for StageEvaluationResult refactoring."""
 
-from stageflow.stage import (
-    StageEvaluationResult,
-    StageStatus,
-    GateResult,
-    ActionSource
-)
+from stageflow.stage import StageEvaluationResult, StageStatus
 
 
 def test_stage_evaluation_result_new_fields():

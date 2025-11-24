@@ -157,7 +157,7 @@ class TestSchemaPracticalUsage:
 
         # Verify element validates successfully
         result = user_onboarding_process.evaluate(element, "registration")
-        assert result["stage_result"].status != "invalid_schema"
+        assert result["stage_result"].status != "incomplete"
 
     def test_schema_identifies_missing_properties_before_evaluation(
         self, user_onboarding_process
@@ -199,7 +199,7 @@ class TestSchemaPracticalUsage:
         result = user_onboarding_process.evaluate(failing_element, "registration")
 
         # Evaluation fails with INVALID_SCHEMA
-        assert result["stage_result"].status == "invalid_schema"
+        assert result["stage_result"].status == "incomplete"
 
         # Get schema to see what was expected
         expected_schema = user_onboarding_process.get_schema(
@@ -366,7 +366,7 @@ class TestSchemaPracticalUsage:
         # Now we can process only valid elements
         for element in valid_elements:
             result = user_onboarding_process.evaluate(element, "registration")
-            assert result["stage_result"].status != "invalid_schema"
+            assert result["stage_result"].status != "incomplete"
 
     def test_schema_helps_with_data_migration(self, user_onboarding_process):
         """Demonstrate using schema for data migration planning.
@@ -475,7 +475,7 @@ class TestSchemaPracticalUsage:
 
         # Evaluate successfully
         result = user_onboarding_process.evaluate(element, "profile_setup")
-        assert result["stage_result"].status != "invalid_schema"
+        assert result["stage_result"].status != "incomplete"
 
     def test_schema_with_defaults_guides_optional_properties(
         self, user_onboarding_process
