@@ -1,8 +1,8 @@
 """Core Process class for StageFlow multi-stage validation orchestration."""
 
-from dataclasses import dataclass, field
-from enum import StrEnum
-from typing import cast
+from typing import Any, cast
+
+from stageflow.models.consistency import ConsistencyIssue, ProcessIssueTypes
 
 from .elements import Element
 from .gate import Gate
@@ -59,25 +59,7 @@ class PathSearch:
         return None
 
 
-class ProcessIssueTypes(StrEnum):
-    """Enumeration of process consistency issues types."""
 
-    MISSING_STAGE = "missing_stage"
-    INVALID_TRANSITION = "invalid_transition"
-    DEAD_END_STAGE = "dead_end_stage"
-    UNREACHABLE_STAGE = "unreachable_stage"
-    ORPHANED_STAGE = "orphaned_stage"
-    CIRCULAR_DEPENDENCY = "circular_dependency"
-    LOGICAL_CONFLICT = "logical_conflict"
-    MULTIPLE_GATES_SAME_TARGET = "multiple_gates_same_target"
-    SELF_REFERENCING_GATE = "self_referencing_gate"
-
-
-@dataclass(frozen=True)
-class ConsistencyIssue:
-    issue_type: ProcessIssueTypes
-    description: str
-    stages: list[str] = field(default_factory=list)
 
 
 class ProcessConsistencyChecker:
@@ -384,6 +366,7 @@ class Process:
         Args:
             config: Process configuration dictionary
         """
+        self.config = config  # Store original config for consistency checker
         self.name = config["name"]
         self.description = config.get("description", "")
         self.stage_prop = config.get("stage_prop", None)
@@ -461,14 +444,15 @@ class Process:
         # This method is kept for backward compatibility but does nothing
         pass
 
-    def _get_consistency_checker(self) -> ProcessConsistencyChecker:
+    def _get_consistency_checker(self) -> Any:
         """Get a consistency checker for the process."""
-        return ProcessConsistencyChecker(
-            stages=self.stages,
-            transitions=self._transition_map,
-            initial_stage=self.initial_stage,
-            final_stage=self.final_stage,
+        # Import here to avoid circular imports
+        from .loader.consistency_checker import (
+            ProcessConsistencyChecker as NewProcessConsistencyChecker,
         )
+
+        # Use new consistency checker with ProcessDefinition
+        return NewProcessConsistencyChecker(self.config)
 
     # Path finding methods
     def _get_path_to_final(self, stage: Stage) -> list[Stage]:

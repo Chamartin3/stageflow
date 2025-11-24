@@ -38,6 +38,13 @@ from .base import (
     StageDefinition,
     StageObjectPropertyDefinition,
 )
+
+# Consistency models
+from .consistency import (
+    ConsistencyIssue,
+    ProcessIssueTypes,
+    TerminationAnalysis,
+)
 from .enums import (
     ErrorSeverity,
     FileFormat,
@@ -68,11 +75,17 @@ __all__ = [
     "RegressionPolicy",
     "SpecialLockType",
     "LockType",
+
     # Error models
     "LoadError",
     "ProcessLoadResult",
     "ProcessLoadResultDict",
     "ErrorContextDict",
+
+    # Consistency models
+    "ConsistencyIssue",
+    "ProcessIssueTypes",
+    "TerminationAnalysis",
     # Lock types
     "LockMetaData",
     "LockDefinitionDict",

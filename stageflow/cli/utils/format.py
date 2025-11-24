@@ -31,6 +31,7 @@ class StageInfo(TypedDict):
 
     id: str
     name: str
+    description: str
     expected_properties: list[str]
     gates: int
     target_stages: list[str]
@@ -173,6 +174,7 @@ class ProcessFormatter:
                 stage_info: StageInfo = {
                     "id": stage._id,
                     "name": stage.name,
+                    "description": getattr(stage, "description", ""),
                     "expected_properties": list(stage._base_schema.keys())
                     if stage._base_schema
                     else [],
@@ -243,6 +245,9 @@ class ProcessFormatter:
                 targets_text = f" → {', '.join(stage['target_stages'])}"
 
             lines.append(f"{prefix} {stage['name']}{targets_text}{final_marker}")
+
+            if stage.get("description"):
+                lines.append(f"   Description: {stage['description']}")
 
             if stage["expected_properties"]:
                 props = ", ".join(stage["expected_properties"])

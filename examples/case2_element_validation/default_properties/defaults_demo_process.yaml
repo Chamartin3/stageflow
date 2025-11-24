@@ -25,35 +25,19 @@ process:
 
     needs_configuration:
       name: "Needs Configuration"
-      description: "Stage where additional configuration is expected but has defaults"
+      description: "Stage where additional configuration is required"
       schema:
         required_fields:
           - user_id
           - email
-          # These would be required but have defaults available:
-          - preferences  # Should get default preferences
+          - preferences
           - preferences.theme
-          - settings     # Should get default settings
+          - settings
           - settings.auto_save
-          - profile      # Should get default profile
+          - profile
           - profile.visibility
 
-        # Documentation of what defaults should be applied
-        default_recommendations:
-          preferences:
-            theme: "light"
-            language: "en"
-            notifications: true
-          settings:
-            auto_save: true
-            privacy_level: "standard"
-            analytics: false
-          profile:
-            visibility: "private"
-            show_email: false
-
       gates:
-        # This gate will fail for elements missing configuration, showing action_required
         configuration_complete:
           target_stage: fully_configured
           locks:
@@ -82,11 +66,10 @@ process:
   regression_detection: false
 
   metadata:
-    description: "Demonstrates how elements should get defaults applied for missing configuration"
-    test_case: "default_properties_application"
+    description: "Demonstrates required configuration properties that must be provided"
+    test_case: "required_properties_validation"
     example_workflow: |
       1. Element arrives with minimal data (user_id, email)
       2. Element progresses to needs_configuration stage
-      3. System detects missing preferences/settings/profile
-      4. System should apply documented defaults
-      5. Element can then progress to fully_configured
+      3. System validates all required properties are present
+      4. Element can progress to fully_configured when all properties provided
