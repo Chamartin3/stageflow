@@ -1016,7 +1016,7 @@ class TestLock:
         # Assert
         assert result == {
             "property_path": "user.status",
-            "type": LockType.EQUALS,
+            "type": LockType.EQUALS.value,  # to_dict() returns string value for JSON serialization
             "expected_value": "active",
         }
 

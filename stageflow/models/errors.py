@@ -95,7 +95,7 @@ class ProcessLoadResult:
     @property
     def success(self) -> bool:
         """Check if load was successful (process created)."""
-        return self.status == LoadResultStatus.SUCCESS
+        return self.status in (LoadResultStatus.SUCCESS, LoadResultStatus.CONSISTENCY_WARNING)
 
     @property
     def has_errors(self) -> bool:

@@ -202,10 +202,11 @@ class SimpleLock(BaseLock):
                 error_message=error_message,
             )
 
-    def to_dict(self) -> LockDefinitionDict:
+    def to_dict(self) -> dict[str, Any]:
+        """Convert lock to JSON-serializable dictionary."""
         return {
             "property_path": self.property_path,
-            "type": self.lock_type,
+            "type": self.lock_type.value if isinstance(self.lock_type, LockType) else self.lock_type,
             "expected_value": self.expected_value,
         }
 
@@ -369,7 +370,7 @@ class ConditionalLock(BaseLock):
     def to_dict(self) -> ConditionalLockDict:
         """Convert ConditionalLock to dictionary representation."""
         result: ConditionalLockDict = {
-            "type": LockType.CONDITIONAL,
+            "type": LockType.CONDITIONAL.value,
             "if": [lock.to_dict() for lock in self.if_locks],
             "then": [lock.to_dict() for lock in self.then_locks],
         }
@@ -535,7 +536,7 @@ class OrLogicLock(BaseLock):
     def to_dict(self) -> dict[str, Any]:
         """Convert OrLogicLock to dictionary representation."""
         result: dict[str, Any] = {
-            "type": LockType.OR_LOGIC,
+            "type": LockType.OR_LOGIC.value,
             "conditions": [
                 {"locks": [lock.to_dict() for lock in group]}
                 for group in self.condition_groups

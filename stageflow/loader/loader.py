@@ -207,6 +207,47 @@ class ProcessLoader:
                     [e for e in validator.errors if e.severity == ErrorSeverity.WARNING]
                 )
 
+            # Collect consistency issues from the process
+            if process.consistency_issues:
+                for issue in process.consistency_issues:
+                    # Convert ConsistencyIssue to LoadError
+                    severity = ErrorSeverity.WARNING if issue.severity == "warning" else ErrorSeverity.INFO
+                    if issue.severity == "fatal":
+                        severity = ErrorSeverity.FATAL
+
+                    # Map ProcessIssueTypes to LoadErrorType
+                    from stageflow.models.consistency import ProcessIssueTypes
+
+                    error_type_map = {
+                        ProcessIssueTypes.MISSING_STAGE: LoadErrorType.MISSING_STAGE_REFERENCE,
+                        ProcessIssueTypes.INVALID_TRANSITION: LoadErrorType.INVALID_TRANSITION,
+                        ProcessIssueTypes.DEAD_END_STAGE: LoadErrorType.UNREACHABLE_STAGE,
+                        ProcessIssueTypes.UNREACHABLE_STAGE: LoadErrorType.UNREACHABLE_STAGE,
+                        ProcessIssueTypes.ORPHANED_STAGE: LoadErrorType.ORPHANED_STAGE,
+                        ProcessIssueTypes.CIRCULAR_DEPENDENCY: LoadErrorType.CIRCULAR_DEPENDENCY,
+                        ProcessIssueTypes.LOGICAL_CONFLICT: LoadErrorType.VALIDATION_ERROR,
+                        ProcessIssueTypes.MULTIPLE_GATES_SAME_TARGET: LoadErrorType.VALIDATION_ERROR,
+                        ProcessIssueTypes.SELF_REFERENCING_GATE: LoadErrorType.CIRCULAR_DEPENDENCY,
+                        ProcessIssueTypes.INFINITE_CYCLE: LoadErrorType.CIRCULAR_DEPENDENCY,
+                        ProcessIssueTypes.UNCONTROLLED_CYCLE: LoadErrorType.CIRCULAR_DEPENDENCY,
+                        ProcessIssueTypes.CONTROLLED_CYCLE: LoadErrorType.CIRCULAR_DEPENDENCY,
+                    }
+
+                    error_type = error_type_map.get(issue.issue_type, LoadErrorType.VALIDATION_ERROR)
+
+                    warnings.append(
+                        LoadError(
+                            error_type=error_type,
+                            severity=severity,
+                            message=issue.description,
+                            context={
+                                "issue_type": issue.issue_type,
+                                "stages": issue.stages,
+                                "details": issue.details if hasattr(issue, "details") else {},
+                            },
+                        )
+                    )
+
             # Determine final status
             if warnings:
                 status = LoadResultStatus.CONSISTENCY_WARNING

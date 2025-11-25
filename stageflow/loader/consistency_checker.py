@@ -34,6 +34,8 @@ class ProcessConsistencyChecker:
         self._check_circular_dependencies()
         self._check_multiple_gates_same_target()
         self._check_logical_conflicts()
+        self._check_dead_end_stages()
+        self._check_unreachable_stages()
         # Other checks can be added here
 
     def _normalize_gates(self, gates) -> list[tuple[str, dict]]:
@@ -66,6 +68,7 @@ class ProcessConsistencyChecker:
                         issue_type=ProcessIssueTypes.INVALID_TRANSITION,
                         description=f"Gate '{gate_name}' in stage '{stage_name}' targets non-existent stage '{target}'",
                         stages=[stage_name, target],
+                        severity="fatal",  # Invalid transitions are fatal errors
                     )
                     self.issues.append(issue)
 
@@ -234,11 +237,12 @@ class ProcessConsistencyChecker:
             return False
 
         gates = stage.get("gates", {})
-        if not isinstance(gates, dict):
-            return False
+
+        # Normalize gates to handle both dict and list formats
+        normalized_gates = self._normalize_gates(gates)
 
         # Check all gates from this stage
-        for gate in gates.values():
+        for _gate_name, gate in normalized_gates:
             if not isinstance(gate, dict):
                 continue
             target = gate.get("target_stage")
@@ -1049,3 +1053,67 @@ class ProcessConsistencyChecker:
                                 return f"Property must equal {eq_value} AND be < {lt_value} (impossible)"
 
         return ""  # No conflicts detected
+
+    def _check_dead_end_stages(self) -> None:
+        """Identify non-final stages that cannot reach the final stage."""
+        stages = self.process_def.get("stages", {})
+        if not isinstance(stages, dict):
+            return
+
+        final_stage_id = self.process_def.get("final_stage")
+        if not isinstance(final_stage_id, str):
+            return
+
+        for stage_id in stages:
+            if not isinstance(stage_id, str):
+                continue
+
+            # Skip the final stage itself
+            if stage_id == final_stage_id:
+                continue
+
+            # Check if this stage can reach the final stage
+            if not self._has_path_to_stage(stage_id, final_stage_id, visited=set()):
+                issue = ConsistencyIssue(
+                    issue_type=ProcessIssueTypes.DEAD_END_STAGE,
+                    description=f"Stage '{stage_id}' cannot reach final stage '{final_stage_id}'",
+                    stages=[stage_id],
+                    severity="warning",
+                )
+                self.issues.append(issue)
+
+    def _check_unreachable_stages(self) -> None:
+        """Identify stages that cannot be reached from the initial stage."""
+        stages = self.process_def.get("stages", {})
+        if not isinstance(stages, dict):
+            return
+
+        initial_stage_id = self.process_def.get("initial_stage")
+        final_stage_id = self.process_def.get("final_stage")
+        if not isinstance(initial_stage_id, str) or not isinstance(final_stage_id, str):
+            return
+
+        for stage_id in stages:
+            if not isinstance(stage_id, str):
+                continue
+
+            # Skip the initial stage itself
+            if stage_id == initial_stage_id:
+                continue
+
+            # Check if this stage can be reached from the initial stage
+            if not self._can_reach_from_initial(initial_stage_id, stage_id):
+                # Allow unreachable stages if they can reach the final stage
+                can_reach_final = self._has_path_to_stage(stage_id, final_stage_id, visited=set())
+                if not can_reach_final:
+                    issue = ConsistencyIssue(
+                        issue_type=ProcessIssueTypes.UNREACHABLE_STAGE,
+                        description=f"Stage '{stage_id}' is unreachable from initial stage '{initial_stage_id}'",
+                        stages=[stage_id],
+                        severity="warning",
+                    )
+                    self.issues.append(issue)
+
+    def _can_reach_from_initial(self, from_stage: str, to_stage: str) -> bool:
+        """Check if to_stage can be reached from from_stage."""
+        return self._has_path_to_stage(from_stage, to_stage, visited=set())

@@ -143,8 +143,9 @@ class CLIContext:
             self.process = result.process
 
             # Show warnings if any (but continue)
-            if result.has_warnings:
-                self.printer.print_load_result(result, json_mode=self.json_mode)
+            # In JSON mode, warnings will be included in the final output, so don't print them here
+            if result.has_warnings and not self.json_mode:
+                self.printer.print_load_result(result, json_mode=False)
             elif self.verbose:
                 self.print_verbose("[green]✓ Process loaded successfully[/green]")
 

@@ -728,7 +728,7 @@ class TestGateProperties:
         assert len(gate_dict["locks"]) == 1
         lock_dict = gate_dict["locks"][0]
         assert lock_dict["property_path"] == "status"
-        assert lock_dict["type"] == LockType.EQUALS
+        assert lock_dict["type"] == LockType.EQUALS.value  # to_dict() returns string value
         assert lock_dict["expected_value"] == "active"
 
 

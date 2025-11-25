@@ -708,6 +708,10 @@ class Process:
     def add_stage(self, id: str, config: StageDefinition) -> None:
         """Add a new stage to the process."""
         self._add_stage(id, config)
+        # Update config dict to include new stage for consistency checking
+        if "stages" not in self.config:
+            self.config["stages"] = {}
+        self.config["stages"][id] = config
         self.checker = self._get_consistency_checker()
 
     def remove_stage(self, stage_name: str) -> None:

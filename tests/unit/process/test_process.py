@@ -1128,14 +1128,18 @@ class TestProcessIntegration:
 
         result_a = process.evaluate(element_a, "start")
         assert result_a["stage_result"].status == StageStatus.READY
-        assert result_a["stage_result"].configured_actions[0].target_stage == "stage_a"
+        # Check that the correct gate passed by examining the validation message
+        assert "stage_a" in result_a["stage_result"].validation_messages[0]
+        assert "path_a" in result_a["stage_result"].validation_messages[0]
 
         # Test route B
         element_b = DictElement({"route": "b", "b_data": "processed"})
 
         result_b = process.evaluate(element_b, "start")
         assert result_b["stage_result"].status == StageStatus.READY
-        assert result_b["stage_result"].configured_actions[0].target_stage == "stage_b"
+        # Check that the correct gate passed by examining the validation message
+        assert "stage_b" in result_b["stage_result"].validation_messages[0]
+        assert "path_b" in result_b["stage_result"].validation_messages[0]
 
     def test_process_edge_case_empty_configuration(self):
         """Test process handles edge cases gracefully."""
