@@ -8,72 +8,68 @@ process:
 
   stages:
     registration:
-      schema:
-        required_fields:
-          - email
-          - password
-          - verification
-          - verification.email_verified_at
-
       gates:
         email_verification:
           target_stage: profile_setup
           locks:
-            - exists: "email"
-            - type: regex
-              property_path: "email"
-              expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-            - exists: "verification.email_verified_at"
+          - exists: "email"
+          - type: regex
+            property_path: "email"
+            expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+          - exists: "verification.email_verified_at"
+
+      fields:
+      - email
+      - password
+      - verification
+      - verification.email_verified_at
 
     profile_setup:
-      schema:
-        required_fields:
-          - email
-          - password
-          - profile
-          - profile.first_name
-          - profile.last_name
-
       gates:
         profile_completion:
           target_stage: verification
           locks:
-            - exists: "profile.first_name"
-            - exists: "profile.last_name"
-            - type: not_empty
-              property_path: "profile.first_name"
-            - type: not_empty
-              property_path: "profile.last_name"
+          - exists: "profile.first_name"
+          - exists: "profile.last_name"
+          - type: not_empty
+            property_path: "profile.first_name"
+          - type: not_empty
+            property_path: "profile.last_name"
+
+      fields:
+      - email
+      - password
+      - profile
+      - profile.first_name
+      - profile.last_name
 
     verification:
-      schema:
-        required_fields:
-          - email
-          - password
-          - profile
-          - verification
-          - verification.identity_verified_at
-          - verification.phone_verified_at
-          - verification.status
-
       gates:
         identity_verified:
           target_stage: active
           locks:
-            - exists: "verification.identity_verified_at"
-            - exists: "verification.phone_verified_at"
-            - type: equals
-              property_path: "verification.status"
-              expected_value: "verified"
+          - exists: "verification.identity_verified_at"
+          - exists: "verification.phone_verified_at"
+          - type: equals
+            property_path: "verification.status"
+            expected_value: "verified"
+
+      fields:
+      - email
+      - password
+      - profile
+      - verification
+      - verification.identity_verified_at
+      - verification.phone_verified_at
+      - verification.status
 
     active:
-      schema:
-        required_fields:
-          - email
-          - password
-          - profile
-          - verification
-          - activation
+      fields:
+      - email
+      - password
+      - profile
+      - verification
+      - activation
 
   allow_stage_skipping: false
   regression_detection: true

@@ -3,7 +3,8 @@
 
 process:
   name: ready_elements_demo
-  description: Process designed to demonstrate READY status with clear transition paths
+  description: Process designed to demonstrate READY status with clear 
+    transition paths
   initial_stage: pending_review
   final_stage: published
 
@@ -11,123 +12,118 @@ process:
     pending_review:
       name: "Pending Review"
       description: "Content submitted and ready for review"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - body
-          - body_word_count
-          - author_id
-          - author_status
-          - content_risk_score
-          - submission_date
-
       gates:
         content_complete:
           target_stage: under_review
           locks:
-            - exists: "title"
-            - exists: "body"
-            - type: "greater_than"
-              property_path: "body_word_count"
-              expected_value: 10
-            - type: "not_empty"
-              property_path: "title"
+          - exists: "title"
+          - exists: "body"
+          - type: "greater_than"
+            property_path: "body_word_count"
+            expected_value: 10
+          - type: "not_empty"
+            property_path: "title"
 
         auto_approve:
           target_stage: approved
           locks:
-            - type: "equals"
-              property_path: "author_status"
-              expected_value: "trusted"
-            - type: "less_than"
-              property_path: "content_risk_score"
-              expected_value: 0.3
+          - type: "equals"
+            property_path: "author_status"
+            expected_value: "trusted"
+          - type: "less_than"
+            property_path: "content_risk_score"
+            expected_value: 0.3
+
+      fields:
+      - content_id
+      - title
+      - body
+      - body_word_count
+      - author_id
+      - author_status
+      - content_risk_score
+      - submission_date
 
     under_review:
       name: "Under Review"
       description: "Content being reviewed by moderators"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - body
-          - author_id
-          - submission_date
-          - review_assigned_to
-          - review_started_at
-          - review_completed_at
-          - review_decision
-
       gates:
         review_approved:
           target_stage: approved
           locks:
-            - exists: "review_completed_at"
-            - type: "equals"
-              property_path: "review_decision"
-              expected_value: "approved"
+          - exists: "review_completed_at"
+          - type: "equals"
+            property_path: "review_decision"
+            expected_value: "approved"
 
         review_rejected:
           target_stage: rejected
           locks:
-            - exists: "review_completed_at"
-            - type: "equals"
-              property_path: "review_decision"
-              expected_value: "rejected"
+          - exists: "review_completed_at"
+          - type: "equals"
+            property_path: "review_decision"
+            expected_value: "rejected"
+
+      fields:
+      - content_id
+      - title
+      - body
+      - author_id
+      - submission_date
+      - review_assigned_to
+      - review_started_at
+      - review_completed_at
+      - review_decision
 
     approved:
       name: "Approved"
       description: "Content approved and ready for publishing"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - body
-          - author_id
-          - submission_date
-          - approval_date
-          - publication_scheduled
-          - publication_ready
-
       gates:
         ready_to_publish:
           target_stage: published
           locks:
-            - exists: "publication_scheduled"
-            - type: "equals"
-              property_path: "publication_ready"
-              expected_value: true
+          - exists: "publication_scheduled"
+          - type: "equals"
+            property_path: "publication_ready"
+            expected_value: true
+
+      fields:
+      - content_id
+      - title
+      - body
+      - author_id
+      - submission_date
+      - approval_date
+      - publication_scheduled
+      - publication_ready
 
     published:
       name: "Published"
       description: "Content successfully published"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - body
-          - author_id
-          - submission_date
-          - approval_date
-          - publication_date
-
       gates: []  # Final stage
+
+      fields:
+      - content_id
+      - title
+      - body
+      - author_id
+      - submission_date
+      - approval_date
+      - publication_date
 
     rejected:
       name: "Rejected"
       description: "Content rejected during review"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - body
-          - author_id
-          - submission_date
-          - rejection_date
-          - rejection_reason
-
       gates: []  # Terminal stage
+
+      fields:
+      - content_id
+      - title
+      - body
+      - author_id
+      - submission_date
+      - rejection_date
+      - rejection_reason
 
   allow_stage_skipping: false
   regression_detection: true
@@ -136,7 +132,7 @@ process:
     description: "Demonstrates READY scenarios with clear transition opportunities"
     test_case: "ready_elements_validation"
     expected_outcomes:
-      - "Elements meeting all requirements show READY status"
-      - "Clear indication of which gates can be passed"
-      - "Multiple transition paths available based on element properties"
-      - "Fast-track paths for trusted content"
+    - "Elements meeting all requirements show READY status"
+    - "Clear indication of which gates can be passed"
+    - "Multiple transition paths available based on element properties"
+    - "Fast-track paths for trusted content"

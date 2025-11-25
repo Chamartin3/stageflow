@@ -3,7 +3,8 @@
 
 process:
   name: defaults_application_demo
-  description: Demonstrates default value application for missing properties during stage progression
+  description: Demonstrates default value application for missing properties 
+    during stage progression
   initial_stage: minimal_data
   final_stage: fully_configured
 
@@ -11,56 +12,53 @@ process:
     minimal_data:
       name: "Minimal Data"
       description: "Basic data entry with minimal requirements"
-      schema:
-        required_fields:
-          - user_id
-          - email
-
       gates:
         has_basic_info:
           target_stage: needs_configuration
           locks:
-            - exists: "user_id"
-            - exists: "email"
+          - exists: "user_id"
+          - exists: "email"
+
+      fields:
+      - user_id
+      - email
 
     needs_configuration:
       name: "Needs Configuration"
       description: "Stage where additional configuration is required"
-      schema:
-        required_fields:
-          - user_id
-          - email
-          - preferences
-          - preferences.theme
-          - settings
-          - settings.auto_save
-          - profile
-          - profile.visibility
-
       gates:
         configuration_complete:
           target_stage: fully_configured
           locks:
-            - exists: "preferences"
-            - exists: "settings"
-            - exists: "profile"
+          - exists: "preferences"
+          - exists: "settings"
+          - exists: "profile"
             # Additional checks for nested properties
-            - exists: "preferences.theme"
-            - exists: "settings.auto_save"
-            - exists: "profile.visibility"
+          - exists: "preferences.theme"
+          - exists: "settings.auto_save"
+          - exists: "profile.visibility"
+
+      fields:
+      - user_id
+      - email
+      - preferences
+      - preferences.theme
+      - settings
+      - settings.auto_save
+      - profile
+      - profile.visibility
 
     fully_configured:
       name: "Fully Configured"
       description: "All configuration present (either user-provided or defaults applied)"
-      schema:
-        required_fields:
-          - user_id
-          - email
-          - preferences
-          - settings
-          - profile
-
       gates: []  # Final stage
+
+      fields:
+      - user_id
+      - email
+      - preferences
+      - settings
+      - profile
 
   allow_stage_skipping: false
   regression_detection: false
@@ -68,7 +66,7 @@ process:
   metadata:
     description: "Demonstrates required configuration properties that must be provided"
     test_case: "required_properties_validation"
-    example_workflow: |
+    example_workflow: |-
       1. Element arrives with minimal data (user_id, email)
       2. Element progresses to needs_configuration stage
       3. System validates all required properties are present

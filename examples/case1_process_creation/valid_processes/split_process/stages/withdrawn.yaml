@@ -1,0 +1,20 @@
+# Withdrawn Stage - Candidate withdrew from process
+name: "Withdrawn"
+description: "Candidate withdrew their application from the hiring process"
+
+fields:
+  - withdrawal.date
+  - withdrawal.reason
+  - withdrawal.stage_at_withdrawal
+  - withdrawal.feedback_requested
+  - withdrawal.feedback_provided
+  - withdrawal.reapply_eligible
+  - withdrawal.notes
+  - closing_reason
+
+gates:
+  close_withdrawn:
+    target_stage: closed
+    locks:
+      - exists: "closing_reason"
+      - exists: "withdrawal.reason"

@@ -3,7 +3,8 @@
 
 process:
   name: backward_regression_demo
-  description: Process designed to detect when elements regress to earlier stages
+  description: Process designed to detect when elements regress to earlier 
+    stages
   initial_stage: draft
   final_stage: archived
 
@@ -11,101 +12,98 @@ process:
     draft:
       name: "Draft"
       description: "Initial content creation stage"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - status
-
       gates:
         ready_for_review:
           target_stage: review
           locks:
-            - exists: "title"
-            - type: "not_empty"
-              property_path: "title"
-            - type: "equals"
-              property_path: "status"
-              expected_value: "draft_complete"
+          - exists: "title"
+          - type: "not_empty"
+            property_path: "title"
+          - type: "equals"
+            property_path: "status"
+            expected_value: "draft_complete"
+
+      fields:
+      - content_id
+      - title
+      - status
 
     review:
       name: "Review"
       description: "Content under review"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - status
-          - reviewer_id
-          - review_stage_entered_at
-          - review_status
-          - review_completed_at
-
       gates:
         review_passed:
           target_stage: published
           locks:
-            - type: "equals"
-              property_path: "review_status"
-              expected_value: "approved"
-            - exists: "review_completed_at"
+          - type: "equals"
+            property_path: "review_status"
+            expected_value: "approved"
+          - exists: "review_completed_at"
 
         needs_revision:
           target_stage: draft  # Backward transition
           locks:
-            - type: "equals"
-              property_path: "review_status"
-              expected_value: "needs_revision"
+          - type: "equals"
+            property_path: "review_status"
+            expected_value: "needs_revision"
+
+      fields:
+      - content_id
+      - title
+      - status
+      - reviewer_id
+      - review_stage_entered_at
+      - review_status
+      - review_completed_at
 
     published:
       name: "Published"
       description: "Content is live and published"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - status
-          - reviewer_id
-          - review_stage_entered_at
-          - published_at
-          - publication_url
-
       gates:
         content_updated:
           target_stage: review  # Backward regression for updates
           locks:
-            - type: "equals"
-              property_path: "status"
-              expected_value: "needs_update"
+          - type: "equals"
+            property_path: "status"
+            expected_value: "needs_update"
 
         archive_content:
           target_stage: archived
           locks:
-            - type: "equals"
-              property_path: "status"
-              expected_value: "archive_requested"
+          - type: "equals"
+            property_path: "status"
+            expected_value: "archive_requested"
+
+      fields:
+      - content_id
+      - title
+      - status
+      - reviewer_id
+      - review_stage_entered_at
+      - published_at
+      - publication_url
 
     archived:
       name: "Archived"
       description: "Content archived and no longer active"
-      schema:
-        required_fields:
-          - content_id
-          - title
-          - status
-          - archived_at
-          - archive_reason
-
       gates: []  # Final stage
+
+      fields:
+      - content_id
+      - title
+      - status
+      - archived_at
+      - archive_reason
 
   allow_stage_skipping: false
   regression_detection: true
 
   metadata:
-    description: "Demonstrates backward regression detection when elements move to earlier stages"
+    description: "Demonstrates backward regression detection when elements move to
+      earlier stages"
     test_case: "backward_regression_validation"
     expected_outcomes:
-      - "Elements evaluated at earlier stages than their progression history show regression"
-      - "Published content requiring updates shows backward regression to review"
-      - "Review rejections requiring revision show controlled backward movement"
-      - "Clear indication when regression is intentional vs. unexpected"
+    - "Elements evaluated at earlier stages than their progression history show regression"
+    - "Published content requiring updates shows backward regression to review"
+    - "Review rejections requiring revision show controlled backward movement"
+    - "Clear indication when regression is intentional vs. unexpected"

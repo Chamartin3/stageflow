@@ -3,7 +3,8 @@
 
 process:
   name: invalid_schema_demo
-  description: Process with strict schema requirements to demonstrate INVALID_SCHEMA status
+  description: Process with strict schema requirements to demonstrate 
+    INVALID_SCHEMA status
   initial_stage: data_validation
   final_stage: schema_compliant
 
@@ -11,82 +12,68 @@ process:
     data_validation:
       name: "Data Validation"
       description: "Strict schema validation for incoming data"
-      schema:
-        required_fields:
-          - id
-          - timestamp
-          - data_type
-          - payload
-
-        # Strict type requirements
-        field_types:
-          id: "string"
-          timestamp: "string"
-          data_type: "string"
-          payload: "object"
-
       gates:
         schema_valid:
           target_stage: type_validation
           locks:
-            - exists: "id"
-            - exists: "timestamp"
-            - exists: "data_type"
-            - exists: "payload"
-            - type: "type_check"
-              property_path: "id"
-              expected_value: "str"
-            - type: "type_check"
-              property_path: "payload"
-              expected_value: "dict"
+          - exists: "id"
+          - exists: "timestamp"
+          - exists: "data_type"
+          - exists: "payload"
+          - type: "type_check"
+            property_path: "id"
+            expected_value: "str"
+          - type: "type_check"
+            property_path: "payload"
+            expected_value: "dict"
 
+      fields:
+      - id
+      - timestamp
+      - data_type
+      - payload
+
+        # Strict type requirements
     type_validation:
       name: "Type Validation"
       description: "Detailed type and format validation"
-      schema:
-        required_fields:
-          - id
-          - timestamp
-          - data_type
-          - payload
-          - version
-
-        # Even stricter requirements
-        field_formats:
-          id: "uuid"
-          timestamp: "iso8601"
-          version: "semver"
-
       gates:
         format_valid:
           target_stage: schema_compliant
           locks:
-            - type: "regex"
-              property_path: "id"
-              expected_value: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-            - type: "regex"
-              property_path: "timestamp"
-              expected_value: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z$"
-            - type: "in_list"
-              property_path: "data_type"
-              expected_value: ["user_data", "system_event", "api_call", "error_log"]
-            - type: "regex"
-              property_path: "version"
-              expected_value: "^\\d+\\.\\d+\\.\\d+$"
+          - type: "regex"
+            property_path: "id"
+            expected_value: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          - type: "regex"
+            property_path: "timestamp"
+            expected_value: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z$"
+          - type: "in_list"
+            property_path: "data_type"
+            expected_value: ["user_data", "system_event", "api_call", "error_log"]
+          - type: "regex"
+            property_path: "version"
+            expected_value: "^\\d+\\.\\d+\\.\\d+$"
 
+      fields:
+      - id
+      - timestamp
+      - data_type
+      - payload
+      - version
+
+        # Even stricter requirements
     schema_compliant:
       name: "Schema Compliant"
       description: "Data meets all schema requirements"
-      schema:
-        required_fields:
-          - id
-          - timestamp
-          - data_type
-          - payload
-          - version
-          - validation_status
-
       gates: []  # Final stage
+
+      fields:
+      - id
+      - timestamp
+      - data_type
+      - payload
+      - version
+      - validation_status
 
   allow_stage_skipping: false
   regression_detection: true
@@ -95,7 +82,7 @@ process:
     description: "Demonstrates INVALID_SCHEMA scenarios with strict validation requirements"
     test_case: "invalid_schema_validation"
     expected_outcomes:
-      - "Elements with wrong data types show type mismatch errors"
-      - "Elements with invalid formats show format validation failures"
-      - "Elements missing required fields show schema compliance errors"
-      - "Clear schema requirement feedback for fixing issues"
+    - "Elements with wrong data types show type mismatch errors"
+    - "Elements with invalid formats show format validation failures"
+    - "Elements missing required fields show schema compliance errors"
+    - "Clear schema requirement feedback for fixing issues"

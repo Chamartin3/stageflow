@@ -8,75 +8,71 @@ process:
 
   stages:
     basic:
-      schema:
-        required_fields:
-          - id
-          - status
-
       gates:
         advance_to_intermediate:
           target_stage: intermediate
           locks:
-            - type: exists
-              property_path: "id"
-            - type: exists
-              property_path: "status"
-            - type: equals
-              property_path: "status"
-              expected_value: "active"
+          - type: exists
+            property_path: "id"
+          - type: exists
+            property_path: "status"
+          - type: equals
+            property_path: "status"
+            expected_value: "active"
+
+      fields:
+      - id
+      - status
 
     intermediate:
-      schema:
-        required_fields:
-          - id
-          - status
-          - processed_data
-          - processed_data.validation_passed
-          - processed_data.processing_date
-
       gates:
         advance_to_advanced:
           target_stage: advanced
           locks:
-            - type: exists
-              property_path: "processed_data.validation_passed"
-            - type: equals
-              property_path: "processed_data.validation_passed"
-              expected_value: true
-            - type: exists
-              property_path: "processed_data.processing_date"
+          - type: exists
+            property_path: "processed_data.validation_passed"
+          - type: equals
+            property_path: "processed_data.validation_passed"
+            expected_value: true
+          - type: exists
+            property_path: "processed_data.processing_date"
+
+      fields:
+      - id
+      - status
+      - processed_data
+      - processed_data.validation_passed
+      - processed_data.processing_date
 
     advanced:
-      schema:
-        required_fields:
-          - id
-          - status
-          - processed_data
-          - advanced_features
-          - advanced_features.feature_a_enabled
-          - advanced_features.feature_b_configured
-          - advanced_features.configuration_score
-
       gates:
         complete:
           target_stage: completed
           locks:
-            - type: exists
-              property_path: "advanced_features.feature_a_enabled"
-            - type: exists
-              property_path: "advanced_features.feature_b_configured"
-            - type: greater_than
-              property_path: "advanced_features.configuration_score"
-              expected_value: 80
+          - type: exists
+            property_path: "advanced_features.feature_a_enabled"
+          - type: exists
+            property_path: "advanced_features.feature_b_configured"
+          - type: greater_than
+            property_path: "advanced_features.configuration_score"
+            expected_value: 80
+
+      fields:
+      - id
+      - status
+      - processed_data
+      - advanced_features
+      - advanced_features.feature_a_enabled
+      - advanced_features.feature_b_configured
+      - advanced_features.configuration_score
 
     completed:
-      schema:
-        required_fields:
-          - id
-          - status
-          - processed_data
-          - advanced_features
-          - completion_metadata
+      fields:
+      - id
+      - status
+      - processed_data
+      - advanced_features
+      - completion_metadata
 
   allow_stage_skipping: false
   regression_detection: true

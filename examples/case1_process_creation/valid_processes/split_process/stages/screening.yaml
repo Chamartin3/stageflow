@@ -1,0 +1,55 @@
+# Screening Stage - HR initial review
+name: "HR Screening"
+description: "HR team reviews application for basic qualifications and culture fit"
+
+fields:
+  - screening.reviewer_id
+  - screening.reviewer_name
+  - screening.started_at
+  - screening.completed_at
+  - screening.decision
+  - screening.notes
+  - screening.culture_fit_score
+  - screening.experience_match_score
+  - screening.salary_expectation
+  - screening.availability_date
+  - screening.work_authorization
+  - screening.rejection_reason
+  - candidate.withdrew
+
+gates:
+  advance_to_technical:
+    target_stage: technical_review
+    locks:
+      - exists: "screening.decision"
+      - type: equals
+        property_path: "screening.decision"
+        expected_value: "advance"
+      - type: greater_than
+        property_path: "screening.culture_fit_score"
+        expected_value: 6
+        error_message: "Culture fit score must be above 6"
+      - type: greater_than
+        property_path: "screening.experience_match_score"
+        expected_value: 5
+        error_message: "Experience match score must be above 5"
+      - type: equals
+        property_path: "screening.work_authorization"
+        expected_value: true
+        error_message: "Work authorization required"
+
+  reject_at_screening:
+    target_stage: rejected
+    locks:
+      - exists: "screening.decision"
+      - type: equals
+        property_path: "screening.decision"
+        expected_value: "reject"
+      - exists: "screening.rejection_reason"
+
+  candidate_withdrew:
+    target_stage: withdrawn
+    locks:
+      - type: equals
+        property_path: "candidate.withdrew"
+        expected_value: true
