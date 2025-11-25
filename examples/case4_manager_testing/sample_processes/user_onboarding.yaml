@@ -1,18 +1,17 @@
-name: "user_onboarding"
-description: "User onboarding workflow with multiple stages"
-stages:
-  email_signup:
-    name: "Email Signup"
-    description: "User provides email and creates account"
-    expected_properties:
-      email: {type: "str"}
-      user_id: {type: "str"}
-      email_verified_at: {type: "str"}
-    gates:
-      - name: "email_verified"
-        description: "Email verification completed"
-        target_stage: "profile_setup"
-        locks:
+process:
+  name: "user_onboarding"
+  description: "User onboarding workflow with multiple stages"
+  initial_stage: "email_signup"
+  final_stage: "active_user"
+
+  stages:
+    email_signup:
+      name: "Email Signup"
+      description: "User provides email and creates account"
+      gates:
+        email_verified:
+          target_stage: "profile_setup"
+          locks:
           - type: exists
             property_path: "email"
           - type: exists
@@ -23,18 +22,18 @@ stages:
             property_path: "email"
             expected_value: "^[^@]+@[^@]+\\.[^@]+$"
 
-  profile_setup:
-    name: "Profile Setup"
-    description: "User completes profile information"
-    expected_properties:
-      profile:
-        first_name: {type: "str"}
-        last_name: {type: "str"}
-    gates:
-      - name: "profile_complete"
-        description: "Profile information is complete"
-        target_stage: "verification"
-        locks:
+      fields:
+      - email
+      - user_id
+      - email_verified_at
+
+    profile_setup:
+      name: "Profile Setup"
+      description: "User completes profile information"
+      gates:
+        profile_complete:
+          target_stage: "verification"
+          locks:
           - type: exists
             property_path: "profile.first_name"
           - type: exists
@@ -42,18 +41,18 @@ stages:
           - type: not_empty
             property_path: "profile.first_name"
 
-  verification:
-    name: "Verification"
-    description: "Identity verification process"
-    expected_properties:
-      verification:
-        document_uploaded: {type: "bool"}
-        status: {type: "str"}
-    gates:
-      - name: "verification_approved"
-        description: "Identity verification approved"
-        target_stage: "active_user"
-        locks:
+      fields:
+      - profile
+      - profile.first_name
+      - profile.last_name
+
+    verification:
+      name: "Verification"
+      description: "Identity verification process"
+      gates:
+        verification_approved:
+          target_stage: "active_user"
+          locks:
           - type: equals
             property_path: "verification.document_uploaded"
             expected_value: true
@@ -61,14 +60,17 @@ stages:
             property_path: "verification.status"
             expected_value: "approved"
 
-  active_user:
-    name: "Active User"
-    description: "User account is fully active"
-    expected_properties:
-      status: {type: "str"}
-      activated_at: {type: "str"}
-    gates: []
-    is_final: true
+      fields:
+      - verification
+      - verification.document_uploaded
+      - verification.status
 
-initial_stage: "email_signup"
-final_stage: "active_user"
+    active_user:
+      name: "Active User"
+      description: "User account is fully active"
+      fields:
+      - status
+      - activated_at
+
+  allow_stage_skipping: false
+  regression_detection: true

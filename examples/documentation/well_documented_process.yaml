@@ -11,169 +11,177 @@ process:
   stages:
     cart:
       name: "Shopping Cart"
-      description: "Customer browses products and adds items to cart. No account required at this stage. Cart persists across sessions for anonymous users."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-
+      description: "Customer browses products and adds items to cart. No account required
+        at this stage. Cart persists across sessions for anonymous users."
       gates:
         proceed_to_checkout:
           target_stage: checkout
           locks:
-            - type: not_empty
-              property_path: "items"
-              error_message: "Add at least one item to your cart before proceeding to checkout"
+          - type: not_empty
+            property_path: "items"
+            error_message: "Add at least one item to your cart before proceeding to
+              checkout"
+
+      fields:
+      - items
+      - subtotal
 
     checkout:
       name: "Checkout"
-      description: "Customer provides shipping address, billing information, and selects payment method. Account creation is optional but encouraged for faster future checkouts."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - shipping_address
-          - shipping_address.street
-          - billing_address
-          - billing_address.street
-          - payment_method
-          - payment_method.type
-
+      description: "Customer provides shipping address, billing information, and selects
+        payment method. Account creation is optional but encouraged for faster future
+        checkouts."
       gates:
         place_order:
           target_stage: payment_processing
           locks:
-            - exists: "shipping_address.street"
-            - exists: "billing_address.street"
-            - type: in_list
-              property_path: "payment_method.type"
-              expected_value: ["credit_card", "debit_card", "paypal", "bank_transfer"]
-              error_message: "Select a valid payment method"
+          - exists: "shipping_address.street"
+          - exists: "billing_address.street"
+          - type: in_list
+            property_path: "payment_method.type"
+            expected_value: ["credit_card", "debit_card", "paypal", "bank_transfer"]
+            error_message: "Select a valid payment method"
+
+      fields:
+      - items
+      - subtotal
+      - shipping_address
+      - shipping_address.street
+      - billing_address
+      - billing_address.street
+      - payment_method
+      - payment_method.type
 
     payment_processing:
       name: "Payment Processing"
-      description: "Payment gateway processes the transaction using the selected payment method. Supports automatic retry for temporary failures (max 3 attempts with exponential backoff). All transactions are logged for PCI compliance auditing."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - shipping_address
-          - billing_address
-          - payment_method
-          - payment_status
-          - transaction_id
-
+      description: "Payment gateway processes the transaction using the selected payment
+        method. Supports automatic retry for temporary failures (max 3 attempts with
+        exponential backoff). All transactions are logged for PCI compliance auditing."
       gates:
         payment_successful:
           target_stage: order_confirmed
           locks:
-            - type: equals
-              property_path: "payment_status"
-              expected_value: "completed"
+          - type: equals
+            property_path: "payment_status"
+            expected_value: "completed"
         payment_failed:
           target_stage: payment_failed
           locks:
-            - type: equals
-              property_path: "payment_status"
-              expected_value: "failed"
+          - type: equals
+            property_path: "payment_status"
+            expected_value: "failed"
+
+      fields:
+      - items
+      - subtotal
+      - shipping_address
+      - billing_address
+      - payment_method
+      - payment_status
+      - transaction_id
 
     payment_failed:
       name: "Payment Failed"
-      description: "Payment processing failed after all retry attempts. Customer can retry with different payment method or cancel order. Failed payment details are logged for fraud prevention."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - payment_attempts
-          - failure_reason
-
+      description: "Payment processing failed after all retry attempts. Customer can
+        retry with different payment method or cancel order. Failed payment details
+        are logged for fraud prevention."
       gates:
         retry_payment:
           target_stage: checkout
           locks:
-            - type: less_than
-              property_path: "payment_attempts"
-              expected_value: 3
+          - type: less_than
+            property_path: "payment_attempts"
+            expected_value: 3
+
+      fields:
+      - items
+      - subtotal
+      - payment_attempts
+      - failure_reason
 
     order_confirmed:
       name: "Order Confirmed"
-      description: "Payment successful, order confirmed. System generates order number and sends confirmation email. Inventory is reserved and order enters fulfillment queue."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - order_number
-          - confirmation_email_sent
-
+      description: "Payment successful, order confirmed. System generates order number
+        and sends confirmation email. Inventory is reserved and order enters fulfillment
+        queue."
       gates:
         begin_fulfillment:
           target_stage: preparing_shipment
           locks:
-            - exists: "order_number"
-            - type: equals
-              property_path: "confirmation_email_sent"
-              expected_value: true
+          - exists: "order_number"
+          - type: equals
+            property_path: "confirmation_email_sent"
+            expected_value: true
+
+      fields:
+      - items
+      - subtotal
+      - order_number
+      - confirmation_email_sent
 
     preparing_shipment:
       name: "Preparing Shipment"
-      description: "Warehouse staff picks items from inventory, packs the order, and prepares shipping label. Order status updates are sent to customer via email and SMS notifications."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - order_number
-          - picked_items
-          - packed_at
-          - tracking_number
-
+      description: "Warehouse staff picks items from inventory, packs the order, and
+        prepares shipping label. Order status updates are sent to customer via email
+        and SMS notifications."
       gates:
         ship_order:
           target_stage: shipped
           locks:
-            - exists: "tracking_number"
-            - exists: "picked_items"
-            - type: not_empty
-              property_path: "picked_items"
+          - exists: "tracking_number"
+          - exists: "picked_items"
+          - type: not_empty
+            property_path: "picked_items"
+
+      fields:
+      - items
+      - subtotal
+      - order_number
+      - picked_items
+      - packed_at
+      - tracking_number
 
     shipped:
       name: "Shipped"
-      description: "Order has been handed to carrier for delivery. Customer receives tracking information and delivery updates. Order can still be returned within return window."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - order_number
-          - tracking_number
-          - shipped_at
-          - carrier
-          - delivered_at
-
+      description: "Order has been handed to carrier for delivery. Customer receives
+        tracking information and delivery updates. Order can still be returned within
+        return window."
       gates:
         delivered:
           target_stage: delivered
           locks:
-            - exists: "delivered_at"
-            - type: greater_than
-              property_path: "delivered_at"
-              expected_value: "shipped_at"
+          - exists: "delivered_at"
+          - type: greater_than
+            property_path: "delivered_at"
+            expected_value: "shipped_at"
+
+      fields:
+      - items
+      - subtotal
+      - order_number
+      - tracking_number
+      - shipped_at
+      - carrier
+      - delivered_at
 
     delivered:
       name: "Delivered"
-      description: "Order successfully delivered to customer. Return window opens (typically 30 days). Customer satisfaction survey sent automatically."
-      schema:
-        required_fields:
-          - items
-          - subtotal
-          - order_number
-          - tracking_number
-          - delivered_at
-          - delivery_confirmed_by
+      description: "Order successfully delivered to customer. Return window opens
+        (typically 30 days). Customer satisfaction survey sent automatically."
+      fields:
+      - items
+      - subtotal
+      - order_number
+      - tracking_number
+      - delivered_at
+      - delivery_confirmed_by
 
   allow_stage_skipping: false
   regression_detection: true
 
   metadata:
-    description: "Comprehensive ecommerce order fulfillment process demonstrating description field usage"
+    description: "Comprehensive ecommerce order fulfillment process demonstrating
+      description field usage"
     version: "1.0.0"
     author: "StageFlow Documentation Team"
     purpose: "Showcase best practices for process documentation and description usage"

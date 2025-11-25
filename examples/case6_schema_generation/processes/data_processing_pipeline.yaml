@@ -11,155 +11,153 @@ process:
     ingestion:
       name: "Data Ingestion"
       description: "Raw data ingestion and initial validation"
-      schema:
-        required_fields:
-          - dataset_id
-          - source_system
-          - ingestion_timestamp
-          - raw_data_format
-          - estimated_size_mb
-
       gates:
         data_received:
           target_stage: validation
           locks:
-            - exists: "dataset_id"
-            - exists: "source_system"
-            - exists: "ingestion_timestamp"
-            - type: "greater_than"
-              property_path: "estimated_size_mb"
-              expected_value: 0
+          - exists: "dataset_id"
+          - exists: "source_system"
+          - exists: "ingestion_timestamp"
+          - type: "greater_than"
+            property_path: "estimated_size_mb"
+            expected_value: 0
+
+      fields:
+      - dataset_id
+      - source_system
+      - ingestion_timestamp
+      - raw_data_format
+      - estimated_size_mb
 
     validation:
       name: "Data Validation"
       description: "Validate data quality and structure"
-      schema:
-        required_fields:
-          - dataset_id
-          - source_system
-          - ingestion_timestamp
-          - raw_data_format
-          - estimated_size_mb
-          - validation_rules[0].field_name
-          - validation_rules[0].rule_type
-          - quality_score
-          - validation_completed_at
-
       gates:
         validation_passed:
           target_stage: transformation
           locks:
-            - exists: "quality_score"
-            - type: "greater_than"
-              property_path: "quality_score"
-              expected_value: 0.7
-            - type: "length"
-              property_path: "validation_rules"
-              expected_value: 1
+          - exists: "quality_score"
+          - type: "greater_than"
+            property_path: "quality_score"
+            expected_value: 0.7
+          - type: "length"
+            property_path: "validation_rules"
+            expected_value: 1
+
+      fields:
+      - dataset_id
+      - source_system
+      - ingestion_timestamp
+      - raw_data_format
+      - estimated_size_mb
+      - validation_rules
+      - validation_rules[0].field_name
+      - validation_rules[0].rule_type
+      - quality_score
+      - validation_completed_at
 
     transformation:
       name: "Data Transformation"
       description: "Transform and normalize data"
-      schema:
-        required_fields:
-          - dataset_id
-          - source_system
-          - ingestion_timestamp
-          - raw_data_format
-          - estimated_size_mb
-          - validation_rules[0].field_name
-          - validation_rules[0].rule_type
-          - quality_score
-          - validation_completed_at
-          - transformation_config.output_format
-          - transformation_config.field_mappings[0].source_field
-          - transformation_config.field_mappings[0].target_field
-          - transformed_record_count
-          - transformation_duration_ms
-
       gates:
         transformation_complete:
           target_stage: enrichment
           locks:
-            - exists: "transformed_record_count"
-            - type: "greater_than"
-              property_path: "transformed_record_count"
-              expected_value: 0
-            - exists: "transformation_config.output_format"
+          - exists: "transformed_record_count"
+          - type: "greater_than"
+            property_path: "transformed_record_count"
+            expected_value: 0
+          - exists: "transformation_config.output_format"
+
+      fields:
+      - dataset_id
+      - source_system
+      - ingestion_timestamp
+      - raw_data_format
+      - estimated_size_mb
+      - validation_rules[0].field_name
+      - validation_rules[0].rule_type
+      - quality_score
+      - validation_completed_at
+      - transformation_config.output_format
+      - transformation_config.field_mappings[0].source_field
+      - transformation_config.field_mappings[0].target_field
+      - transformed_record_count
+      - transformation_duration_ms
 
     enrichment:
       name: "Data Enrichment"
       description: "Enrich data with additional information"
-      schema:
-        required_fields:
-          - dataset_id
-          - source_system
-          - ingestion_timestamp
-          - raw_data_format
-          - estimated_size_mb
-          - validation_rules[0].field_name
-          - validation_rules[0].rule_type
-          - quality_score
-          - validation_completed_at
-          - transformation_config.output_format
-          - transformation_config.field_mappings[0].source_field
-          - transformation_config.field_mappings[0].target_field
-          - transformed_record_count
-          - transformation_duration_ms
-          - enrichment_sources[0].name
-          - enrichment_sources[0].record_count
-          - final_quality_score
-          - enrichment_completed_at
-
       gates:
         enrichment_complete:
           target_stage: archived
           locks:
-            - exists: "final_quality_score"
-            - type: "greater_than"
-              property_path: "final_quality_score"
-              expected_value: 0.8
-            - type: "length"
-              property_path: "enrichment_sources"
-              expected_value: 1
+          - exists: "final_quality_score"
+          - type: "greater_than"
+            property_path: "final_quality_score"
+            expected_value: 0.8
+          - type: "length"
+            property_path: "enrichment_sources"
+            expected_value: 1
+
+      fields:
+      - dataset_id
+      - source_system
+      - ingestion_timestamp
+      - raw_data_format
+      - estimated_size_mb
+      - validation_rules[0].field_name
+      - validation_rules[0].rule_type
+      - quality_score
+      - validation_completed_at
+      - transformation_config.output_format
+      - transformation_config.field_mappings[0].source_field
+      - transformation_config.field_mappings[0].target_field
+      - transformed_record_count
+      - transformation_duration_ms
+      - enrichment_sources
+      - enrichment_sources[0].name
+      - enrichment_sources[0].record_count
+      - final_quality_score
+      - enrichment_completed_at
 
     archived:
       name: "Archived"
       description: "Data successfully processed and archived"
-      schema:
-        required_fields:
-          - dataset_id
-          - source_system
-          - ingestion_timestamp
-          - raw_data_format
-          - estimated_size_mb
-          - validation_rules[0].field_name
-          - validation_rules[0].rule_type
-          - quality_score
-          - validation_completed_at
-          - transformation_config.output_format
-          - transformation_config.field_mappings[0].source_field
-          - transformation_config.field_mappings[0].target_field
-          - transformed_record_count
-          - transformation_duration_ms
-          - enrichment_sources[0].name
-          - enrichment_sources[0].record_count
-          - final_quality_score
-          - enrichment_completed_at
-          - archive_location
-          - archive_timestamp
-          - total_processing_time_ms
-
       gates: []  # Final stage
+
+      fields:
+      - dataset_id
+      - source_system
+      - ingestion_timestamp
+      - raw_data_format
+      - estimated_size_mb
+      - validation_rules[0].field_name
+      - validation_rules[0].rule_type
+      - quality_score
+      - validation_completed_at
+      - transformation_config.output_format
+      - transformation_config.field_mappings[0].source_field
+      - transformation_config.field_mappings[0].target_field
+      - transformed_record_count
+      - transformation_duration_ms
+      - enrichment_sources[0].name
+      - enrichment_sources[0].record_count
+      - final_quality_score
+      - enrichment_completed_at
+      - archive_location
+      - archive_timestamp
+      - total_processing_time_ms
 
   allow_stage_skipping: false
   regression_detection: true
 
   metadata:
-    description: "Data processing pipeline demonstrating advanced schema generation features"
+    description: "Data processing pipeline demonstrating advanced schema generation
+      features"
     test_case: "advanced_schema_generation"
     expected_outcomes:
-      - "Schema generation handles diverse data types"
-      - "Complex validation rules work in schema"
-      - "Multiple array types are supported"
-      - "Numeric validation constraints are preserved"
+    - "Schema generation handles diverse data types"
+    - "Complex validation rules work in schema"
+    - "Multiple array types are supported"
+    - "Numeric validation constraints are preserved"

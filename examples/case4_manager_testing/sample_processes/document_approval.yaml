@@ -1,19 +1,17 @@
-name: "document_approval"
-description: "Document approval workflow with review stages"
-stages:
-  draft:
-    name: "Draft"
-    description: "Document is in draft status"
-    expected_properties:
-      document_id: {type: "str"}
-      title: {type: "str"}
-      content: {type: "str"}
-      author: {type: "str"}
-    gates:
-      - name: "submit_for_review"
-        description: "Submit document for review"
-        target_stage: "under_review"
-        locks:
+process:
+  name: "document_approval"
+  description: "Document approval workflow with review stages"
+  initial_stage: "draft"
+  final_stage: "published"
+
+  stages:
+    draft:
+      name: "Draft"
+      description: "Document is in draft status"
+      gates:
+        submit_for_review:
+          target_stage: "under_review"
+          locks:
           - type: exists
             property_path: "document_id"
           - type: exists
@@ -25,21 +23,19 @@ stages:
           - type: not_empty
             property_path: "content"
 
-  under_review:
-    name: "Under Review"
-    description: "Document is being reviewed"
-    expected_properties:
-      assigned_reviewer: {type: "str"}
-      review_started_at: {type: "str"}
-      review:
-        decision: {type: "str"}
-        completed_at: {type: "str"}
-        feedback: {type: "str"}
-    gates:
-      - name: "approve_document"
-        description: "Document approved by reviewer"
-        target_stage: "approved"
-        locks:
+      fields:
+      - document_id
+      - title
+      - content
+      - author
+
+    under_review:
+      name: "Under Review"
+      description: "Document is being reviewed"
+      gates:
+        approve_document:
+          target_stage: "approved"
+          locks:
           - type: exists
             property_path: "review.decision"
           - type: equals
@@ -47,10 +43,10 @@ stages:
             expected_value: "approved"
           - type: exists
             property_path: "review.completed_at"
-      - name: "request_changes"
-        description: "Changes requested by reviewer"
-        target_stage: "needs_revision"
-        locks:
+
+        request_changes:
+          target_stage: "needs_revision"
+          locks:
           - type: exists
             property_path: "review.decision"
           - type: equals
@@ -59,21 +55,21 @@ stages:
           - type: exists
             property_path: "review.feedback"
 
-  needs_revision:
-    name: "Needs Revision"
-    description: "Document needs changes before approval"
-    expected_properties:
-      review:
-        feedback: {type: "str"}
-        requested_changes: {type: "list"}
-      revision:
-        completed: {type: "bool"}
-        changes_made: {type: "str"}
-    gates:
-      - name: "resubmit_after_revision"
-        description: "Resubmit document after making changes"
-        target_stage: "under_review"
-        locks:
+      fields:
+      - assigned_reviewer
+      - review_started_at
+      - review
+      - review.decision
+      - review.completed_at
+      - review.feedback
+
+    needs_revision:
+      name: "Needs Revision"
+      description: "Document needs changes before approval"
+      gates:
+        resubmit_after_revision:
+          target_stage: "under_review"
+          locks:
           - type: exists
             property_path: "revision.completed"
           - type: equals
@@ -82,18 +78,21 @@ stages:
           - type: exists
             property_path: "revision.changes_made"
 
-  approved:
-    name: "Approved"
-    description: "Document has been approved"
-    expected_properties:
-      approved_by: {type: "str"}
-      approved_at: {type: "str"}
-      publish_ready: {type: "bool"}
-    gates:
-      - name: "publish_document"
-        description: "Publish approved document"
-        target_stage: "published"
-        locks:
+      fields:
+      - review
+      - review.feedback
+      - review.requested_changes
+      - revision
+      - revision.completed
+      - revision.changes_made
+
+    approved:
+      name: "Approved"
+      description: "Document has been approved"
+      gates:
+        publish_document:
+          target_stage: "published"
+          locks:
           - type: exists
             property_path: "approved_by"
           - type: exists
@@ -104,14 +103,17 @@ stages:
             property_path: "publish_ready"
             expected_value: true
 
-  published:
-    name: "Published"
-    description: "Document has been published"
-    expected_properties:
-      published_at: {type: "str"}
-      publication_url: {type: "str"}
-    gates: []
-    is_final: true
+      fields:
+      - approved_by
+      - approved_at
+      - publish_ready
 
-initial_stage: "draft"
-final_stage: "published"
+    published:
+      name: "Published"
+      description: "Document has been published"
+      fields:
+      - published_at
+      - publication_url
+
+  allow_stage_skipping: false
+  regression_detection: true

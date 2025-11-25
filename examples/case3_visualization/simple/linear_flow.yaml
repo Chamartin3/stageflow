@@ -10,77 +10,73 @@ process:
     draft:
       name: "Draft"
       description: "Author creates and edits document content"
-      schema:
-        required_fields:
-          - title
-          - content
-          - author
-
       gates:
         submit_for_review:
           target_stage: under_review
           locks:
-            - exists: "title"
-            - exists: "content"
-            - exists: "author"
-            - type: not_empty
-              property_path: "title"
+          - exists: "title"
+          - exists: "content"
+          - exists: "author"
+          - type: not_empty
+            property_path: "title"
+
+      fields:
+      - title
+      - content
+      - author
 
     under_review:
       name: "Under Review"
       description: "Document is being reviewed by assigned reviewer"
-      schema:
-        required_fields:
-          - title
-          - content
-          - author
-          - reviewer
-          - review.decision
-
       gates:
         approve_document:
           target_stage: approved
           locks:
-            - exists: "review.decision"
-            - type: equals
-              property_path: "review.decision"
-              expected_value: "approved"
+          - exists: "review.decision"
+          - type: equals
+            property_path: "review.decision"
+            expected_value: "approved"
+
+      fields:
+      - title
+      - content
+      - author
+      - reviewer
+      - review.decision
 
     approved:
       name: "Approved"
       description: "Document approved and prepared for publication"
-      schema:
-        required_fields:
-          - title
-          - content
-          - author
-          - reviewer
-          - approval_date
-          - publication_ready
-
       gates:
         publish_document:
           target_stage: published
           locks:
-            - exists: "approval_date"
-            - exists: "publication_ready"
-            - type: equals
-              property_path: "publication_ready"
-              expected_value: true
+          - exists: "approval_date"
+          - exists: "publication_ready"
+          - type: equals
+            property_path: "publication_ready"
+            expected_value: true
+
+      fields:
+      - title
+      - content
+      - author
+      - reviewer
+      - approval_date
+      - publication_ready
 
     published:
       name: "Published"
       description: "Document has been published and is available to readers"
-      schema:
-        required_fields:
-          - title
-          - content
-          - author
-          - reviewer
-          - approval_date
-          - publication_date
       is_final: true
 
+      fields:
+      - title
+      - content
+      - author
+      - reviewer
+      - approval_date
+      - publication_date
   allow_stage_skipping: false
   regression_detection: true
 
@@ -88,4 +84,5 @@ process:
     description: "Simple linear document approval process for visualization testing"
     version: "1.0.0"
     test_case: "visualization_linear_flow"
-    visualization_notes: "Should generate a simple left-to-right or top-to-bottom flow diagram"
+    visualization_notes: "Should generate a simple left-to-right or top-to-bottom
+      flow diagram"
