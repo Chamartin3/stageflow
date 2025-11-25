@@ -36,7 +36,7 @@ class ProcessConsistencyChecker:
         self._check_logical_conflicts()
         self._check_dead_end_stages()
         self._check_unreachable_stages()
-        # Other checks can be added here
+        self._check_final_stage_has_no_gates()
 
     def _normalize_gates(self, gates) -> list[tuple[str, dict]]:
         """Normalize gates to list of (name, gate_dict) tuples.
@@ -1117,3 +1117,37 @@ class ProcessConsistencyChecker:
     def _can_reach_from_initial(self, from_stage: str, to_stage: str) -> bool:
         """Check if to_stage can be reached from from_stage."""
         return self._has_path_to_stage(from_stage, to_stage, visited=set())
+
+    def _check_final_stage_has_no_gates(self) -> None:
+        """Check that final stage does not have outgoing gates.
+
+        Final stages are terminal by definition and should not have transitions
+        to other stages. Having gates on a final stage indicates a process design error.
+        """
+        stages = self.process_def.get("stages", {})
+        if not isinstance(stages, dict):
+            return
+
+        final_stage_id = self.process_def.get("final_stage")
+        if not isinstance(final_stage_id, str):
+            return
+
+        final_stage = stages.get(final_stage_id)
+        if not isinstance(final_stage, dict):
+            return
+
+        gates = final_stage.get("gates", {})
+        normalized_gates = self._normalize_gates(gates)
+
+        if normalized_gates:
+            gate_names = [name for name, _ in normalized_gates]
+            issue = ConsistencyIssue(
+                issue_type=ProcessIssueTypes.FINAL_STAGE_HAS_GATES,
+                description=(
+                    f"Final stage '{final_stage_id}' has outgoing gates: {', '.join(gate_names)}. "
+                    f"Final stages should not have transitions to other stages."
+                ),
+                stages=[final_stage_id],
+                severity="error",
+            )
+            self.issues.append(issue)

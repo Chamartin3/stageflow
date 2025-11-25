@@ -28,6 +28,9 @@ class ProcessIssueTypes(StrEnum):
     UNCONTROLLED_CYCLE = "uncontrolled_cycle"   # Cycle without clear termination conditions
     CONTROLLED_CYCLE = "controlled_cycle"        # Well-controlled cycle (INFO level, optional)
 
+    # Final stage validation
+    FINAL_STAGE_HAS_GATES = "final_stage_has_gates"  # Final stage should not have outgoing gates
+
 
 @dataclass(frozen=True)
 class ConsistencyIssue:

@@ -36,6 +36,7 @@ from .base import (
     ProcessFileDict,
     RegressionDetails,
     StageDefinition,
+    StageFieldsDefinition,
     StageObjectPropertyDefinition,
 )
 
@@ -62,6 +63,19 @@ from .errors import (
     LoadError,
     ProcessLoadResult,
     ProcessLoadResultDict,
+)
+
+# Property models (new unified system)
+from .properties import (
+    BoolProperty,
+    DictProperty,
+    ListProperty,
+    NumberProperty,
+    PropertiesParser,
+    Property,
+    PropertyType,
+    PropertyValidator,
+    StringProperty,
 )
 
 __all__ = [
@@ -98,6 +112,7 @@ __all__ = [
     "ActionDefinition",
     "StageObjectPropertyDefinition",
     "ExpectedObjectSchmema",
+    "StageFieldsDefinition",
     "StageDefinition",
     # Process types
     "ProcessDefinition",
@@ -107,4 +122,14 @@ __all__ = [
     "ProcessFileDict",
     "LegacyProcessFileDict",
     "ProcessFile",
+    # Property models (new unified system)
+    "Property",
+    "PropertyType",
+    "StringProperty",
+    "NumberProperty",
+    "BoolProperty",
+    "ListProperty",
+    "DictProperty",
+    "PropertiesParser",
+    "PropertyValidator",
 ]

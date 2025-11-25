@@ -27,6 +27,7 @@ __all__ = [
     "ActionDefinition",
     "StageObjectPropertyDefinition",
     "ExpectedObjectSchmema",
+    "StageFieldsDefinition",
     "StageDefinition",
     # Process types
     "ProcessDefinition",
@@ -305,8 +306,18 @@ class StageObjectPropertyDefinition(TypedDict):
     default: Any | None
 
 
-# Type alias for stage expected properties schema
+# Type alias for stage expected properties schema (legacy)
 ExpectedObjectSchmema = dict[str, StageObjectPropertyDefinition | None] | None
+
+# Type alias for new fields property (progressive disclosure)
+# Level 1: Simple list ["email", "password"]
+# Level 2: Type shortcuts {"email": "string", "age": "int"}
+# Level 3: Full specs {"email": {"type": "string", "format": "email"}}
+StageFieldsDefinition = (
+    list[str]  # Level 1: Simple list
+    | dict[str, str]  # Level 2: Type shortcuts
+    | dict[str, dict[str, Any]]  # Level 3: Full property specs
+)
 
 
 class StageDefinition(TypedDict, total=False):
@@ -316,7 +327,7 @@ class StageDefinition(TypedDict, total=False):
     description: Required[str]  # Required
     gates: Required[list[GateDefinition]]  # Required
     expected_actions: Required[list[ActionDefinition]]  # Required
-    expected_properties: Required[ExpectedObjectSchmema]  # Required
+    fields: Required[StageFieldsDefinition]  # Required - Progressive disclosure syntax
     is_final: Required[bool]  # Required
 
 

@@ -8,7 +8,6 @@ from .elements import Element
 from .gate import Gate, GateResult
 from .models import (
     ActionDefinition,
-    ExpectedObjectSchmema,
     GateDefinition,
     StageDefinition,
 )
@@ -246,10 +245,17 @@ class Stage:
             path for gate in self.gates for path in gate.required_paths
         ]
 
-        # define object schema for rquiered properties
-        expected_properties = config.get("expected_properties", {})
-        self._validate_schema(expected_properties)
-        self._base_schema = expected_properties
+        # Parse new fields property using Pydantic models
+        from stageflow.models import PropertiesParser
+
+        fields_spec = config.get("fields", [])
+        if fields_spec:
+            self._properties = PropertiesParser.parse(fields_spec)
+        else:
+            self._properties = {}
+
+        # Validate that gate properties exist in fields definition
+        self._validate_schema(self._properties)
 
         # Validate action definitions
         actions = config.get("expected_actions", [])
@@ -263,20 +269,37 @@ class Stage:
         """Get all possible target stages from this stage's gates."""
         return list({gate.target_stage for gate in self.gates})
 
-    def _validate_schema(self, shape: ExpectedObjectSchmema) -> None:
-        """Validate that all evaluated paths exist in the expected properties schema."""
-        # Only validate if schema is provided - allow stages without schemas
-        if not shape:
+    def _validate_schema(self, properties: dict[str, Any]) -> None:
+        """Validate that all evaluated paths exist in the fields definition."""
+        from stageflow.models import DictProperty, Property
+
+        # Only validate if properties are provided - allow stages without properties
+        if not properties:
             return
 
         for prop_path in self._evaluated_paths:
-            nested = shape
-            for part in prop_path.split("."):
-                if nested is None or part not in nested:
+            parts = prop_path.split(".")
+            current = properties
+
+            for i, part in enumerate(parts):
+                if part not in current:
                     raise ValueError(
-                        f"Gate property '{prop_path}' is not defined in stage '{self.name}' schema"
+                        f"Gate property '{prop_path}' is not defined in stage '{self.name}' fields"
                     )
-                nested = nested[part]
+
+                prop = current[part]
+                if not isinstance(prop, Property):
+                    raise ValueError(
+                        f"Invalid property definition for '{part}' in stage '{self.name}'"
+                    )
+
+                # If not the last part, must be a DictProperty with nested properties
+                if i < len(parts) - 1:
+                    if not isinstance(prop, DictProperty) or not prop.properties:
+                        raise ValueError(
+                            f"Cannot navigate into non-dict property '{part}' in path '{prop_path}'"
+                        )
+                    current = prop.properties
 
     def _validate_actions(self, actions: list[ActionDefinition]) -> None:
         """Verify that actions are valid and properly structured.
@@ -369,12 +392,27 @@ class Stage:
                 gate_names.append(gate.name)
 
     def _get_missing_properties(self, element: Element) -> dict[str, Any]:
-        """Contains the requies propesties."""
+        """Check for required properties that are missing from the element."""
+        from stageflow.models import Property
+
         missing = {}
-        for prop_path, definition in (self._base_schema or {}).items():
-            if not element.has_property(prop_path):
-                suggested = definition.get("default") if definition else None
-                missing[prop_path] = suggested
+
+        def check_properties(props: dict[str, Property], prefix: str = ""):
+            """Recursively check nested properties."""
+            from stageflow.models import DictProperty
+
+            for name, prop in props.items():
+                full_path = f"{prefix}.{name}" if prefix else name
+
+                # Only check required properties
+                if prop.required and not element.has_property(full_path):
+                    missing[full_path] = prop.default
+
+                # Recursively check nested dict properties
+                if isinstance(prop, DictProperty) and prop.properties:
+                    check_properties(prop.properties, full_path)
+
+        check_properties(self._properties)
         return missing
 
     def evaluate(self, element: Element) -> StageEvaluationResult:
@@ -433,26 +471,65 @@ class Stage:
             validation_messages=validation_messages,
         )
 
-    def get_schema(self) -> ExpectedObjectSchmema:
+    def get_schema(self) -> dict[str, Any]:
         """Extract schema definition for this stage.
 
         Returns:
-            ExpectedObjectSchmema with existing StageFlow type definitions.
-            Schema includes type information from expected_properties.
+            Dictionary representation of field definitions.
+            Converts Pydantic Property models back to dict format.
         """
-        import copy
+        from stageflow.models import DictProperty, Property
 
-        return copy.deepcopy(self._base_schema)
+        def property_to_dict(prop: Property) -> dict[str, Any]:
+            """Convert a Property model to dict format."""
+            # Handle both PropertyType enum and string values
+            type_val = prop.type.value if hasattr(prop.type, 'value') else prop.type
+            result = {
+                "type": type_val,
+                "required": prop.required,
+            }
+
+            if prop.default is not None:
+                result["default"] = prop.default
+
+            if prop.description:
+                result["description"] = prop.description
+
+            # Add type-specific fields
+            if isinstance(prop, DictProperty) and prop.properties:
+                result["properties"] = {
+                    name: property_to_dict(p) for name, p in prop.properties.items()
+                }
+
+            return result
+
+        return {name: property_to_dict(prop) for name, prop in self._properties.items()}
 
     # Serialization
     def to_dict(self) -> StageDefinition:
         """Serialize stage to dictionary."""
+        from stageflow.models import DictProperty
+
+        # Convert Property models to simple field definitions
+        def serialize_fields(props: dict[str, Any]) -> dict[str, Any]:
+            """Convert Property models to serializable format."""
+            result = {}
+            for name, prop in props.items():
+                if isinstance(prop, DictProperty) and prop.properties:
+                    # For nested dict properties, include nested structure
+                    result[name] = serialize_fields(prop.properties)
+                else:
+                    # For simple properties, just include the type
+                    type_val = prop.type.value if hasattr(prop.type, 'value') else prop.type
+                    result[name] = type_val
+            return result
+
         result: StageDefinition = {
             "name": self.name,
             "description": self.description,
             "gates": [gate.to_dict() for gate in self.gates],
             "expected_actions": self.stage_actions,
-            "expected_properties": self._base_schema,
+            "fields": serialize_fields(self._properties) if self._properties else {},
             "is_final": self.is_final,
         }
         return result

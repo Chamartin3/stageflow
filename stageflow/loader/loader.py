@@ -169,8 +169,8 @@ class ProcessLoader:
                 source=str(file_path),
             )
 
-        # Phase 3: Structure extraction
-        process_config = self._extract_process_config(raw_data, errors)
+        # Phase 3: Structure extraction (pass base_path for include resolution)
+        process_config = self._extract_process_config(raw_data, errors, file_path.parent)
         if not process_config:
             return ProcessLoadResult(
                 status=LoadResultStatus.STRUCTURE_ERROR,
@@ -178,9 +178,6 @@ class ProcessLoader:
                 errors=errors,
                 source=str(file_path),
             )
-
-        # Phase 3.5: Preprocess schema sections
-        self._preprocess_schemas(process_config)
 
         # Phase 4: Configuration validation
         validator = ProcessConfigValidator(process_config)
@@ -351,17 +348,19 @@ class ProcessLoader:
             return FileFormat.YAML
 
     def _extract_process_config(
-        self, raw_data: Any, errors: list[LoadError]
+        self, raw_data: Any, errors: list[LoadError], base_path: Path | None = None
     ) -> dict[str, Any] | None:
         """
         Extract process configuration from raw file data.
 
         Handles both legacy format (process at root) and new format
-        (process under "process" key).
+        (process under "process" key). Also resolves $include directives
+        for external stage files.
 
         Args:
             raw_data: Parsed YAML/JSON data
             errors: Error list to append to
+            base_path: Base path for resolving relative includes
 
         Returns:
             Process configuration dict or None if extraction failed
@@ -390,138 +389,95 @@ class ProcessLoader:
                     )
                 )
                 return None
+            # Resolve includes in stages
+            if base_path and "stages" in process_config:
+                process_config["stages"] = self._resolve_stage_includes(
+                    process_config["stages"], base_path, errors
+                )
             return process_config
 
         # Legacy format: process definition at root
         return raw_data
 
-    def _preprocess_schemas(self, process_config: dict[str, Any]) -> None:
+    def _resolve_stage_includes(
+        self, stages: dict[str, Any], base_path: Path, errors: list[LoadError]
+    ) -> dict[str, Any]:
         """
-        Preprocess stage schemas to convert schema.required_fields into expected_properties.
+        Resolve $include directives in stage definitions.
 
-        This allows stages to use the simpler required_fields syntax:
-            schema:
-              required_fields:
-                - email
-                - address.city
-
-        Which gets converted to expected_properties:
-            expected_properties:
-              email: {type: "string"}
-              address:
-                city: {type: "string"}
+        Supports:
+        - stage_id: {$include: "path/to/stage.yaml"}
+        - stage_id: {$include: "path/to/stage.yaml", ...extra_fields}
 
         Args:
-            process_config: Process configuration dict (modified in place)
-        """
-        stages = process_config.get("stages", {})
-        if not isinstance(stages, dict):
-            return
-
-        for _stage_id, stage_config in stages.items():
-            if not isinstance(stage_config, dict):
-                continue
-
-            # Ensure schema section exists
-            if "schema" not in stage_config:
-                stage_config["schema"] = {}
-
-            schema_section = stage_config["schema"]
-            if not isinstance(schema_section, dict):
-                stage_config["schema"] = {}
-                schema_section = stage_config["schema"]
-
-            required_fields = schema_section.get("required_fields", [])
-            if not required_fields:
-                continue
-
-            # Convert required_fields list to expected_properties dict
-            expected_props = stage_config.get("expected_properties", {})
-            if not isinstance(expected_props, dict):
-                expected_props = {}
-
-            for field_path in required_fields:
-                if not isinstance(field_path, str):
-                    continue
-
-                # Add to expected_properties with default string type
-                self._add_nested_property(expected_props, field_path)
-
-            # Update stage config
-            stage_config["expected_properties"] = expected_props
-
-    def _add_nested_property(
-        self, expected_props: dict[str, Any], field_path: str
-    ) -> None:
-        """
-        Add a nested property to expected_properties structure.
-
-        Handles dot notation (e.g., "address.city") and array indices (e.g., "items[0].id").
-
-        Creates nested containers for intermediate properties:
-            "address.city" -> {"address": {"city": {"type": "string"}}}
-            "items[0].id" -> {"items": {"id": {"type": "string"}}}
-
-        Args:
-            expected_props: Expected properties dict (modified in place)
-            field_path: Property path to add
-        """
-        import re
-
-        if expected_props is None:
-            return
-
-        # Parse the path
-        parts = field_path.split(".")
-        current = expected_props
-
-        for i, part in enumerate(parts):
-            is_last = i == len(parts) - 1
-
-            # Check for array indexing - remove [index] notation
-            match = re.match(r"^([^\[]+)(\[\d+\])?$", part)
-            if not match:
-                continue
-
-            prop_name = match.group(1)
-            # has_array_index = match.group(2) is not None
-
-            if is_last:
-                # Last part - add as string type property
-                if prop_name not in current:
-                    current[prop_name] = {"type": "string"}
-            else:
-                # Intermediate part - ensure it exists as a container (no type definition)
-                if prop_name not in current:
-                    current[prop_name] = {}
-                elif self._is_leaf_property(current[prop_name]):
-                    # It's a leaf property but we need to nest further
-                    # This is a conflict - convert it to a container
-                    current[prop_name] = {}
-
-                # Navigate deeper
-                if isinstance(current[prop_name], dict):
-                    current = current[prop_name]
-                else:
-                    break
-
-    def _is_leaf_property(self, prop_def: Any) -> bool:
-        """Check if a property definition is a leaf (has type) vs a container.
-
-        A leaf property looks like: {"type": "string"}
-        A container looks like: {"city": {"type": "string"}} or {"type": {"type": "string"}}
-
-        Args:
-            prop_def: Property definition to check
+            stages: Stages dictionary from process config
+            base_path: Base path for resolving relative paths
+            errors: Error list to append to
 
         Returns:
-            True if it's a leaf property with a type definition
+            Stages dictionary with includes resolved
         """
-        if not isinstance(prop_def, dict):
-            return False
+        resolved_stages: dict[str, Any] = {}
+        yaml_parser = YAML()
 
-        # Check if it has a "type" key with a string value (not a nested dict)
-        if "type" in prop_def and isinstance(prop_def["type"], str):
-            return True
+        for stage_id, stage_def in stages.items():
+            if not isinstance(stage_def, dict):
+                resolved_stages[stage_id] = stage_def
+                continue
 
-        return False
+            if "$include" in stage_def:
+                include_path = base_path / stage_def["$include"]
+                try:
+                    if not include_path.exists():
+                        errors.append(
+                            LoadError(
+                                error_type=LoadErrorType.FILE_NOT_FOUND,
+                                severity=ErrorSeverity.FATAL,
+                                message=f"Stage include file not found: {include_path}",
+                                context={"stage": stage_id, "path": str(include_path)},
+                            )
+                        )
+                        resolved_stages[stage_id] = stage_def
+                        continue
+
+                    with open(include_path, encoding="utf-8") as f:
+                        file_format = self._detect_file_format(include_path)
+                        if file_format == FileFormat.YAML:
+                            included_data = yaml_parser.load(f)
+                        else:
+                            included_data = json.load(f)
+
+                    if not isinstance(included_data, dict):
+                        errors.append(
+                            LoadError(
+                                error_type=LoadErrorType.INVALID_FORMAT,
+                                severity=ErrorSeverity.FATAL,
+                                message=f"Stage include must be a dictionary: {include_path}",
+                                context={"stage": stage_id, "path": str(include_path)},
+                            )
+                        )
+                        resolved_stages[stage_id] = stage_def
+                        continue
+
+                    # Merge included data with any extra fields (except $include)
+                    merged = dict(included_data)
+                    for key, value in stage_def.items():
+                        if key != "$include":
+                            merged[key] = value
+
+                    resolved_stages[stage_id] = merged
+
+                except Exception as e:
+                    errors.append(
+                        LoadError(
+                            error_type=LoadErrorType.FILE_ENCODING_ERROR,
+                            severity=ErrorSeverity.FATAL,
+                            message=f"Failed to load stage include: {e}",
+                            context={"stage": stage_id, "path": str(include_path)},
+                        )
+                    )
+                    resolved_stages[stage_id] = stage_def
+            else:
+                resolved_stages[stage_id] = stage_def
+
+        return resolved_stages

@@ -175,8 +175,8 @@ class ProcessFormatter:
                     "id": stage._id,
                     "name": stage.name,
                     "description": getattr(stage, "description", ""),
-                    "expected_properties": list(stage._base_schema.keys())
-                    if stage._base_schema
+                    "expected_properties": list(stage._properties.keys())
+                    if stage._properties
                     else [],
                     "gates": len(stage.gates),
                     "target_stages": target_stages,
