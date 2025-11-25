@@ -1,0 +1,44 @@
+# Application Stage - Initial candidate submission
+name: "Application Received"
+description: "Candidate submits application with resume, cover letter, and required information"
+
+fields:
+  - candidate.name
+  - candidate.email
+  - candidate.phone
+  - candidate.resume_url
+  - candidate.cover_letter
+  - candidate.linkedin_url
+  - position.id
+  - position.title
+  - position.department
+  - application.source
+  - application.submitted_at
+  - application.referral_code
+  - application.auto_rejected
+  - application.rejection_reason
+
+gates:
+  pass_initial_screen:
+    target_stage: screening
+    locks:
+      - exists: "candidate.name"
+        error_message: "Candidate name is required"
+      - exists: "candidate.email"
+        error_message: "Candidate email is required"
+      - type: regex
+        property_path: "candidate.email"
+        expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+        error_message: "Valid email format required"
+      - exists: "candidate.resume_url"
+        error_message: "Resume is required"
+      - exists: "position.id"
+        error_message: "Position must be specified"
+
+  auto_reject_incomplete:
+    target_stage: rejected
+    locks:
+      - type: equals
+        property_path: "application.auto_rejected"
+        expected_value: true
+      - exists: "application.rejection_reason"

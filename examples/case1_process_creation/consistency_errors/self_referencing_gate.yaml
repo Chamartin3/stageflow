@@ -1,0 +1,49 @@
+# Consistency Error: Self-Referencing Gate
+# Tests: Gate that targets its own stage (infinite self-loop)
+# Expected Error: "Gate 'loop_to_self' in stage 'processing' references the same stage, creating an infinite self-loop"
+#
+# Self-referencing gates are ALWAYS fatal as they create guaranteed infinite loops.
+
+process:
+  name: self_referencing_gate
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      fields:
+        - data
+      gates:
+        to_processing:
+          target_stage: processing
+          locks:
+            - exists: "data"
+
+    processing:
+      fields:
+        - data
+        - processed
+        - retry_count
+      gates:
+        # FATAL: Gate targets its own stage - infinite self-loop
+        loop_to_self:
+          target_stage: processing
+          locks:
+            - exists: "processed"
+
+        to_end:
+          target_stage: end
+          locks:
+            - exists: "processed"
+
+    end:
+      fields:
+        - result
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with self-referencing gate creating infinite loop"
+    test_case: "consistency_self_referencing_gate"
+    expected_error: "Gate 'loop_to_self' in stage 'processing' references the same stage, creating an infinite self-loop"

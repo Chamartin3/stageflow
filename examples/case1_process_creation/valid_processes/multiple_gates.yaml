@@ -4,175 +4,191 @@
 process:
   name: content_moderation
   initial_stage: submitted
-  final_stage: published
+  final_stage: closed
 
   stages:
     submitted:
-      schema:
-        required_fields:
-          - content
-          - content.word_count
-          - content.text
-          - author_id
-          - author.trusted_status
-          - flags
-          - flags.spam_detected
-          - submission_date
-
       gates:
         auto_approve:
           target_stage: published
           locks:
-            - exists: "author.trusted_status"
-            - type: equals
-              property_path: "author.trusted_status"
-              expected_value: true
-            - type: less_than
-              property_path: "content.word_count"
-              expected_value: 500
+          - exists: "author.trusted_status"
+          - type: equals
+            property_path: "author.trusted_status"
+            expected_value: true
+          - type: less_than
+            property_path: "content.word_count"
+            expected_value: 500
 
         send_to_moderation:
           target_stage: under_review
           locks:
-            - type: not_empty
-              property_path: "content.text"
-            - type: greater_than
-              property_path: "content.word_count"
-              expected_value: 0
+          - type: not_empty
+            property_path: "content.text"
+          - type: greater_than
+            property_path: "content.word_count"
+            expected_value: 0
 
         auto_reject:
           target_stage: rejected
           locks:
-            - exists: "flags.spam_detected"
-            - type: equals
-              property_path: "flags.spam_detected"
-              expected_value: true
+          - exists: "flags.spam_detected"
+          - type: equals
+            property_path: "flags.spam_detected"
+            expected_value: true
+
+      fields:
+      - content
+      - content.word_count
+      - content.text
+      - author_id
+      - author.trusted_status
+      - flags
+      - flags.spam_detected
+      - submission_date
 
     under_review:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - assigned_moderator
-          - moderation
-          - moderation.decision
-          - moderation.reviewed_by
-          - moderation.rejection_reason
-          - moderation.revision_notes
-          - flags
-          - flags.escalation_requested
-
       gates:
         approve_content:
           target_stage: published
           locks:
-            - exists: "moderation.decision"
-            - type: equals
-              property_path: "moderation.decision"
-              expected_value: "approved"
-            - exists: "moderation.reviewed_by"
+          - exists: "moderation.decision"
+          - type: equals
+            property_path: "moderation.decision"
+            expected_value: "approved"
+          - exists: "moderation.reviewed_by"
 
         reject_content:
           target_stage: rejected
           locks:
-            - exists: "moderation.decision"
-            - type: equals
-              property_path: "moderation.decision"
-              expected_value: "rejected"
-            - exists: "moderation.rejection_reason"
+          - exists: "moderation.decision"
+          - type: equals
+            property_path: "moderation.decision"
+            expected_value: "rejected"
+          - exists: "moderation.rejection_reason"
 
         request_revision:
           target_stage: revision_requested
           locks:
-            - exists: "moderation.decision"
-            - type: equals
-              property_path: "moderation.decision"
-              expected_value: "needs_revision"
-            - exists: "moderation.revision_notes"
+          - exists: "moderation.decision"
+          - type: equals
+            property_path: "moderation.decision"
+            expected_value: "needs_revision"
+          - exists: "moderation.revision_notes"
 
         escalate_to_senior:
           target_stage: senior_review
           locks:
-            - exists: "flags.escalation_requested"
-            - type: equals
-              property_path: "flags.escalation_requested"
-              expected_value: true
+          - exists: "flags.escalation_requested"
+          - type: equals
+            property_path: "flags.escalation_requested"
+            expected_value: true
+
+      fields:
+      - content
+      - author_id
+      - assigned_moderator
+      - moderation
+      - moderation.decision
+      - moderation.reviewed_by
+      - moderation.rejection_reason
+      - moderation.revision_notes
+      - flags
+      - flags.escalation_requested
 
     revision_requested:
-      schema:
-        required_fields:
-          - content
-          - content.revised_text
-          - author_id
-          - revision_notes
-          - revision
-          - revision.submitted_date
-          - revision.abandoned
-
       gates:
         resubmit:
           target_stage: under_review
           locks:
-            - exists: "content.revised_text"
-            - type: not_empty
-              property_path: "content.revised_text"
-            - exists: "revision.submitted_date"
+          - exists: "content.revised_text"
+          - type: not_empty
+            property_path: "content.revised_text"
+          - exists: "revision.submitted_date"
 
         abandon_revision:
           target_stage: abandoned
           locks:
-            - exists: "revision.abandoned"
-            - type: equals
-              property_path: "revision.abandoned"
-              expected_value: true
+          - exists: "revision.abandoned"
+          - type: equals
+            property_path: "revision.abandoned"
+            expected_value: true
+
+      fields:
+      - content
+      - content.revised_text
+      - author_id
+      - revision_notes
+      - revision
+      - revision.submitted_date
+      - revision.abandoned
 
     senior_review:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - escalation_notes
-          - senior_moderator
-          - senior_review
-          - senior_review.decision
-
       gates:
         senior_approve:
           target_stage: published
           locks:
-            - exists: "senior_review.decision"
-            - type: equals
-              property_path: "senior_review.decision"
-              expected_value: "approved"
+          - exists: "senior_review.decision"
+          - type: equals
+            property_path: "senior_review.decision"
+            expected_value: "approved"
 
         senior_reject:
           target_stage: rejected
           locks:
-            - exists: "senior_review.decision"
-            - type: equals
-              property_path: "senior_review.decision"
-              expected_value: "rejected"
+          - exists: "senior_review.decision"
+          - type: equals
+            property_path: "senior_review.decision"
+            expected_value: "rejected"
+
+      fields:
+      - content
+      - author_id
+      - escalation_notes
+      - senior_moderator
+      - senior_review
+      - senior_review.decision
 
     published:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - publication_date
+      gates:
+        close_published:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+      fields:
+      - content
+      - author_id
+      - publication_date
+      - closing_reason
 
     rejected:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - rejection_reason
+      gates:
+        close_rejected:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+      fields:
+      - content
+      - author_id
+      - rejection_reason
+      - closing_reason
 
     abandoned:
-      schema:
-        required_fields:
-          - content
-          - author_id
-          - abandonment_date
+      gates:
+        close_abandoned:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+      fields:
+      - content
+      - author_id
+      - abandonment_date
+      - closing_reason
+
+    closed:
+      fields:
+      - closing_reason
+      - closed_at
 
   allow_stage_skipping: false
   regression_detection: true

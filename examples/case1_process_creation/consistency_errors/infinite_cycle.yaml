@@ -1,0 +1,45 @@
+# Consistency Error: Infinite Cycle
+# Tests: Cycle with NO exit path to final stage
+# Expected Error: "Infinite cycle detected with no path to final stage: stage_a → stage_b → stage_a"
+#
+# Unlike uncontrolled cycles (which have an exit path), infinite cycles have
+# NO way to reach the final stage - they are guaranteed to loop forever.
+
+process:
+  name: infinite_cycle
+  initial_stage: stage_a
+  final_stage: end
+
+  stages:
+    stage_a:
+      fields:
+        - data_a
+      gates:
+        to_b:
+          target_stage: stage_b
+          locks:
+            - exists: "data_a"
+
+    stage_b:
+      fields:
+        - data_a
+        - data_b
+      gates:
+        # Creates infinite cycle: B -> A -> B (no exit to 'end')
+        back_to_a:
+          target_stage: stage_a
+          locks:
+            - exists: "data_b"
+
+    # Final stage exists but is unreachable from the cycle
+    end:
+      fields:
+        - result
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with infinite cycle that cannot reach final stage"
+    test_case: "consistency_infinite_cycle"
+    expected_error: "Infinite cycle detected with no path to final stage: stage_a → stage_b → stage_a"

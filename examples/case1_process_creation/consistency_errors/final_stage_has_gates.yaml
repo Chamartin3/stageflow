@@ -1,0 +1,40 @@
+# Consistency Error: Final Stage Has Gates
+# Tests: Final stage should not have outgoing transitions
+# Expected Error: "Final stage 'end' has outgoing gates: restart_gate. Final stages should not have transitions to other stages."
+#
+# Final stages are terminal by definition. Having gates on a final stage
+# indicates a process design error.
+
+process:
+  name: final_stage_has_gates
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      fields:
+        - data
+      gates:
+        to_end:
+          target_stage: end
+          locks:
+            - exists: "data"
+
+    end:
+      fields:
+        - result
+        - restart_flag
+      gates:
+        # ERROR: Final stage should not have outgoing gates
+        restart_gate:
+          target_stage: start
+          locks:
+            - exists: "restart_flag"
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process where final stage incorrectly has outgoing gates"
+    test_case: "consistency_final_stage_has_gates"
+    expected_error: "Final stage 'end' has outgoing gates: restart_gate. Final stages should not have transitions to other stages."

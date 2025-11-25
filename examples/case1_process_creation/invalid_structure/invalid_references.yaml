@@ -9,34 +9,32 @@ process:
 
   stages:
     start:
-      schema:
-        required_fields:
-          - data
-
       gates:
         proceed_to_middle:
           target_stage: middle  # References non-existent stage
           locks:
-            - exists: "data"
+          - exists: "data"
 
         jump_to_end:
           target_stage: undefined_stage  # References non-existent stage
           locks:
-            - exists: "ready"
+          - exists: "ready"
+
+      fields:
+      - data
 
     existing_stage:
-      schema:
-        required_fields:
-          - info
-
       gates:
         go_nowhere:
           target_stage: void  # References non-existent stage
           locks:
-            - exists: "info"
+          - exists: "info"
 
   # Note: No 'middle', 'undefined_stage', 'void', or 'nonexistent_final' stages defined
   # All gate references are invalid
+
+      fields:
+      - info
 
   allow_stage_skipping: false
   regression_detection: true

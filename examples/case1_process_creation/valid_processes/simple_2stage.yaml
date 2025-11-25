@@ -10,10 +10,9 @@ process:
      draft:
        name: "Draft"
        description: "Document is being written and edited before submission"
-       schema:
-         required_fields:
-           - title
-           - content
+       fields:
+         - title
+         - content
 
        gates:
           submit_for_review:
@@ -32,11 +31,10 @@ process:
      approved:
        name: "Approved"
        description: "Document has been reviewed and approved for publication"
-       schema:
-          required_fields:
-            - title
-            - content
-            - approved_by
+       fields:
+         - title
+         - content
+         - approved_by
 
    allow_stage_skipping: false
    regression_detection: true

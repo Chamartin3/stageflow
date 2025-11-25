@@ -1,0 +1,57 @@
+# Consistency Error: Invalid Transition
+# Tests: Gates that target non-existent stages
+# Expected Error: "Gate 'to_nonexistent' in stage 'start' targets non-existent stage 'nonexistent_stage'"
+#
+# This demonstrates gates pointing to stages that don't exist in the process.
+
+process:
+  name: invalid_transition
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      fields:
+        - data
+      gates:
+        # Valid transition
+        to_middle:
+          target_stage: middle
+          locks:
+            - exists: "data"
+
+        # INVALID: targets a stage that doesn't exist
+        to_nonexistent:
+          target_stage: nonexistent_stage
+          locks:
+            - exists: "data"
+
+    middle:
+      fields:
+        - data
+        - processed
+      gates:
+        to_end:
+          target_stage: end
+          locks:
+            - exists: "processed"
+
+        # INVALID: another non-existent target
+        to_void:
+          target_stage: void_stage
+          locks:
+            - exists: "processed"
+
+    end:
+      fields:
+        - result
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with invalid stage references in gates"
+    test_case: "consistency_invalid_transition"
+    expected_errors:
+      - "Gate 'to_nonexistent' in stage 'start' targets non-existent stage 'nonexistent_stage'"
+      - "Gate 'to_void' in stage 'middle' targets non-existent stage 'void_stage'"

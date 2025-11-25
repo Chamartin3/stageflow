@@ -1,18 +1,22 @@
-# Case 1.3: Missing Target Stages
-# Tests: Process where final_stage cannot be reached from any stage
-# Expected: Consistency check should detect unreachable final stage
+# Consistency Error: Dead End Stage
+# Tests: Process where non-final stages cannot reach the final stage
+# Expected Errors:
+#   - "Stage 'start' cannot reach final stage 'unreachable_final'"
+#   - "Stage 'middle' cannot reach final stage 'unreachable_final'"
+#   - "Stage 'dead_end' cannot reach final stage 'unreachable_final'"
+#   - "Stage 'unreachable_final' is unreachable from initial stage 'start'"
+#
+# This demonstrates stages that form a dead-end with no path to final.
 
 process:
-  name: missing_targets
+  name: dead_end_stages
   initial_stage: start
   final_stage: unreachable_final
 
   stages:
     start:
-      schema:
-        required_fields:
-          - data
-
+      fields:
+        - data
       gates:
         proceed:
           target_stage: middle
@@ -20,42 +24,33 @@ process:
             - exists: "data"
 
     middle:
-      schema:
-        required_fields:
-          - processed_data
-
+      fields:
+        - data
+        - processed_data
       gates:
-        loop_back:
-          target_stage: start
-          locks:
-            - exists: "restart_flag"
-
         go_to_dead_end:
           target_stage: dead_end
           locks:
             - exists: "processed_data"
 
     dead_end:
-      schema:
-        required_fields:
-          - final_processed_data
-
+      fields:
+        - final_processed_data
       # No gates - this is a dead end with no path to final stage
 
     # This is the declared final stage but it's unreachable
     unreachable_final:
-      schema:
-        required_fields:
-          - completion_data
-
-  # Additional consistency issues:
-  # 1. final_stage "unreachable_final" cannot be reached
-  # 2. Process creates infinite loops between start and middle
-  # 3. dead_end stage has no exit paths
+      fields:
+        - completion_data
 
   allow_stage_skipping: false
   regression_detection: true
 
   metadata:
-    description: "Process where final stage cannot be reached"
-    test_case: "consistency_missing_targets"
+    description: "Process with dead-end stages that cannot reach final"
+    test_case: "consistency_dead_end_stage"
+    expected_errors:
+      - "Stage 'start' cannot reach final stage 'unreachable_final'"
+      - "Stage 'middle' cannot reach final stage 'unreachable_final'"
+      - "Stage 'dead_end' cannot reach final stage 'unreachable_final'"
+      - "Stage 'unreachable_final' is unreachable from initial stage 'start'"
