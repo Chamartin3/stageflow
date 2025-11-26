@@ -25,7 +25,7 @@ def simple_process():
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {"test_field": {"type": "str"}},
+                    "fields": {"test_field": {"type": "str"}},
                     "is_final": False,
                 },
                 "end": {
@@ -33,7 +33,7 @@ def simple_process():
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -62,7 +62,7 @@ def three_stage_process():
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {"field1": {"type": "str"}},
+                    "fields": {"field1": {"type": "str"}},
                     "is_final": False,
                 },
                 "middle": {
@@ -76,7 +76,7 @@ def three_stage_process():
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {"field2": {"type": "str"}},
+                    "fields": {"field2": {"type": "str"}},
                     "is_final": False,
                 },
                 "end": {
@@ -84,7 +84,7 @@ def three_stage_process():
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -123,7 +123,7 @@ class TestProcessEditorInitialization:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": False,
                 },
                 "end": {
@@ -131,7 +131,7 @@ class TestProcessEditorInitialization:
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -171,7 +171,7 @@ class TestProcessEditorAddStage:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"alt_field": {"type": "str"}},
+            "fields": {"alt_field": {"type": "str"}},
             "is_final": False,
         }
 
@@ -194,7 +194,7 @@ class TestProcessEditorAddStage:
                 },
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "test_field": {"type": "str"},
                 "alt_trigger": {"type": "str"},
             },
@@ -216,7 +216,7 @@ class TestProcessEditorAddStage:
             "description": "Duplicate stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -245,7 +245,7 @@ class TestProcessEditorRemoveStage:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"alt_field": {"type": "str"}},
+            "fields": {"alt_field": {"type": "str"}},
             "is_final": False,
         }
         editor.add_stage("alternative", alt_config)
@@ -267,7 +267,7 @@ class TestProcessEditorRemoveStage:
                 },
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "field1": {"type": "str"},
                 "alt_trigger": {"type": "str"},
             },
@@ -328,7 +328,7 @@ class TestProcessEditorUpdateStage:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"updated_field": {"type": "str"}},
+            "fields": {"updated_field": {"type": "str"}},
             "is_final": False,
         }
 
@@ -348,7 +348,7 @@ class TestProcessEditorUpdateStage:
             "description": "Nonexistent stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -378,7 +378,7 @@ class TestProcessEditorRollback:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"temp_field": {"type": "str"}},
+            "fields": {"temp_field": {"type": "str"}},
             "is_final": False,
         }
 
@@ -401,7 +401,7 @@ class TestProcessEditorRollback:
                 },
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "test_field": {"type": "str"},
                 "temp_trigger": {"type": "str"},
             },
@@ -439,7 +439,7 @@ class TestProcessEditorSync:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"synced_field": {"type": "str"}},
+            "fields": {"synced_field": {"type": "str"}},
             "is_final": False,
         }
 
@@ -462,7 +462,7 @@ class TestProcessEditorSync:
                 },
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "test_field": {"type": "str"},
                 "sync_trigger": {"type": "str"},
             },
@@ -489,7 +489,7 @@ class TestProcessEditorSync:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"temp_field": {"type": "str"}},
+            "fields": {"temp_field": {"type": "str"}},
             "is_final": False,
         }
 
@@ -519,7 +519,7 @@ class TestProcessEditorValidation:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -561,7 +561,7 @@ class TestProcessEditorContextManager:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {"context_field": {"type": "str"}},
+                    "fields": {"context_field": {"type": "str"}},
                     "is_final": False,
                 }
 
@@ -584,7 +584,7 @@ class TestProcessEditorContextManager:
                         },
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "test_field": {"type": "str"},
                         "context_trigger": {"type": "str"},
                     },

@@ -910,7 +910,7 @@ class TestGraphvizIntegrationScenarios:
             "stages": {
                 "submitted": {
                     "name": "Order Submitted",
-                    "expected_properties": {"order_id": {"type": "str"}},
+                    "fields": {"order_id": {"type": "str"}},
                     "gates": [
                         {
                             "name": "order_valid",
@@ -921,7 +921,7 @@ class TestGraphvizIntegrationScenarios:
                 },
                 "payment": {
                     "name": "Payment Processing",
-                    "expected_properties": {"payment_status": {"type": "str"}},
+                    "fields": {"payment_status": {"type": "str"}},
                     "gates": [
                         {
                             "name": "payment_complete",
@@ -932,7 +932,7 @@ class TestGraphvizIntegrationScenarios:
                 },
                 "fulfillment": {
                     "name": "Order Fulfillment",
-                    "expected_properties": {"shipping_status": {"type": "str"}},
+                    "fields": {"shipping_status": {"type": "str"}},
                     "gates": [
                         {
                             "name": "shipped",

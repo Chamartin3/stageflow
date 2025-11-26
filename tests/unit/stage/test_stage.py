@@ -131,7 +131,7 @@ class TestStage:
                     "related_properties": ["email", "password"],
                 }
             ],
-            "expected_properties": {
+            "fields": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
             },
@@ -157,7 +157,7 @@ class TestStage:
             "description": "Final completion stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": True,
         }
 
@@ -177,7 +177,7 @@ class TestStage:
             "description": "Intermediate stage without gates",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -237,7 +237,7 @@ class TestStage:
                 },
             ],
             "expected_actions": [],
-            "expected_properties": {"field1": None, "field2": None, "field3": None},
+            "fields": {"field1": None, "field2": None, "field3": None},
             "is_final": False,
         }
 
@@ -292,7 +292,7 @@ class TestStage:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
                 "age": {"type": "integer", "default": None},
@@ -344,7 +344,7 @@ class TestStage:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": "default_pass"},
                 "age": {"type": "integer", "default": 18},
@@ -395,7 +395,7 @@ class TestStage:
             "expected_actions": [
                 {"description": "Fix email format", "related_properties": ["email"]}
             ],
-            "expected_properties": {
+            "fields": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
                 "age": {"type": "integer", "default": None},
@@ -440,7 +440,7 @@ class TestStage:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "user": {"profile": {"name": {"type": "string", "default": None}}}
             },
             "is_final": False,
@@ -480,7 +480,7 @@ class TestStage:
                     ],  # field2 not evaluated by any gate
                 }
             ],
-            "expected_properties": {
+            "fields": {
                 "field1": {"type": "string", "default": None},
                 "field2": {"type": "string", "default": None},
             },
@@ -517,7 +517,7 @@ class TestStage:
             "expected_actions": [
                 {"description": "Test action", "related_properties": ["field"]}
             ],
-            "expected_properties": {"field": {"type": "string", "default": None}},
+            "fields": {"field": {"type": "string", "default": None}},
             "is_final": False,
         }
 
@@ -607,7 +607,7 @@ class TestStageIntegration:
                     "related_properties": ["profile.verified"],
                 }
             ],
-            "expected_properties": {
+            "fields": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
                 "profile": {
@@ -718,7 +718,7 @@ class TestStageIntegration:
                     ],
                 }
             ],
-            "expected_properties": None,
+            "fields": None,
             "is_final": False,
         }
 
@@ -749,7 +749,7 @@ class TestStageIntegration:
             "description": "Final completion stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "completion": {
                     "status": {"type": "string", "default": None},
                     "timestamp": {"type": "string", "default": None},
@@ -781,7 +781,7 @@ class TestStageSchema:
             "description": "User registration stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "email": {"type": "string", "default": None},
                 "password": {"type": "string", "default": None},
                 "user.profile.name": {"type": "string", "default": "Anonymous"},
@@ -798,20 +798,21 @@ class TestStageSchema:
         assert schema is not None
         assert "email" in schema
         assert "password" in schema
-        assert "user.profile.name" in schema
+        assert "user" in schema  # Nested structure
         assert schema["email"]["type"] == "string"
         assert schema["password"]["type"] == "string"
-        assert schema["user.profile.name"]["default"] == "Anonymous"
+        # Access nested property through properties dict
+        assert schema["user"]["properties"]["profile"]["properties"]["name"]["default"] == "Anonymous"
 
-    def test_get_schema_returns_none_for_empty_properties(self):
-        """Verify get_schema returns None when no expected properties defined."""
+    def test_get_schema_returns_empty_for_none_properties(self):
+        """Verify get_schema returns empty dict when no expected properties defined."""
         # Arrange
         stage_config: StageDefinition = {
             "name": "simple_stage",
             "description": "Stage without properties",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": None,
+            "fields": None,
             "is_final": True,
         }
 
@@ -821,7 +822,7 @@ class TestStageSchema:
         schema = stage.get_schema()
 
         # Assert
-        assert schema is None
+        assert schema == {}
 
     def test_get_schema_returns_empty_dict_for_empty_properties_dict(self):
         """Verify get_schema returns empty dict when properties dict is empty."""
@@ -831,7 +832,7 @@ class TestStageSchema:
             "description": "Stage with empty properties dict",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -851,7 +852,7 @@ class TestStageSchema:
             "description": "Stage with complex nested properties",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "user": {
                     "personal": {
                         "name": {"type": "string", "default": None},
@@ -879,9 +880,11 @@ class TestStageSchema:
         assert schema is not None
         assert "user" in schema
         assert "preferences" in schema
-        assert schema["user"]["personal"]["name"]["type"] == "string"
-        assert schema["user"]["personal"]["age"]["default"] == 18
-        assert schema["preferences"]["theme"]["default"] == "light"
+        # Access nested properties through properties dict
+        user_props = schema["user"]["properties"]
+        assert user_props["personal"]["properties"]["name"]["type"] == "string"
+        assert user_props["personal"]["properties"]["age"]["default"] == 18
+        assert schema["preferences"]["properties"]["theme"]["default"] == "light"
 
     def test_get_schema_is_non_mutating(self):
         """Verify get_schema does not modify the stage's internal state."""
@@ -896,7 +899,7 @@ class TestStageSchema:
             "description": "Stage for testing immutability",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": original_properties,
+            "fields": original_properties,
             "is_final": False,
         }
 
@@ -925,7 +928,7 @@ class TestStageSchema:
             "description": "Stage with None property definitions",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "optional_field": None,
                 "required_field": {"type": "string", "default": None},
             },
@@ -941,7 +944,8 @@ class TestStageSchema:
         assert schema is not None
         assert "optional_field" in schema
         assert "required_field" in schema
-        assert schema["optional_field"] is None
+        # None values are treated as string type (default)
+        assert schema["optional_field"]["type"] == "string"
         assert schema["required_field"]["type"] == "string"
 
     def test_get_schema_performance_with_large_properties(self):
@@ -958,7 +962,7 @@ class TestStageSchema:
             "description": "Stage with many properties",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": large_properties,
+            "fields": large_properties,
             "is_final": False,
         }
 

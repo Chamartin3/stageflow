@@ -180,7 +180,7 @@ def realistic_ecommerce_process_config() -> dict[str, Any]:
         "stages": {
             "cart": {
                 "name": "Shopping Cart",
-                "expected_properties": {
+                "fields": {
                     "items": {"type": "list"},
                     "customer_id": {"type": "str"},
                 },
@@ -194,7 +194,7 @@ def realistic_ecommerce_process_config() -> dict[str, Any]:
             },
             "checkout": {
                 "name": "Checkout Process",
-                "expected_properties": {
+                "fields": {
                     "billing_address": {"type": "dict"},
                     "shipping_address": {"type": "dict"},
                     "payment_method": {"type": "str"},
@@ -213,7 +213,7 @@ def realistic_ecommerce_process_config() -> dict[str, Any]:
             },
             "payment": {
                 "name": "Payment Processing",
-                "expected_properties": {
+                "fields": {
                     "payment_status": {"type": "str"},
                     "transaction_id": {"type": "str"},
                 },
@@ -234,7 +234,7 @@ def realistic_ecommerce_process_config() -> dict[str, Any]:
             },
             "fulfillment": {
                 "name": "Order Fulfillment",
-                "expected_properties": {
+                "fields": {
                     "fulfillment_status": {"type": "str"},
                     "tracking_number": {"type": "str"},
                 },
@@ -255,7 +255,7 @@ def realistic_ecommerce_process_config() -> dict[str, Any]:
             },
             "delivered": {
                 "name": "Order Delivered",
-                "expected_properties": {
+                "fields": {
                     "delivery_status": {"type": "str"},
                     "delivered_date": {"type": "str"},
                 },

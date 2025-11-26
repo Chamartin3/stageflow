@@ -22,7 +22,7 @@ class TestActionDefinitionBasic:
             "expected_actions": [
                 {"description": "Complete the task"}  # Only description field
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -59,7 +59,7 @@ class TestActionDefinitionBasic:
                     "related_properties": ["field1"],
                 }
             ],
-            "expected_properties": {"field1": None},
+            "fields": {"field1": None},
             "is_final": False,
         }
 
@@ -80,7 +80,7 @@ class TestActionDefinitionBasic:
             "expected_actions": [
                 {"name": "test_action"}  # Missing required description
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -98,7 +98,7 @@ class TestActionDefinitionBasic:
             "expected_actions": [
                 {"description": ""}  # Empty description
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -123,7 +123,7 @@ class TestActionDefinitionWithName:
                     "description": "Create the initial document structure",
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -150,7 +150,7 @@ class TestActionDefinitionWithName:
                     "description": "Test action",
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -171,7 +171,7 @@ class TestActionDefinitionWithName:
                     "description": "Test action",
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -193,7 +193,7 @@ class TestActionDefinitionWithName:
                     "description": "Second action",
                 },  # Duplicate name
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -233,7 +233,7 @@ class TestActionDefinitionWithInstructions:
                     ],
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -263,7 +263,7 @@ class TestActionDefinitionWithInstructions:
                     "instructions": "Not a list",  # Invalid: must be list
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -289,7 +289,7 @@ class TestActionDefinitionWithInstructions:
                     ],
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -314,7 +314,7 @@ class TestActionDefinitionWithInstructions:
                     "instructions": many_instructions,
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -374,7 +374,7 @@ class TestActionDefinitionCompleteStructure:
                     "related_properties": ["field1", "field2"],
                 }
             ],
-            "expected_properties": {"field1": None, "field2": None},
+            "fields": {"field1": None, "field2": None},
             "is_final": False,
         }
 
@@ -428,7 +428,7 @@ class TestActionDefinitionCompleteStructure:
                     "related_properties": ["field2"],
                 },
             ],
-            "expected_properties": {"field1": None, "field2": None},
+            "fields": {"field1": None, "field2": None},
             "is_final": False,
         }
 
@@ -467,7 +467,7 @@ class TestActionDefinitionSerialization:
                     "instructions": ["Instruction 1", "Instruction 2"],
                 }
             ],
-            "expected_properties": {},
+            "fields": {},
             "is_final": False,
         }
 
@@ -524,7 +524,7 @@ class TestActionDefinitionIntegration:
                     "related_properties": ["field2"],
                 }
             ],
-            "expected_properties": {"field1": None, "field2": None},
+            "fields": {"field1": None, "field2": None},
             "is_final": False,
         }
 
@@ -592,7 +592,7 @@ class TestRealWorldScenarios:
                     ],
                 }
             ],
-            "expected_properties": {
+            "fields": {
                 "severity": None,
                 "description": None,
                 "steps_to_reproduce": None,
@@ -657,7 +657,7 @@ class TestRealWorldScenarios:
                     "related_properties": ["code_review_approved"],
                 },
             ],
-            "expected_properties": {
+            "fields": {
                 "testing_results": None,
                 "code_review_approved": None,
             },

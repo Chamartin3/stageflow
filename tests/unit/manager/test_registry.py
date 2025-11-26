@@ -337,7 +337,7 @@ class TestProcessRegistryLoadOperations:
                 "stages": {
                     "start": {
                         "name": "Start Stage",
-                        "expected_properties": {"input": {"type": "str"}},
+                        "fields": {"input": {"type": "str"}},
                         "gates": [
                             {
                                 "name": "proceed",

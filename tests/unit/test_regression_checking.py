@@ -22,7 +22,7 @@ def test_check_regression_no_previous_stages():
                     "locks": [{"exists": "ready"}]
                 }],
                 "expected_actions": [],
-                "expected_properties": {},
+                "fields": {},
                 "is_final": False
             },
             "stage2": {
@@ -30,7 +30,7 @@ def test_check_regression_no_previous_stages():
                 "description": "Second stage",
                 "gates": [],
                 "expected_actions": [],
-                "expected_properties": {},
+                "fields": {},
                 "is_final": True
             }
         }
@@ -62,7 +62,7 @@ def test_check_regression_previous_stage_failed():
                     "locks": [{"exists": "email"}]
                 }],
                 "expected_actions": [],
-                "expected_properties": {},
+                "fields": {},
                 "is_final": False
             },
             "stage2": {
@@ -70,7 +70,7 @@ def test_check_regression_previous_stage_failed():
                 "description": "Second stage",
                 "gates": [],
                 "expected_actions": [],
-                "expected_properties": {},
+                "fields": {},
                 "is_final": True
             }
         }

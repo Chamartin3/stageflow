@@ -127,7 +127,7 @@ class TestLoadProcessFunction:
                             }
                         },
                         "expected_actions": [],
-                        "expected_properties": {"ready": {"type": "boolean"}},
+                        "fields": {"ready": {"type": "boolean"}},
                         "is_final": False,
                     },
                     "end": {
@@ -135,7 +135,7 @@ class TestLoadProcessFunction:
                         "description": "Ending stage",
                         "gates": {},
                         "expected_actions": [],
-                        "expected_properties": None,
+                        "fields": None,
                         "is_final": True,
                     },
                 },

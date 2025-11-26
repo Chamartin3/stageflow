@@ -27,7 +27,7 @@ class TestSchemaPracticalUsage:
                 "registration": {
                     "name": "Registration",
                     "description": "User registration stage",
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "str", "default": None},
                         "password": {"type": "str", "default": None},
                     },
@@ -57,7 +57,7 @@ class TestSchemaPracticalUsage:
                 "verification": {
                     "name": "Email Verification",
                     "description": "Email verification stage",
-                    "expected_properties": {
+                    "fields": {
                         "verification_token": {"type": "str", "default": None},
                         "verified_at": {"type": "str", "default": None},
                     },
@@ -82,7 +82,7 @@ class TestSchemaPracticalUsage:
                 "profile_setup": {
                     "name": "Profile Setup",
                     "description": "User profile setup stage",
-                    "expected_properties": {
+                    "fields": {
                         "profile": {
                             "first_name": {"type": "str", "default": None},
                             "last_name": {"type": "str", "default": None},
@@ -115,7 +115,7 @@ class TestSchemaPracticalUsage:
                 "active": {
                     "name": "Active User",
                     "description": "Fully activated user",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "expected_actions": [],
                     "is_final": True,
@@ -138,8 +138,8 @@ class TestSchemaPracticalUsage:
         # Verify schema tells us what properties are needed
         assert "email" in registration_schema
         assert "password" in registration_schema
-        assert registration_schema["email"]["type"] == "str"
-        assert registration_schema["password"]["type"] == "str"
+        assert registration_schema["email"]["type"] == "string"
+        assert registration_schema["password"]["type"] == "string"
 
         # Create element based on schema
         element_data = {}
@@ -243,9 +243,11 @@ class TestSchemaPracticalUsage:
         # From profile_setup stage (nested structure)
         assert "profile" in cumulative_schema
         assert isinstance(cumulative_schema["profile"], dict)
-        assert "first_name" in cumulative_schema["profile"]
-        assert "last_name" in cumulative_schema["profile"]
-        assert "age" in cumulative_schema["profile"]
+        # Nested props are under "properties" key
+        profile_props = cumulative_schema["profile"]["properties"]
+        assert "first_name" in profile_props
+        assert "last_name" in profile_props
+        assert "age" in profile_props
 
         # This helps users understand the complete data journey
         # Top-level properties: email, password, verification_token, verified_at, profile
@@ -323,7 +325,7 @@ class TestSchemaPracticalUsage:
         reg_doc = documentation["registration"]
         assert reg_doc["stage_name"] == "Registration"
         assert "email" in reg_doc["properties"]
-        assert reg_doc["properties"]["email"]["type"] == "str"
+        assert reg_doc["properties"]["email"]["type"] == "string"
 
     def test_schema_validation_before_batch_processing(self, user_onboarding_process):
         """Demonstrate pre-validating elements before batch processing.
@@ -383,7 +385,7 @@ class TestSchemaPracticalUsage:
             "stages": {
                 "registration": {
                     "name": "Registration",
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "str", "default": None},
                     },
                     "gates": [
@@ -405,7 +407,7 @@ class TestSchemaPracticalUsage:
                 },
                 "active": {
                     "name": "Active",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "expected_actions": [],
                     "is_final": True,
@@ -453,9 +455,11 @@ class TestSchemaPracticalUsage:
         # Verify nested properties are in schema (as nested dict structure)
         assert "profile" in schema
         assert isinstance(schema["profile"], dict)
-        assert "first_name" in schema["profile"]
-        assert "last_name" in schema["profile"]
-        assert "age" in schema["profile"]
+        # Nested props are under "properties" key
+        profile_props = schema["profile"]["properties"]
+        assert "first_name" in profile_props
+        assert "last_name" in profile_props
+        assert "age" in profile_props
 
         # Create element with nested structure
         element = DictElement(
@@ -495,14 +499,21 @@ class TestSchemaPracticalUsage:
             for key, value in schema_dict.items():
                 full_key = f"{prefix}.{key}" if prefix else key
                 if isinstance(value, dict):
-                    if "type" in value or "default" in value:
+                    if "type" in value:
                         # This is a property definition
                         if value.get("default") is not None:
                             optional[full_key] = value["default"]
                         else:
                             required.append(full_key)
+                        # If it has nested properties, recurse
+                        if "properties" in value:
+                            nested_optional, nested_required = flatten_schema_with_defaults(
+                                value["properties"], full_key
+                            )
+                            optional.update(nested_optional)
+                            required.extend(nested_required)
                     else:
-                        # This is a nested structure
+                        # This is a nested structure without type
                         nested_optional, nested_required = flatten_schema_with_defaults(
                             value, full_key
                         )

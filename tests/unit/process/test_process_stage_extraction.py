@@ -21,7 +21,7 @@ class TestStageExtractionPrecedence:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_middle",
@@ -34,7 +34,7 @@ class TestStageExtractionPrecedence:
                 },
                 "middle": {
                     "name": "Middle",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -47,7 +47,7 @@ class TestStageExtractionPrecedence:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -76,7 +76,7 @@ class TestStageExtractionPrecedence:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_middle",
@@ -89,7 +89,7 @@ class TestStageExtractionPrecedence:
                 },
                 "middle": {
                     "name": "Middle",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -102,7 +102,7 @@ class TestStageExtractionPrecedence:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -131,7 +131,7 @@ class TestStageExtractionPrecedence:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -144,7 +144,7 @@ class TestStageExtractionPrecedence:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -177,7 +177,7 @@ class TestStageExtractionValidation:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -190,7 +190,7 @@ class TestStageExtractionValidation:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -219,7 +219,7 @@ class TestStageExtractionValidation:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -232,7 +232,7 @@ class TestStageExtractionValidation:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -262,7 +262,7 @@ class TestStageExtractionValidation:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -275,7 +275,7 @@ class TestStageExtractionValidation:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -308,7 +308,7 @@ class TestStageExtractionValidation:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_middle",
@@ -321,7 +321,7 @@ class TestStageExtractionValidation:
                 },
                 "middle": {
                     "name": "Middle",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -334,7 +334,7 @@ class TestStageExtractionValidation:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -368,7 +368,7 @@ class TestStageExtractionValidation:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_active",
@@ -381,7 +381,7 @@ class TestStageExtractionValidation:
                 },
                 "active": {
                     "name": "Active",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -394,7 +394,7 @@ class TestStageExtractionValidation:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -429,7 +429,7 @@ class TestStageExtractionSerialization:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -442,7 +442,7 @@ class TestStageExtractionSerialization:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -469,7 +469,7 @@ class TestStageExtractionSerialization:
             "stages": {
                 "start": {
                     "name": "Start",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [
                         {
                             "name": "to_end",
@@ -482,7 +482,7 @@ class TestStageExtractionSerialization:
                 },
                 "end": {
                     "name": "End",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -512,10 +512,9 @@ class TestStageExtractionIntegration:
             "stages": {
                 "registration": {
                     "name": "Registration",
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "str"},
                         "verification": {
-                            "type": "dict",
                             "email_verified_at": {"type": "str"},
                         },
                     },
@@ -531,10 +530,9 @@ class TestStageExtractionIntegration:
                 },
                 "profile_setup": {
                     "name": "Profile Setup",
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "str"},
                         "profile": {
-                            "type": "dict",
                             "first_name": {"type": "str"},
                             "last_name": {"type": "str"},
                         },
@@ -554,7 +552,7 @@ class TestStageExtractionIntegration:
                 },
                 "active": {
                     "name": "Active",
-                    "expected_properties": {},
+                    "fields": {},
                     "gates": [],
                     "is_final": True,
                 },
@@ -581,5 +579,5 @@ class TestStageExtractionIntegration:
 
         # Should evaluate at profile_setup stage
         assert result["stage"] == "profile_setup"
-        # Should be blocked (missing last_name)
-        assert result["stage_result"].status == "blocked"
+        # Should be incomplete (missing last_name - data missing)
+        assert result["stage_result"].status == "incomplete"

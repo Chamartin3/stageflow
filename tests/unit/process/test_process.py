@@ -173,7 +173,7 @@ class TestProcessConsistencyChecker:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"field": {"type": "string", "default": None}},
+            "fields": {"field": {"type": "string", "default": None}},
             "is_final": False,
         }
 
@@ -182,7 +182,7 @@ class TestProcessConsistencyChecker:
             "description": "End stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": True,
         }
 
@@ -227,7 +227,7 @@ class TestProcessConsistencyChecker:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"field": {"type": "string", "default": None}},
+            "fields": {"field": {"type": "string", "default": None}},
             "is_final": False,
         }
 
@@ -250,7 +250,7 @@ class TestProcessConsistencyChecker:
                 }
             ],  # Add dummy gate but with no transition to end in transition map
             "expected_actions": [],
-            "expected_properties": {
+            "fields": {
                 "never_exists": {"type": "string", "default": None}
             },
             "is_final": False,
@@ -261,7 +261,7 @@ class TestProcessConsistencyChecker:
             "description": "End stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": True,
         }
 
@@ -315,7 +315,7 @@ class TestProcessConsistencyChecker:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"field": {"type": "string", "default": None}},
+            "fields": {"field": {"type": "string", "default": None}},
             "is_final": False,
         }
 
@@ -338,7 +338,7 @@ class TestProcessConsistencyChecker:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"dummy": {"type": "string", "default": None}},
+            "fields": {"dummy": {"type": "string", "default": None}},
             "is_final": False,
         }
 
@@ -347,7 +347,7 @@ class TestProcessConsistencyChecker:
             "description": "End stage",
             "gates": [],
             "expected_actions": [],
-            "expected_properties": {},
+            "fields": {},
             "is_final": True,
         }
 
@@ -421,7 +421,7 @@ class TestProcess:
                     "description": "Single stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 }
             },
@@ -545,7 +545,7 @@ class TestProcess:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -569,7 +569,7 @@ class TestProcess:
                         }
                     ],  # Gate points to nonexistent stage making it inconsistent
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "never_exists": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -579,7 +579,7 @@ class TestProcess:
                     "description": "End stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -692,7 +692,7 @@ class TestProcess:
                 }
             ],
             "expected_actions": [],
-            "expected_properties": {"dummy": {"type": "string", "default": None}},
+            "fields": {"dummy": {"type": "string", "default": None}},
             "is_final": False,
         }
 
@@ -844,7 +844,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "string", "default": None},
                         "password": {"type": "string", "default": None},
                     },
@@ -869,7 +869,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "email_verified": {"type": "boolean", "default": False}
                     },
                     "is_final": False,
@@ -879,7 +879,7 @@ class TestProcessIntegration:
                     "description": "Active user",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -944,7 +944,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "personal": {
                             "name": {"type": "string", "default": None},
                             "age": {"type": "integer", "default": None},
@@ -976,7 +976,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "personal": {"age": {"type": "integer", "default": None}},
                         "validation": {"status": {"type": "string", "default": None}},
                     },
@@ -987,7 +987,7 @@ class TestProcessIntegration:
                     "description": "Final approval stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -1055,7 +1055,7 @@ class TestProcessIntegration:
                         },
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "route": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -1079,7 +1079,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "a_data": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -1103,7 +1103,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "b_data": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -1113,7 +1113,7 @@ class TestProcessIntegration:
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -1167,7 +1167,7 @@ class TestProcessIntegration:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "anything": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -1177,7 +1177,7 @@ class TestProcessIntegration:
                     "description": "",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -1210,7 +1210,7 @@ class TestProcessSchema:
                     "description": "User registration stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "string", "default": None},
                         "password": {"type": "string", "default": None},
                     },
@@ -1221,7 +1221,7 @@ class TestProcessSchema:
                     "description": "Profile setup stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "name": {"type": "string", "default": None},
                         "age": {"type": "integer", "default": 18},
                     },
@@ -1272,7 +1272,7 @@ class TestProcessSchema:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field1": {"type": "string", "default": None},
                         "field2": {"type": "integer", "default": 0},
                     },
@@ -1297,7 +1297,7 @@ class TestProcessSchema:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field3": {"type": "string", "default": None},
                         "field4": {"type": "boolean", "default": False},
                     },
@@ -1308,7 +1308,7 @@ class TestProcessSchema:
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field5": {"type": "string", "default": None}
                     },
                     "is_final": True,
@@ -1349,7 +1349,7 @@ class TestProcessSchema:
                     "description": "Start stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": False,
                 },
                 "end": {
@@ -1357,7 +1357,7 @@ class TestProcessSchema:
                     "description": "End stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -1386,7 +1386,7 @@ class TestProcessSchema:
                     "description": "Stage with empty properties",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": False,
                 },
                 "none_stage": {
@@ -1394,7 +1394,7 @@ class TestProcessSchema:
                     "description": "Stage with None properties",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": None,
+                    "fields": None,
                     "is_final": True,
                 },
             },
@@ -1410,7 +1410,7 @@ class TestProcessSchema:
 
         # Assert
         assert empty_schema == {}
-        assert none_schema is None
+        assert none_schema == {}  # None fields also result in empty dict
 
     def test_get_schema_full_mode_with_mixed_property_types(self):
         """Verify get_schema full mode handles mixed property types correctly."""
@@ -1438,7 +1438,7 @@ class TestProcessSchema:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field1": {"type": "string", "default": "value1"},
                         "field2": {"type": "integer", "default": 42},
                     },
@@ -1463,7 +1463,7 @@ class TestProcessSchema:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {},
+                    "fields": {},
                     "is_final": False,
                 },
                 "stage3": {
@@ -1471,7 +1471,7 @@ class TestProcessSchema:
                     "description": "Stage with None properties",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": None,
+                    "fields": None,
                     "is_final": True,
                 },
             },
@@ -1534,7 +1534,7 @@ class TestProcessSchema:
                 "description": f"Stage {i} description",
                 "gates": gates,
                 "expected_actions": [],
-                "expected_properties": properties,
+                "fields": properties,
                 "is_final": i == 49,
             }
 
@@ -1590,7 +1590,7 @@ class TestProcessSchema:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "common_field": {"type": "string", "default": "stage1_value"},
                         "unique_field1": {"type": "integer", "default": 1},
                     },
@@ -1601,7 +1601,7 @@ class TestProcessSchema:
                     "description": "Second stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "common_field": {
                             "type": "string",
                             "default": "stage2_value",
@@ -1657,7 +1657,7 @@ class TestProcessSchema:
                         }
                     ],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field1": {"type": "string", "default": None}
                     },
                     "is_final": False,
@@ -1667,7 +1667,7 @@ class TestProcessSchema:
                     "description": "Second stage",
                     "gates": [],
                     "expected_actions": [],
-                    "expected_properties": {
+                    "fields": {
                         "field2": {"type": "string", "default": None}
                     },
                     "is_final": True,

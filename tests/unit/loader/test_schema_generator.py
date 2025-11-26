@@ -21,7 +21,7 @@ def simple_process_with_exists():
             "final_stage": "end",
             "stages": {
                 "start": {
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "string"},
                         "age": {"type": "integer"},
                     },
@@ -51,7 +51,7 @@ def multi_stage_process():
             "final_stage": "stage3",
             "stages": {
                 "stage1": {
-                    "expected_properties": {
+                    "fields": {
                         "email": {"type": "string"},
                         "name": {"type": "string"},
                     },
@@ -64,7 +64,7 @@ def multi_stage_process():
                     ],
                 },
                 "stage2": {
-                    "expected_properties": {
+                    "fields": {
                         "age": {"type": "integer"},
                         "verified": {"type": "boolean"},
                     },
@@ -77,7 +77,7 @@ def multi_stage_process():
                     ],
                 },
                 "stage3": {
-                    "expected_properties": {"profile_complete": {"type": "boolean"}},
+                    "fields": {"profile_complete": {"type": "boolean"}},
                     "is_final": True,
                 },
             },
@@ -97,7 +97,7 @@ def process_with_conditional_locks():
             "final_stage": "end",
             "stages": {
                 "start": {
-                    "expected_properties": {
+                    "fields": {
                         "type": {"type": "string"},
                         "email": {"type": "string"},
                         "company": {"type": "string"},
@@ -134,7 +134,7 @@ def process_with_or_logic():
             "final_stage": "end",
             "stages": {
                 "start": {
-                    "expected_properties": {
+                    "fields": {
                         "approved": {"type": "boolean"},
                         "rejected": {"type": "boolean"},
                         "reason": {"type": "string"},
@@ -214,7 +214,7 @@ class TestRequiredFieldAnalyzer:
                 "final_stage": "end",
                 "stages": {
                     "start": {
-                        "expected_properties": {
+                        "fields": {
                             "email": {"type": "string"},
                             "age": {"type": "integer"},
                         },
@@ -341,7 +341,7 @@ class TestSchemaGenerator:
                 "final_stage": "stage2",
                 "stages": {
                     "stage1": {
-                        "expected_properties": {
+                        "fields": {
                             "email": {"type": "string", "default": "user@example.com"}
                         },
                         "gates": [
@@ -353,7 +353,7 @@ class TestSchemaGenerator:
                         ],
                     },
                     "stage2": {
-                        "expected_properties": {
+                        "fields": {
                             "email": {
                                 "type": "string",
                                 "default": "admin@example.com",

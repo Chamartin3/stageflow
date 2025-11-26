@@ -735,7 +735,7 @@ class TestMermaidIntegrationScenarios:
             "stages": {
                 "registration": {
                     "name": "User Registration",
-                    "expected_properties": {"email": {"type": "str"}},
+                    "fields": {"email": {"type": "str"}},
                     "gates": [
                         {
                             "name": "email_provided",
@@ -746,7 +746,7 @@ class TestMermaidIntegrationScenarios:
                 },
                 "verification": {
                     "name": "Email Verification",
-                    "expected_properties": {"email_verified": {"type": "bool"}},
+                    "fields": {"email_verified": {"type": "bool"}},
                     "gates": [
                         {
                             "name": "email_verified",
@@ -757,7 +757,7 @@ class TestMermaidIntegrationScenarios:
                 },
                 "profile_setup": {
                     "name": "Profile Setup",
-                    "expected_properties": {
+                    "fields": {
                         "first_name": {"type": "str"},
                         "last_name": {"type": "str"},
                     },
