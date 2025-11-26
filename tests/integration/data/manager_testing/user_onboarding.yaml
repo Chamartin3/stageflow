@@ -4,7 +4,7 @@ stages:
   email_signup:
     name: "Email Signup"
     description: "User provides email and creates account"
-    expected_properties:
+    fields:
       email: {type: "str"}
       user_id: {type: "str"}
       email_verified_at: {type: "str"}
@@ -26,7 +26,7 @@ stages:
   profile_setup:
     name: "Profile Setup"
     description: "User completes profile information"
-    expected_properties:
+    fields:
       profile:
         first_name: {type: "str"}
         last_name: {type: "str"}
@@ -45,7 +45,7 @@ stages:
   verification:
     name: "Verification"
     description: "Identity verification process"
-    expected_properties:
+    fields:
       verification:
         document_uploaded: {type: "bool"}
         status: {type: "str"}
@@ -64,7 +64,7 @@ stages:
   active_user:
     name: "Active User"
     description: "User account is fully active"
-    expected_properties:
+    fields:
       status: {type: "str"}
       activated_at: {type: "str"}
     gates: []

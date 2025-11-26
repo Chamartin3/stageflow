@@ -255,7 +255,7 @@ class TestSchemaCommandRealWorld:
             "final_stage": "end",
             "stages": {
                 "start": {
-                    "expected_properties": {"data": {"type": "string"}},
+                    "fields": {"data": {"type": "string"}},
                     "gates": [
                         {
                             "name": "to_end",

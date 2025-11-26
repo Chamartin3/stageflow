@@ -8,96 +8,91 @@ process:
 
   stages:
     submitted:
-      schema:
-        required_fields:
-          - request_id
-          - request_type
-          - requestor
-          - requestor.auto_approve_eligible
-
       gates:
         auto_approve_simple:
           target_stage: completed
           locks:
-            - type: equals
-              property_path: "request_type"
-              expected_value: "simple"
-            - type: equals
-              property_path: "requestor.auto_approve_eligible"
-              expected_value: true
+          - type: equals
+            property_path: "request_type"
+            expected_value: "simple"
+          - type: equals
+            property_path: "requestor.auto_approve_eligible"
+            expected_value: true
 
         manual_review_required:
           target_stage: manual_review
           locks:
-            - type: in_list
-              property_path: "request_type"
-              expected_value: ["complex", "sensitive", "high_value"]
+          - type: in_list
+            property_path: "request_type"
+            expected_value: ["complex", "sensitive", "high_value"]
 
         standard_approval:
           target_stage: standard_review
           locks:
-            - type: equals
-              property_path: "request_type"
-              expected_value: "standard"
+          - type: equals
+            property_path: "request_type"
+            expected_value: "standard"
+
+      fields:
+      - request_id
+      - request_type
+      - requestor
+      - requestor.auto_approve_eligible
 
     manual_review:
-      schema:
-        required_fields:
-          - request_id
-          - assigned_reviewer
-          - review_priority
-          - review
-          - review.decision
-
       gates:
         approve_request:
           target_stage: completed
           locks:
-            - type: equals
-              property_path: "review.decision"
-              expected_value: "approved"
+          - type: equals
+            property_path: "review.decision"
+            expected_value: "approved"
 
         reject_request:
           target_stage: rejected
           locks:
-            - type: equals
-              property_path: "review.decision"
-              expected_value: "rejected"
+          - type: equals
+            property_path: "review.decision"
+            expected_value: "rejected"
+
+      fields:
+      - request_id
+      - assigned_reviewer
+      - review_priority
+      - review
+      - review.decision
 
     standard_review:
-      schema:
-        required_fields:
-          - request_id
-          - standard_checks_completed
-
       gates:
         pass_standard_checks:
           target_stage: completed
           locks:
-            - type: equals
-              property_path: "standard_checks_completed"
-              expected_value: true
+          - type: equals
+            property_path: "standard_checks_completed"
+            expected_value: true
 
         fail_standard_checks:
           target_stage: rejected
           locks:
-            - type: equals
-              property_path: "standard_checks_completed"
-              expected_value: false
+          - type: equals
+            property_path: "standard_checks_completed"
+            expected_value: false
+
+      fields:
+      - request_id
+      - standard_checks_completed
 
     completed:
-      schema:
-        required_fields:
-          - request_id
-          - completion_date
-          - approval_method
+      fields:
+      - request_id
+      - completion_date
+      - approval_method
 
     rejected:
-      schema:
-        required_fields:
-          - request_id
-          - rejection_date
-          - rejection_reason
+      fields:
+      - request_id
+      - rejection_date
+      - rejection_reason
 
   allow_stage_skipping: false
   regression_detection: true
@@ -106,4 +101,5 @@ process:
     description: "Simple branching approval process for visualization testing"
     version: "1.0.0"
     test_case: "visualization_branching_flow"
-    visualization_notes: "Should show decision points with multiple paths leading to different outcomes"
+    visualization_notes: "Should show decision points with multiple paths leading
+      to different outcomes"
