@@ -377,7 +377,7 @@ def simple_two_stage_process() -> ProcessDefinition:
                     }
                 ],
                 "expected_actions": [],
-                "expected_properties": {"email": {"type": "string", "default": None}},
+                "fields": {"email": {"type": "string", "default": None}},
                 "is_final": False,
             },
             "end": {
@@ -385,7 +385,7 @@ def simple_two_stage_process() -> ProcessDefinition:
                 "description": "Final stage",
                 "gates": [],
                 "expected_actions": [],
-                "expected_properties": {},
+                "fields": {},
                 "is_final": True,
             },
         },
@@ -439,7 +439,7 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                     }
                 ],
                 "expected_actions": [],
-                "expected_properties": {
+                "fields": {
                     "email": {"type": "string", "default": None},
                     "password": {"type": "string", "default": None},
                 },
@@ -464,7 +464,7 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                     }
                 ],
                 "expected_actions": [],
-                "expected_properties": {"verified": {"type": "boolean", "default": False}},
+                "fields": {"verified": {"type": "boolean", "default": False}},
                 "is_final": False,
             },
             "profile_setup": {
@@ -491,7 +491,7 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                     }
                 ],
                 "expected_actions": [],
-                "expected_properties": {
+                "fields": {
                     "profile": {
                         "name": {"type": "string", "default": None},
                         "age": {"type": "integer", "default": None},
@@ -504,7 +504,7 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                 "description": "Active user state",
                 "gates": [],
                 "expected_actions": [],
-                "expected_properties": {},
+                "fields": {},
                 "is_final": True,
             },
         },
