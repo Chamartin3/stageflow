@@ -19,6 +19,11 @@ Usage:
 
 # Enumerations
 # Base TypedDict definitions (single source of truth)
+# Analysis data models
+from .analysis import (
+    ProcessGraph,
+    StageSchemaMutations,
+)
 from .base import (
     ActionDefinition,
     ConditionalLockDict,
@@ -35,6 +40,7 @@ from .base import (
     ProcessFile,
     ProcessFileDict,
     RegressionDetails,
+    RegressionPolicyLiteral,
     StageDefinition,
     StageFieldsDefinition,
     StageObjectPropertyDefinition,
@@ -49,6 +55,7 @@ from .consistency import (
 from .enums import (
     ErrorSeverity,
     FileFormat,
+    IssueSeverity,
     LoadErrorType,
     LoadResultStatus,
     LockTypeShorthand,
@@ -78,10 +85,21 @@ from .properties import (
     StringProperty,
 )
 
+# Schema lifecycle types
+from .schema import (
+    ExtractedProperty,
+    InferredType,
+    PropertySchema,
+    PropertySource,
+    SchemaType,
+    StageSchema,
+)
+
 __all__ = [
     # Enums
     "LoadResultStatus",
     "ErrorSeverity",
+    "IssueSeverity",
     "LoadErrorType",
     "ProcessSourceType",
     "FileFormat",
@@ -118,6 +136,7 @@ __all__ = [
     "ProcessDefinition",
     "ProcessElementEvaluationResult",
     "RegressionDetails",
+    "RegressionPolicyLiteral",
     # File format types
     "ProcessFileDict",
     "LegacyProcessFileDict",
@@ -132,4 +151,14 @@ __all__ = [
     "DictProperty",
     "PropertiesParser",
     "PropertyValidator",
+    # Schema lifecycle types
+    "SchemaType",
+    "PropertySource",
+    "InferredType",
+    "ExtractedProperty",
+    "PropertySchema",
+    "StageSchema",
+    # Analysis data models
+    "ProcessGraph",
+    "StageSchemaMutations",
 ]

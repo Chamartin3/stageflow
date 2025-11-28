@@ -28,6 +28,7 @@ class LoadResultStatus(StrEnum):
     STRUCTURE_ERROR = "structure_error"
     VALIDATION_ERROR = "validation_error"
     CONSISTENCY_WARNING = "consistency_warning"
+    CONSISTENCY_ERROR = "consistency_error"  # Process has fatal consistency issues
 
 
 class ErrorSeverity(StrEnum):
@@ -125,6 +126,14 @@ class SpecialLockType(StrEnum):
 # ============================================================================
 # Regression Policy Enums
 # ============================================================================
+
+
+class IssueSeverity(StrEnum):
+    """Severity level for consistency issues."""
+
+    FATAL = "fatal"      # Process cannot be used
+    WARNING = "warning"  # Process works but has issues
+    INFO = "info"        # Informational only
 
 
 class RegressionPolicy(StrEnum):

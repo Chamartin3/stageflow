@@ -10,6 +10,9 @@ import re
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, NotRequired, Required, TypedDict
 
+# Type alias for regression policy values (matches RegressionPolicy enum)
+RegressionPolicyLiteral = Literal["ignore", "warn", "block"]
+
 if TYPE_CHECKING:
     from ..stage import StageEvaluationResult
 
@@ -30,6 +33,7 @@ __all__ = [
     "StageFieldsDefinition",
     "StageDefinition",
     # Process types
+    "RegressionPolicyLiteral",
     "ProcessDefinition",
     "ProcessElementEvaluationResult",
     "RegressionDetails",
@@ -377,7 +381,7 @@ class ProcessDefinition(TypedDict):
     initial_stage: str
     final_stage: str
     stage_prop: NotRequired[str]
-    regression_policy: NotRequired[str]  # NEW: RegressionPolicy enum value, default="warn"
+    regression_policy: NotRequired[RegressionPolicyLiteral]  # "ignore", "warn" (default), "block"
     stages: dict[str, StageDefinition]
 
 

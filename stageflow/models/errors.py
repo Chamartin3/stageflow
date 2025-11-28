@@ -98,6 +98,16 @@ class ProcessLoadResult:
         return self.status in (LoadResultStatus.SUCCESS, LoadResultStatus.CONSISTENCY_WARNING)
 
     @property
+    def is_valid(self) -> bool:
+        """Check if process was loaded AND has no blocking consistency issues.
+
+        This is the primary check for whether a process can be used.
+        - success: process was created (no load errors)
+        - is_valid: process was created AND has no blocking issues
+        """
+        return self.success and self.process is not None and self.process.is_valid
+
+    @property
     def has_errors(self) -> bool:
         """Check if any errors were encountered."""
         return len(self.errors) > 0

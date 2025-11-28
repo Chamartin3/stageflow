@@ -8,6 +8,8 @@ including issue types and termination analysis.
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from .enums import IssueSeverity
+
 
 class ProcessIssueTypes(StrEnum):
     """Types of consistency issues that can be found in a process definition."""
@@ -31,6 +33,11 @@ class ProcessIssueTypes(StrEnum):
     # Final stage validation
     FINAL_STAGE_HAS_GATES = "final_stage_has_gates"  # Final stage should not have outgoing gates
 
+    # Schema transformation validation
+    EMPTY_STAGE_TRANSFORMATION = "empty_stage_transformation"  # Gate doesn't change schema
+    DUPLICATE_GATE_SCHEMAS = "duplicate_gate_schemas"  # Two gates produce identical schemas
+    SCHEMA_PROPERTY_REGRESSION = "schema_property_regression"  # Gate loses properties
+
 
 @dataclass(frozen=True)
 class ConsistencyIssue:
@@ -38,7 +45,7 @@ class ConsistencyIssue:
     issue_type: ProcessIssueTypes
     description: str
     stages: list[str] = field(default_factory=list)
-    severity: str = "warning"  # "fatal", "warning", "info"
+    severity: IssueSeverity = IssueSeverity.WARNING
     details: dict = field(default_factory=dict)
 
 

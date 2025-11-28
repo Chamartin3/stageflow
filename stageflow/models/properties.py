@@ -57,8 +57,8 @@ class StringProperty(Property):
     type: PropertyType = PropertyType.STRING
 
     # String-specific constraints
-    min_length: int | None = Field(None, ge=0)
-    max_length: int | None = Field(None, ge=0)
+    min_length: int | None = Field(default=None, ge=0)
+    max_length: int | None = Field(default=None, ge=0)
     pattern: str | None = None
     format: str | None = None  # email, uri, uuid
     enum: list[str] | None = None
@@ -162,15 +162,37 @@ class PropertiesParser:
 
             >>> parse({"email": "string", "age": "int"})
             {"email": StringProperty(...), "age": NumberProperty(...)}
+
+            >>> parse([{"email": {"type": "string", "description": "User email"}}])
+            {"email": StringProperty(description="User email", ...)}
         """
-        # Level 1: Simple list
+        # Level 1: List format (simple strings or single-key dicts)
         if isinstance(spec, list):
             result = {}
-            for name in spec:
-                if "." in name:
-                    cls._add_nested(result, name, "string")
+            for item in spec:
+                # Simple string: "email"
+                if isinstance(item, str):
+                    if "." in item:
+                        cls._add_nested(result, item, "string")
+                    else:
+                        result[item] = StringProperty()
+                # Single-key dict: {"email": "string"} or {"email": {...}}
+                elif isinstance(item, dict) and len(item) == 1:
+                    name, value = next(iter(item.items()))
+                    if isinstance(value, str):
+                        result[name] = cls._from_type(value)
+                    elif isinstance(value, dict):
+                        if "type" in value:
+                            result[name] = cls._from_dict(value)
+                        else:
+                            nested_props = cls.parse(value)
+                            result[name] = DictProperty(properties=nested_props)
+                    elif value is None:
+                        result[name] = StringProperty()
+                    else:
+                        raise ValueError(f"Invalid spec for '{name}' in list")
                 else:
-                    result[name] = StringProperty()
+                    raise ValueError(f"Invalid list item: {item}")
             return result
 
         # Level 2 & 3: Dictionary
