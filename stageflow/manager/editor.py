@@ -77,11 +77,11 @@ class ProcessEditor:
         Raises:
             ValidationFailedError: If validation fails, automatic rollback occurs
         """
-        # Update consistency checker
-        self._process.checker = self._process._get_consistency_checker()
+        # Re-run analysis to update issues
+        self._process.reanalyze()
 
-        if not self._process.checker.valid:
-            issues = self._process.consistency_issues
+        if not self._process.is_valid:
+            issues = self._process.issues
             # Automatic rollback on validation failure
             self._restore_backup()
             raise ValidationFailedError(
@@ -110,7 +110,7 @@ class ProcessEditor:
     @property
     def consistency_issues(self) -> list[ConsistencyIssue]:
         """Get current consistency issues in the process."""
-        return self._process.consistency_issues
+        return self._process.issues
 
     def add_stage(self, stage_id: str, config: StageDefinition) -> None:
         """
@@ -274,8 +274,8 @@ class ProcessEditor:
         Raises:
             ValidationFailedError: If current state has consistency issues
         """
-        if not self._process.checker.valid:
-            issues = self._process.consistency_issues
+        if not self._process.is_valid:
+            issues = self._process.issues
             raise ValidationFailedError(
                 f"Cannot sync process with consistency issues: "
                 f"{[issue.description for issue in issues]}",
@@ -291,9 +291,9 @@ class ProcessEditor:
         Returns:
             Tuple of (is_valid, list of consistency issues)
         """
-        # Update consistency checker to get latest state
-        self._process.checker = self._process._get_consistency_checker()
-        return self._process.checker.valid, self._process.consistency_issues
+        # Re-run analysis to get latest state
+        self._process.reanalyze()
+        return self._process.is_valid, self._process.issues
 
     def get_process_definition(self) -> ProcessDefinition:
         """

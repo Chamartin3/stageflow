@@ -6,7 +6,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from stageflow.models import StageObjectPropertyDefinition
+from stageflow.models import StageObjectPropertyDefinition, StageSchema
 from stageflow.process import Process
 
 
@@ -173,6 +173,77 @@ class SchemaGenerator:
             title=f"{self.process.name} - {target_stage} (Stage-Specific)",
             stage_name=target_stage,
         )
+
+    def generate_initial_schema(self, target_stage: str) -> StageSchema:
+        """Generate initial schema for stage entry (fields only).
+
+        Args:
+            target_stage: Target stage name
+
+        Returns:
+            StageSchema with properties from fields
+        """
+        stage = self._get_stage(target_stage)
+        return stage.get_initial_schema()
+
+    def generate_final_schema(self, target_stage: str, gate_name: str) -> StageSchema:
+        """Generate final schema for exiting via specific gate.
+
+        Args:
+            target_stage: Target stage name
+            gate_name: Gate name to get final schema for
+
+        Returns:
+            StageSchema for exiting via specified gate
+        """
+        stage = self._get_stage(target_stage)
+        return stage.get_final_schema(gate_name)
+
+    def generate_all_gate_schemas(self, target_stage: str) -> dict[str, StageSchema]:
+        """Generate separate final schema for each gate.
+
+        Args:
+            target_stage: Target stage name
+
+        Returns:
+            Dict mapping gate_name to StageSchema
+        """
+        stage = self._get_stage(target_stage)
+        return stage.get_final_schemas()
+
+    def stage_schema_to_json_schema(self, stage_schema: StageSchema) -> dict[str, Any]:
+        """Convert StageSchema to JSON Schema format.
+
+        Args:
+            stage_schema: StageSchema from get_initial_schema/get_final_schema
+
+        Returns:
+            JSON Schema dictionary
+        """
+        json_props = {}
+        required_fields = []
+
+        for name, prop_schema in stage_schema["properties"].items():
+            json_prop: dict[str, Any] = {"type": self._map_type(prop_schema.get("type", "any"))}
+            if "default" in prop_schema:
+                json_prop["default"] = prop_schema["default"]
+            if "description" in prop_schema:
+                json_prop["description"] = prop_schema["description"]
+            json_props[name] = json_prop
+
+            if prop_schema.get("required", False):
+                required_fields.append(name)
+
+        schema = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": f"{stage_schema['stage_name']} Schema",
+            "type": "object",
+            "properties": json_props,
+        }
+        if required_fields:
+            schema["required"] = sorted(required_fields)
+
+        return schema
 
     def _get_stage_path(self, target_stage: str) -> list[str]:
         """Get ordered list of stage IDs from initial to target using BFS.

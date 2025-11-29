@@ -8,7 +8,7 @@ from typing import cast
 
 from stageflow.elements import Element
 from stageflow.lock import BaseLock, LockDefinition, LockFactory, LockResult
-from stageflow.models import GateDefinition
+from stageflow.models import ExtractedProperty, GateDefinition
 
 
 @dataclass(frozen=True)
@@ -117,6 +117,13 @@ class Gate:
     def locks(self) -> list[BaseLock]:
         """Get all locks in this gate."""
         return self._locks.copy()
+
+    def get_properties(self) -> list[ExtractedProperty]:
+        """Get all properties evaluated by this gate's locks."""
+        props: list[ExtractedProperty] = []
+        for lock in self._locks:
+            props.extend(lock.get_properties())
+        return props
 
     @property
     def required_paths(self) -> set[str]:

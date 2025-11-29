@@ -1,21 +1,22 @@
 """Core Process class for StageFlow multi-stage validation orchestration."""
 
-from typing import Any, cast
+from typing import cast
 
-from stageflow.models.consistency import ConsistencyIssue, ProcessIssueTypes
-
-from .elements import Element
-from .gate import Gate
-from .lock import BaseLock, SimpleLock
-from .models import (
+from stageflow.models import (
+    ConsistencyIssue,
     ExpectedObjectSchmema,
     ProcessDefinition,
     ProcessElementEvaluationResult,
+    ProcessGraph,
+    ProcessIssueTypes,
     RegressionDetails,
     RegressionPolicy,
     StageDefinition,
     StageObjectPropertyDefinition,
+    StageSchemaMutations,
 )
+
+from .elements import Element
 from .stage import Stage, StageEvaluationResult, StageStatus
 
 
@@ -62,288 +63,6 @@ class PathSearch:
 
 
 
-class ProcessConsistencyChecker:
-    """Check process configuration for consistency issues."""
-
-    issues: list[ConsistencyIssue]
-
-    def __init__(
-        self,
-        stages: list[Stage],
-        transitions: list[tuple[str, str]],
-        initial_stage: Stage,
-        final_stage: Stage,
-    ):
-        self.stages = stages
-        self.transitions = transitions
-        self.initial_stage = initial_stage
-        self.final_stage = final_stage
-        self.issues = []
-        self.run_checks()
-
-    @property
-    def valid(self) -> bool:
-        """Indicate if the process is consistent."""
-        return len(self.issues) == 0
-
-    def run_checks(self):
-        """Perform consistency checks on the process."""
-        self._check_dead_end_stages()
-        self._check_unreachable_stages()
-        self._check_orphaned_stages()
-        self._check_self_referencing_gates()
-        self._check_circular_dependencies()
-        self._check_logical_conflicts()
-        self._check_multiple_gates_same_target()
-
-    def _get_path_to_final(self, stage: Stage) -> list[Stage]:
-        """Get path from given stage to final stage."""
-        if not self.final_stage:
-            return []
-        search = PathSearch(self.transitions, self.final_stage._id)
-        path_ids = list(search.get_path(stage._id) or set())
-        return self.get_stages_from_ids(path_ids)
-
-    def get_stages_from_ids(self, ids: list[str]) -> list[Stage]:
-        """Retrieve stages by their IDs."""
-        return [stage for stage in self.stages if stage._id in ids]
-
-    def _find_route(self, from_stage_id: str, to_stage_id: str) -> list[str] | None:
-        """Find a route from one stage to another."""
-        search = PathSearch(self.transitions, to_stage_id)
-        route = search.get_path(from_stage_id)
-        if not route:
-            route = search.get_path(to_stage_id, foward=False)
-        return list(route) if route else None
-
-    def _check_dead_end_stages(self) -> None:
-        """Identify non-final stages that cannot reach the final stage."""
-        for stage in self.stages:
-            if stage.is_final:
-                continue
-            path = self._get_path_to_final(stage)
-
-            if not path:
-                issue = ConsistencyIssue(
-                    issue_type=ProcessIssueTypes.DEAD_END_STAGE,
-                    description=f"Stage '{stage.name}' cannot reach final stage '{self.final_stage.name}'",
-                    stages=[stage.name],
-                )
-                self.issues.append(issue)
-
-    def _check_unreachable_stages(self) -> None:
-        """Identify stages that cannot be reached from the initial stage."""
-        for stage in self.stages:
-            path = self._find_route(self.initial_stage._id, stage._id)
-            if not path:
-                # Allow unreachable stages if they can reach the final stage
-                can_reach_final = bool(self._get_path_to_final(stage))
-                if not can_reach_final:
-                    issue = ConsistencyIssue(
-                        issue_type=ProcessIssueTypes.UNREACHABLE_STAGE,
-                        description=f"Stage '{stage.name}' is unreachable from initial stage '{self.initial_stage.name}'",
-                        stages=[stage.name],
-                    )
-                    self.issues.append(issue)
-
-    def _check_invalid_transitions(self) -> None:
-        """Identify transitions to non-existent stages."""
-        stage_ids = {stage._id for stage in self.stages}
-        for from_stage, to_stage in self.transitions:
-            if from_stage not in stage_ids or to_stage not in stage_ids:
-                issue = ConsistencyIssue(
-                    issue_type=ProcessIssueTypes.INVALID_TRANSITION,
-                    description=f"Transition from '{from_stage}' to '{to_stage}' involves non-existent stage(s)",
-                    stages=[from_stage, to_stage],
-                )
-                self.issues.append(issue)
-
-    def _check_orphaned_stages(self) -> None:
-        """Identify stages that have no gates and are not referenced by other stages."""
-        # Get all stages that are referenced as targets by other gates
-        target_stages = {target for _, target in self.transitions}
-
-        for stage in self.stages:
-            # Skip stages that have gates or are marked as final
-            if len(stage.gates) > 0 or stage.is_final:
-                continue
-
-            # If a stage has no gates and is not final, it should be referenced as a target
-            if stage._id not in target_stages:
-                issue = ConsistencyIssue(
-                    issue_type=ProcessIssueTypes.ORPHANED_STAGE,
-                    description=f"Stage '{stage.name}' has no gates, is not marked as final, and is not referenced by any other stage",
-                    stages=[stage.name],
-                )
-                self.issues.append(issue)
-
-    def _check_self_referencing_gates(self) -> None:
-        """Identify gates that reference their own stage (self-loops)."""
-        for stage in self.stages:
-            for gate in stage.gates:
-                if hasattr(gate, "target_stage") and gate.target_stage == stage._id:
-                    issue = ConsistencyIssue(
-                        issue_type=ProcessIssueTypes.SELF_REFERENCING_GATE,
-                        description=f"Gate '{gate.name}' in stage '{stage.name}' references the same stage, creating a self-loop. This can lead to infinite loops and should be avoided",
-                        stages=[stage.name],
-                    )
-                    self.issues.append(issue)
-
-    def _check_circular_dependencies(self) -> None:
-        """Identify circular dependencies in stage transitions."""
-        visited = set()
-        rec_stack = set()
-
-        def has_cycle(stage_id: str) -> bool:
-            visited.add(stage_id)
-            rec_stack.add(stage_id)
-
-            # Get all outgoing transitions from this stage
-            outgoing = [
-                target for source, target in self.transitions if source == stage_id
-            ]
-
-            for neighbor in outgoing:
-                if neighbor not in visited:
-                    if has_cycle(neighbor):
-                        return True
-                elif neighbor in rec_stack:
-                    # Found a cycle
-                    issue = ConsistencyIssue(
-                        issue_type=ProcessIssueTypes.CIRCULAR_DEPENDENCY,
-                        description="Circular dependency detected: stages can transition in a cycle without reaching the final stage",
-                        stages=list(rec_stack),
-                    )
-                    self.issues.append(issue)
-                    return True
-
-            rec_stack.remove(stage_id)
-            return False
-
-        # Check each stage for cycles
-        for stage in self.stages:
-            if stage._id not in visited:
-                has_cycle(stage._id)
-
-    def _check_logical_conflicts(self) -> None:
-        """Identify logical conflicts within gate conditions."""
-        for stage in self.stages:
-            for gate in stage.gates:
-                if gate.locks:
-                    self._check_gate_logic_conflicts(stage, gate)
-
-    def _check_gate_logic_conflicts(self, stage: Stage, gate: Gate) -> None:
-        """Check for logical conflicts within a single gate's locks."""
-        # Group locks by property path
-        locks_by_property: dict[str, list[BaseLock]] = {}
-        for lock in gate.locks:
-            prop_path = lock.property_path
-            if prop_path not in locks_by_property:
-                locks_by_property[prop_path] = []
-            locks_by_property[prop_path].append(lock)
-
-        # Check each property for conflicts
-        for prop_path, locks in locks_by_property.items():
-            conflicts = self._detect_property_conflicts(prop_path, locks)
-            if conflicts:
-                issue = ConsistencyIssue(
-                    issue_type=ProcessIssueTypes.LOGICAL_CONFLICT,
-                    description=f"Gate '{gate.name}' in stage '{stage.name}' has conflicting conditions for property '{prop_path}': {conflicts}",
-                    stages=[stage.name],
-                )
-                self.issues.append(issue)
-
-    def _detect_property_conflicts(self, prop_path: str, locks: list[BaseLock]) -> str:
-        """Detect logical conflicts between locks on the same property."""
-        from stageflow.lock import LockType
-
-        conflicts = []
-
-        # Filter to only SimpleLocks (ConditionalLocks don't have expected_value)
-        simple_locks = [lock for lock in locks if isinstance(lock, SimpleLock)]
-
-        # Check for EQUALS conflicts (multiple different values)
-        equals_locks = [
-            lock for lock in simple_locks if lock.lock_type == LockType.EQUALS
-        ]
-        if len(equals_locks) > 1:
-            values = [lock.expected_value for lock in equals_locks]
-            unique_values = set(values)
-            if len(unique_values) > 1:
-                conflicts.append(
-                    f"multiple EQUALS conditions ({', '.join(map(str, unique_values))})"
-                )
-
-        # Check for numeric range conflicts
-        gt_locks = [
-            lock for lock in simple_locks if lock.lock_type == LockType.GREATER_THAN
-        ]
-        lt_locks = [
-            lock for lock in simple_locks if lock.lock_type == LockType.LESS_THAN
-        ]
-
-        # Check EQUALS vs GREATER_THAN conflicts
-        for equals_lock in equals_locks:
-            if isinstance(equals_lock.expected_value, (int, float)):
-                equals_val = equals_lock.expected_value
-                for gt_lock in gt_locks:
-                    if isinstance(gt_lock.expected_value, (int, float)):
-                        if equals_val <= gt_lock.expected_value:
-                            conflicts.append(
-                                f"EQUALS {equals_val} conflicts with GREATER_THAN {gt_lock.expected_value}"
-                            )
-
-        # Check EQUALS vs LESS_THAN conflicts
-        for equals_lock in equals_locks:
-            if isinstance(equals_lock.expected_value, (int, float)):
-                equals_val = equals_lock.expected_value
-                for lt_lock in lt_locks:
-                    if isinstance(lt_lock.expected_value, (int, float)):
-                        if equals_val >= lt_lock.expected_value:
-                            conflicts.append(
-                                f"EQUALS {equals_val} conflicts with LESS_THAN {lt_lock.expected_value}"
-                            )
-
-        # Check GREATER_THAN vs LESS_THAN conflicts
-        for gt_lock in gt_locks:
-            if isinstance(gt_lock.expected_value, (int, float)):
-                for lt_lock in lt_locks:
-                    if isinstance(lt_lock.expected_value, (int, float)):
-                        if gt_lock.expected_value >= lt_lock.expected_value:
-                            conflicts.append(
-                                f"GREATER_THAN {gt_lock.expected_value} conflicts with LESS_THAN {lt_lock.expected_value}"
-                            )
-
-        return "; ".join(conflicts) if conflicts else ""
-
-    def _check_multiple_gates_same_target(self) -> None:
-        """Check for multiple gates targeting the same stage within each stage."""
-        for stage in self.stages:
-            target_stages = []
-            gate_names = []
-
-            for gate in stage.gates:
-                if hasattr(gate, "target_stage") and gate.target_stage:
-                    if gate.target_stage in target_stages:
-                        # Find which gates have the same target
-                        duplicate_gates = [
-                            gate_names[i]
-                            for i, target in enumerate(target_stages)
-                            if target == gate.target_stage
-                        ]
-                        duplicate_gates.append(gate.name)
-
-                        issue = ConsistencyIssue(
-                            issue_type=ProcessIssueTypes.MULTIPLE_GATES_SAME_TARGET,
-                            description=f"Stage '{stage.name}' has multiple gates targeting the same stage '{gate.target_stage}': "
-                            f"{', '.join(duplicate_gates)}. Consider combining these gates into a single gate with multiple locks.",
-                        )
-                        self.issues.append(issue)
-
-                    target_stages.append(gate.target_stage)
-                    gate_names.append(gate.name)
-
-
 class Process:
     """
     Multi-stage workflow orchestration for element validation.
@@ -351,7 +70,18 @@ class Process:
     Processes define the complete validation pipeline, managing stage
     """
 
+    # Issue types that make the process invalid/unusable
+    BLOCKING_ISSUE_TYPES: frozenset[ProcessIssueTypes] = frozenset({
+        ProcessIssueTypes.MISSING_STAGE,
+        ProcessIssueTypes.INFINITE_CYCLE,
+        ProcessIssueTypes.UNREACHABLE_STAGE,
+        ProcessIssueTypes.FINAL_STAGE_HAS_GATES,
+        ProcessIssueTypes.DUPLICATE_GATE_SCHEMAS,
+        ProcessIssueTypes.LOGICAL_CONFLICT,
+    })
+
     _transition_map: list[tuple[str, str]]
+    _issues: list[ConsistencyIssue]
     initial_stage: Stage
     final_stage: Stage
     stage_index: set[str]
@@ -386,7 +116,7 @@ class Process:
         initial_stage = config.get("initial_stage", "")
         final_stage = config.get("final_stage", "")
         self._set_stages(stages_definition, initial_stage, final_stage)
-        self.checker = self._get_consistency_checker()
+        self._issues = self._run_analysis()
 
     def _set_stages(
         self, stage_definition: dict[str, StageDefinition], initial: str, final: str
@@ -444,17 +174,89 @@ class Process:
         # This method is kept for backward compatibility but does nothing
         pass
 
-    def _get_consistency_checker(self) -> Any:
-        """Get a consistency checker for the process."""
-        # Import here to avoid circular imports
-        from .loader.consistency_checker import (
-            ProcessConsistencyChecker as NewProcessConsistencyChecker,
+    def _run_analysis(self) -> list[ConsistencyIssue]:
+        """Run process analysis and return issues."""
+        from stageflow.analysis import ProcessAnalyzer
+
+        graph = self.to_graph()
+        mutations = self._extract_stage_mutations()
+        analyzer = ProcessAnalyzer(graph, mutations)
+        return analyzer.get_issues()
+
+    def _extract_stage_mutations(self) -> list[StageSchemaMutations]:
+        """Extract schema mutations for each stage."""
+        targets = {to_id for _, to_id in self._transition_map}
+        return [
+            stage.to_schema_mutations(is_transition_target=stage._id in targets)
+            for stage in self.stages
+        ]
+
+    @property
+    def issues(self) -> list[ConsistencyIssue]:
+        """Get consistency issues in the process."""
+        return self._issues
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if process has no blocking issues."""
+        return not any(
+            issue.issue_type in self.BLOCKING_ISSUE_TYPES
+            for issue in self._issues
         )
 
-        # Use new consistency checker with ProcessDefinition
-        return NewProcessConsistencyChecker(self.config)
+    def reanalyze(self) -> list[ConsistencyIssue]:
+        """Re-run analysis after mutations and return issues.
 
-    # Path finding methods
+        Call this after modifying the process (add_stage, remove_stage, etc.)
+        to update the consistency issues.
+
+        Returns:
+            Updated list of consistency issues
+        """
+        self._issues = self._run_analysis()
+        return self._issues
+
+    # =========================================================================
+    # Path Finding Methods (public API for analyzers)
+    # =========================================================================
+
+    def has_path(self, from_stage_id: str, to_stage_id: str, exclude: set[str] | None = None) -> bool:
+        """Check if there's a path from one stage to another.
+
+        Args:
+            from_stage_id: Starting stage ID
+            to_stage_id: Target stage ID
+            exclude: Optional set of stage IDs to exclude from path search
+
+        Returns:
+            True if path exists, False otherwise
+        """
+        if from_stage_id == to_stage_id:
+            return True
+
+        exclude = exclude or set()
+        if from_stage_id in exclude:
+            return False
+
+        new_exclude = exclude | {from_stage_id}
+        targets = self.get_stage_targets(from_stage_id)
+
+        for target in targets:
+            if self.has_path(target, to_stage_id, new_exclude):
+                return True
+        return False
+
+    def get_stage_targets(self, stage_id: str) -> list[str]:
+        """Get direct transition targets from a stage.
+
+        Args:
+            stage_id: Stage to get targets for
+
+        Returns:
+            List of target stage IDs
+        """
+        return [to_id for from_id, to_id in self._transition_map if from_id == stage_id]
+
     def _get_path_to_final(self, stage: Stage) -> list[Stage]:
         """Get path from given stage to final stage."""
         search = PathSearch(self._transition_map, self.final_stage._id)
@@ -644,7 +446,7 @@ class Process:
         Returns:
             ProcessElementEvaluationResult with stage result and regression details
         """
-        if not self.checker.valid:
+        if not self.is_valid:
             raise ValueError(
                 "Cannot evaluate element in an inconsistent process configuration"
             )
@@ -699,11 +501,6 @@ class Process:
             regression_details=regression_details
         )
 
-    @property
-    def consistency_issues(self) -> list[ConsistencyIssue]:
-        """Get current consistency issues in the process."""
-        return self.checker.issues if self.checker else []
-
     # Mutation methods
     def add_stage(self, id: str, config: StageDefinition) -> None:
         """Add a new stage to the process."""
@@ -712,7 +509,7 @@ class Process:
         if "stages" not in self.config:
             self.config["stages"] = {}
         self.config["stages"][id] = config
-        self.checker = self._get_consistency_checker()
+        self._issues = self._run_analysis()
 
     def remove_stage(self, stage_name: str) -> None:
         """Remove a stage from the process."""
@@ -728,12 +525,12 @@ class Process:
             for from_stage, to_stage in self._transition_map
             if from_stage != stage._id and to_stage != stage._id
         ]
-        self.checker = self._get_consistency_checker()
+        self._issues = self._run_analysis()
 
     def add_transition(self, from_stage: str, to_stage: str) -> None:
         """Add a transition between two stages."""
         self._transition_map.append((from_stage, to_stage))
-        self.checker = self._get_consistency_checker()
+        self._issues = self._run_analysis()
 
     def get_schema(
         self, stage_name: str, partial: bool = True
@@ -862,3 +659,17 @@ class Process:
             result["stage_prop"] = self.stage_prop
 
         return result  # type: ignore
+
+    def to_graph(self) -> ProcessGraph:
+        """Convert process to ProcessGraph for analysis.
+
+        Returns:
+            ProcessGraph instance representing process topology
+        """
+        return ProcessGraph(
+            edges=tuple(self._transition_map),
+            initial_id=self.initial_stage._id,
+            final_id=self.final_stage._id,
+            stage_ids=frozenset(s._id for s in self.stages),
+            stages_with_gates=frozenset(s._id for s in self.stages if s.gates),
+        )

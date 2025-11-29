@@ -8,8 +8,14 @@ from .elements import Element
 from .gate import Gate, GateResult
 from .models import (
     ActionDefinition,
+    ExtractedProperty,
     GateDefinition,
+    InferredType,
+    PropertySchema,
+    PropertySource,
     StageDefinition,
+    StageSchema,
+    StageSchemaMutations,
 )
 
 
@@ -90,6 +96,13 @@ class Action:
     source: ActionSource = ActionSource.CONFIGURED  # NEW: default to configured
     target_stage: str | None = None
     gate_name: str | None = None  # NEW: for generated actions
+
+    def get_properties(self) -> list[ExtractedProperty]:
+        """Get properties touched by this action."""
+        return [
+            ExtractedProperty(path=prop, inferred_type=InferredType.ANY)
+            for prop in self.related_properties
+        ]
 
 
 class StageStatus(StrEnum):
@@ -254,8 +267,9 @@ class Stage:
         else:
             self._properties = {}
 
-        # Validate that gate properties exist in fields definition
-        self._validate_schema(self._properties)
+        # Note: Schema validation disabled to allow gates to add new properties
+        # (schema transformation feature). Gate properties can exist outside fields.
+        # self._validate_schema(self._properties)
 
         # Validate action definitions
         actions = config.get("expected_actions", [])
@@ -472,7 +486,7 @@ class Stage:
         )
 
     def get_schema(self) -> dict[str, Any]:
-        """Extract schema definition for this stage.
+        """Extract schema definition for this stage (backward compatible).
 
         Returns:
             Dictionary representation of field definitions.
@@ -505,6 +519,100 @@ class Stage:
 
         return {name: property_to_dict(prop) for name, prop in self._properties.items()}
 
+    def get_initial_schema(self) -> StageSchema:
+        """Get schema for stage entry (fields only)."""
+        return StageSchema(
+            properties=self._fields_to_property_schemas(),
+            stage_id=self._id,
+            stage_name=self.name
+        )
+
+    def get_final_schemas(self) -> dict[str, StageSchema]:
+        """Get final schema for each gate (primary method).
+
+        Returns:
+            {gate_name: StageSchema}
+        """
+        return {gate.name: self._build_final_schema(gate) for gate in self.gates}
+
+    def get_final_schema(self, gate_name: str) -> StageSchema:
+        """Get final schema for a specific gate.
+
+        Args:
+            gate_name: Required - each gate has distinct schema
+
+        Raises:
+            ValueError: If gate_name not found
+        """
+        schemas = self.get_final_schemas()
+        if gate_name not in schemas:
+            available = list(schemas.keys())
+            raise ValueError(f"Gate '{gate_name}' not found. Available: {available}")
+        return schemas[gate_name]
+
+    def _fields_to_property_schemas(self) -> dict[str, PropertySchema]:
+        """Convert stage fields to PropertySchema dict."""
+        from stageflow.models import Property
+
+        result: dict[str, PropertySchema] = {}
+        for name, prop in self._properties.items():
+            if not isinstance(prop, Property):
+                continue
+            type_val = prop.type.value if hasattr(prop.type, 'value') else prop.type
+            # Map property type to InferredType
+            type_mapping = {
+                "string": InferredType.STRING,
+                "int": InferredType.INTEGER,
+                "number": InferredType.NUMBER,
+                "bool": InferredType.BOOLEAN,
+                "list": InferredType.ARRAY,
+                "dict": InferredType.OBJECT,
+            }
+            inferred = type_mapping.get(type_val, InferredType.ANY)
+            schema: PropertySchema = {
+                "type": inferred,
+                "required": prop.required,
+                "source": PropertySource.FIELD,
+            }
+            if prop.default is not None:
+                schema["default"] = prop.default
+            if prop.description:
+                schema["description"] = prop.description
+            result[name] = schema
+        return result
+
+    def _build_final_schema(self, gate: Gate) -> StageSchema:
+        """Build final schema for a specific gate.
+
+        Merges: initial (fields) + action props + gate lock props
+        """
+        # 1. Start with initial schema properties
+        properties: dict[str, PropertySchema] = dict(self.get_initial_schema()["properties"])
+
+        # 2. Add action properties from stage_actions
+        for action_def in self.stage_actions:
+            related_props = action_def.get("related_properties", [])
+            for prop_path in related_props:
+                if prop_path not in properties:
+                    properties[prop_path] = PropertySchema(
+                        type=InferredType.ANY,
+                        source=PropertySource.ACTION
+                    )
+
+        # 3. Add gate lock properties
+        for extracted in gate.get_properties():
+            if extracted["path"] not in properties:
+                properties[extracted["path"]] = PropertySchema(
+                    type=extracted["inferred_type"],
+                    source=PropertySource.GATE_LOCK
+                )
+
+        return StageSchema(
+            properties=properties,
+            stage_id=self._id,
+            stage_name=self.name
+        )
+
     # Serialization
     def to_dict(self) -> StageDefinition:
         """Serialize stage to dictionary."""
@@ -533,3 +641,21 @@ class Stage:
             "is_final": self.is_final,
         }
         return result
+
+    def to_schema_mutations(self, is_transition_target: bool = False) -> StageSchemaMutations:
+        """Convert stage to StageSchemaMutations for analysis.
+
+        Args:
+            is_transition_target: Whether this stage is targeted by any gate
+
+        Returns:
+            StageSchemaMutations instance for this stage
+        """
+        return StageSchemaMutations(
+            stage_id=self._id,
+            is_final=self.is_final,
+            initial_schema=self.get_initial_schema(),
+            final_schemas=self.get_final_schemas(),
+            gates=tuple(g.to_dict() for g in self.gates),
+            is_transition_target=is_transition_target,
+        )

@@ -7,6 +7,8 @@ from typing import Any, cast
 from stageflow.elements import Element
 from stageflow.models import (
     ConditionalLockDict,
+    ExtractedProperty,
+    InferredType,
     LockDefinition,
     LockDefinitionDict,
     LockMetaData,
@@ -128,6 +130,16 @@ class BaseLock(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_properties(self) -> list[ExtractedProperty]:
+        """
+        Get properties evaluated by this lock with inferred types.
+
+        Returns:
+            List of ExtractedProperty with path and inferred type
+        """
+        pass
+
 
 class SimpleLock(BaseLock):
     """
@@ -209,6 +221,64 @@ class SimpleLock(BaseLock):
             "type": self.lock_type.value if isinstance(self.lock_type, LockType) else self.lock_type,
             "expected_value": self.expected_value,
         }
+
+    def get_properties(self) -> list[ExtractedProperty]:
+        """Return properties evaluated by this lock with inferred types."""
+        return [ExtractedProperty(path=self.property_path, inferred_type=self._infer_type())]
+
+    def _infer_type(self) -> InferredType:
+        """Infer JSON Schema type from lock type."""
+        type_map = {
+            LockType.EXISTS: InferredType.ANY,
+            LockType.NOT_EMPTY: InferredType.ANY,
+            LockType.REGEX: InferredType.STRING,
+            LockType.LENGTH: InferredType.STRING,
+            LockType.GREATER_THAN: InferredType.NUMBER,
+            LockType.LESS_THAN: InferredType.NUMBER,
+            LockType.RANGE: InferredType.NUMBER,
+            LockType.CONTAINS: InferredType.ANY,
+            LockType.IN_LIST: InferredType.ANY,
+            LockType.NOT_IN_LIST: InferredType.ANY,
+        }
+        if self.lock_type == LockType.EQUALS:
+            return self._infer_from_value(self.expected_value)
+        if self.lock_type == LockType.TYPE_CHECK:
+            return self._type_check_to_inferred(self.expected_value)
+        return type_map.get(self.lock_type, InferredType.ANY)
+
+    def _infer_from_value(self, value: Any) -> InferredType:
+        """Infer type from expected value."""
+        if isinstance(value, bool):
+            return InferredType.BOOLEAN
+        elif isinstance(value, int):
+            return InferredType.INTEGER
+        elif isinstance(value, float):
+            return InferredType.NUMBER
+        elif isinstance(value, str):
+            return InferredType.STRING
+        elif isinstance(value, list):
+            return InferredType.ARRAY
+        elif isinstance(value, dict):
+            return InferredType.OBJECT
+        return InferredType.ANY
+
+    def _type_check_to_inferred(self, type_name: str) -> InferredType:
+        """Convert TYPE_CHECK expected value to InferredType."""
+        mapping = {
+            "str": InferredType.STRING,
+            "string": InferredType.STRING,
+            "int": InferredType.INTEGER,
+            "integer": InferredType.INTEGER,
+            "float": InferredType.NUMBER,
+            "number": InferredType.NUMBER,
+            "bool": InferredType.BOOLEAN,
+            "boolean": InferredType.BOOLEAN,
+            "list": InferredType.ARRAY,
+            "array": InferredType.ARRAY,
+            "dict": InferredType.OBJECT,
+            "object": InferredType.OBJECT,
+        }
+        return mapping.get(str(type_name).lower(), InferredType.ANY)
 
 
 @dataclass
@@ -378,6 +448,13 @@ class ConditionalLock(BaseLock):
             result["else"] = [lock.to_dict() for lock in self.else_locks]
         return result
 
+    def get_properties(self) -> list[ExtractedProperty]:
+        """Recursively extract properties from if/then/else locks."""
+        props: list[ExtractedProperty] = []
+        for lock in self.if_locks + self.then_locks + self.else_locks:
+            props.extend(lock.get_properties())
+        return props
+
 
 @dataclass
 class OrLogicLock(BaseLock):
@@ -545,6 +622,14 @@ class OrLogicLock(BaseLock):
         if not self.short_circuit:
             result["short_circuit"] = False
         return result
+
+    def get_properties(self) -> list[ExtractedProperty]:
+        """Extract properties from all OR paths."""
+        props: list[ExtractedProperty] = []
+        for group in self.condition_groups:
+            for lock in group:
+                props.extend(lock.get_properties())
+        return props
 
 
 # Backward compatibility: Lock is an alias for SimpleLock  # noqa: F811
