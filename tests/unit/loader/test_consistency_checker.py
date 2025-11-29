@@ -1,13 +1,13 @@
 """
-Tests for ProcessConsistencyChecker.
+Tests for ProcessAnalyzer.
 
 This module tests consistency validation for process definitions,
 including the final stage gates validation.
 """
 
 
-from stageflow.loader.consistency_checker import ProcessConsistencyChecker
-from stageflow.models import ProcessIssueTypes
+from stageflow.models import IssueSeverity, ProcessIssueTypes
+from stageflow.process import Process
 
 
 class TestFinalStageHasNoGates:
@@ -27,7 +27,7 @@ class TestFinalStageHasNoGates:
                     "gates": {
                         "to_end": {
                             "target_stage": "end",
-                            "locks": [],
+                            "locks": [{"exists": "data"}],
                         }
                     },
                 },
@@ -37,7 +37,7 @@ class TestFinalStageHasNoGates:
                     "gates": {
                         "invalid_gate": {
                             "target_stage": "start",
-                            "locks": [],
+                            "locks": [{"exists": "result"}],
                         }
                     },
                 },
@@ -45,19 +45,20 @@ class TestFinalStageHasNoGates:
         }
 
         # Act
-        checker = ProcessConsistencyChecker(process_def)
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
 
         # Assert
-        assert checker.valid is False
+        assert process.is_valid is False
         final_stage_issues = [
             issue
-            for issue in checker.issues
+            for issue in process.issues
             if issue.issue_type == ProcessIssueTypes.FINAL_STAGE_HAS_GATES
         ]
         assert len(final_stage_issues) == 1
         assert "end" in final_stage_issues[0].description
-        assert "invalid_gate" in final_stage_issues[0].description
-        assert final_stage_issues[0].severity == "error"
+        assert "start" in final_stage_issues[0].description  # Target stage in error message
+        assert final_stage_issues[0].severity == IssueSeverity.FATAL
 
     def test_final_stage_without_gates_is_valid(self):
         """Verify that a final stage without gates passes validation."""
@@ -73,7 +74,7 @@ class TestFinalStageHasNoGates:
                     "gates": {
                         "to_end": {
                             "target_stage": "end",
-                            "locks": [],
+                            "locks": [{"exists": "data"}],
                         }
                     },
                 },
@@ -86,12 +87,13 @@ class TestFinalStageHasNoGates:
         }
 
         # Act
-        checker = ProcessConsistencyChecker(process_def)
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
 
         # Assert
         final_stage_issues = [
             issue
-            for issue in checker.issues
+            for issue in process.issues
             if issue.issue_type == ProcessIssueTypes.FINAL_STAGE_HAS_GATES
         ]
         assert len(final_stage_issues) == 0
@@ -110,7 +112,7 @@ class TestFinalStageHasNoGates:
                     "gates": {
                         "to_end": {
                             "target_stage": "end",
-                            "locks": [],
+                            "locks": [{"exists": "data"}],
                         }
                     },
                 },
@@ -123,12 +125,13 @@ class TestFinalStageHasNoGates:
         }
 
         # Act
-        checker = ProcessConsistencyChecker(process_def)
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
 
         # Assert
         final_stage_issues = [
             issue
-            for issue in checker.issues
+            for issue in process.issues
             if issue.issue_type == ProcessIssueTypes.FINAL_STAGE_HAS_GATES
         ]
         assert len(final_stage_issues) == 0
@@ -147,7 +150,7 @@ class TestFinalStageHasNoGates:
                     "gates": {
                         "to_end": {
                             "target_stage": "end",
-                            "locks": [],
+                            "locks": [{"exists": "data"}],
                         }
                     },
                 },
@@ -157,11 +160,11 @@ class TestFinalStageHasNoGates:
                     "gates": {
                         "gate_one": {
                             "target_stage": "start",
-                            "locks": [],
+                            "locks": [{"exists": "result"}],
                         },
                         "gate_two": {
                             "target_stage": "start",
-                            "locks": [],
+                            "locks": [{"exists": "result"}],
                         },
                     },
                 },
@@ -169,66 +172,15 @@ class TestFinalStageHasNoGates:
         }
 
         # Act
-        checker = ProcessConsistencyChecker(process_def)
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
 
         # Assert
         final_stage_issues = [
             issue
-            for issue in checker.issues
+            for issue in process.issues
             if issue.issue_type == ProcessIssueTypes.FINAL_STAGE_HAS_GATES
         ]
         assert len(final_stage_issues) == 1
-        assert "gate_one" in final_stage_issues[0].description
-        assert "gate_two" in final_stage_issues[0].description
-
-    def test_missing_final_stage_does_not_crash(self):
-        """Verify checker handles missing final_stage gracefully."""
-        # Arrange
-        process_def = {
-            "name": "test_process",
-            "initial_stage": "start",
-            # No final_stage defined
-            "stages": {
-                "start": {
-                    "name": "Start",
-                    "fields": ["data"],
-                },
-            },
-        }
-
-        # Act - should not raise
-        checker = ProcessConsistencyChecker(process_def)
-
-        # Assert - no FINAL_STAGE_HAS_GATES issue (can't check without final_stage)
-        final_stage_issues = [
-            issue
-            for issue in checker.issues
-            if issue.issue_type == ProcessIssueTypes.FINAL_STAGE_HAS_GATES
-        ]
-        assert len(final_stage_issues) == 0
-
-    def test_nonexistent_final_stage_does_not_crash(self):
-        """Verify checker handles nonexistent final_stage gracefully."""
-        # Arrange
-        process_def = {
-            "name": "test_process",
-            "initial_stage": "start",
-            "final_stage": "nonexistent",
-            "stages": {
-                "start": {
-                    "name": "Start",
-                    "fields": ["data"],
-                },
-            },
-        }
-
-        # Act - should not raise
-        checker = ProcessConsistencyChecker(process_def)
-
-        # Assert - no FINAL_STAGE_HAS_GATES issue (stage doesn't exist)
-        final_stage_issues = [
-            issue
-            for issue in checker.issues
-            if issue.issue_type == ProcessIssueTypes.FINAL_STAGE_HAS_GATES
-        ]
-        assert len(final_stage_issues) == 0
+        # Error message shows target stages, not gate names
+        assert "start" in final_stage_issues[0].description

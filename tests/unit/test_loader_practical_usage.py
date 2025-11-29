@@ -48,6 +48,11 @@ class TestSchemaPracticalUsage:
                                     "property_path": "password",
                                     "expected_value": None,
                                 },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "verification_token",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -72,7 +77,12 @@ class TestSchemaPracticalUsage:
                                     "type": LockType.EXISTS,
                                     "property_path": "verified_at",
                                     "expected_value": None,
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "profile.first_name",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -106,6 +116,11 @@ class TestSchemaPracticalUsage:
                                     "property_path": "profile.last_name",
                                     "expected_value": None,
                                 },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "activated_at",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -115,7 +130,9 @@ class TestSchemaPracticalUsage:
                 "active": {
                     "name": "Active User",
                     "description": "Fully activated user",
-                    "fields": {},
+                    "fields": {
+                        "activated_at": {"type": "str", "default": None},
+                    },
                     "gates": [],
                     "expected_actions": [],
                     "is_final": True,
@@ -152,6 +169,8 @@ class TestSchemaPracticalUsage:
                     element_data[prop_path] = "user@example.com"
                 elif prop_path == "password":
                     element_data[prop_path] = "secure_password"
+                elif prop_path == "verification_token":
+                    element_data[prop_path] = "token123"
 
         element = DictElement(element_data)
 
@@ -182,6 +201,7 @@ class TestSchemaPracticalUsage:
                 missing_properties.append(prop_path)
 
         # Verify we can detect missing properties before evaluation
+        # Schema shows stage fields (email, password), not lock properties
         assert "password" in missing_properties
         assert len(missing_properties) == 1
 
@@ -335,11 +355,11 @@ class TestSchemaPracticalUsage:
         """
         # Create a batch of elements with varying completeness
         elements = [
-            DictElement({"email": "user1@example.com", "password": "pass1"}),  # Valid
-            DictElement({"email": "user2@example.com"}),  # Missing password
-            DictElement({"password": "pass3"}),  # Missing email
-            DictElement({"email": "user4@example.com", "password": "pass4"}),  # Valid
-            DictElement({}),  # Missing both
+            DictElement({"email": "user1@example.com", "password": "pass1", "verification_token": "tok1"}),  # Valid
+            DictElement({"email": "user2@example.com"}),  # Missing password and verification_token
+            DictElement({"password": "pass3"}),  # Missing email and verification_token
+            DictElement({"email": "user4@example.com", "password": "pass4", "verification_token": "tok4"}),  # Valid
+            DictElement({}),  # Missing all
         ]
 
         # Get schema for pre-validation
@@ -398,7 +418,12 @@ class TestSchemaPracticalUsage:
                                     "type": LockType.EXISTS,
                                     "property_path": "email",
                                     "expected_value": None,
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "activated_at",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -407,7 +432,9 @@ class TestSchemaPracticalUsage:
                 },
                 "active": {
                     "name": "Active",
-                    "fields": {},
+                    "fields": {
+                        "activated_at": {"type": "str", "default": None},
+                    },
                     "gates": [],
                     "expected_actions": [],
                     "is_final": True,
@@ -468,7 +495,8 @@ class TestSchemaPracticalUsage:
                     "first_name": "John",
                     "last_name": "Doe",
                     "age": 25,
-                }
+                },
+                "activated_at": "2024-01-01T00:00:00Z",
             }
         )
 

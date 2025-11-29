@@ -269,6 +269,15 @@ process:
           - content_id
           - rejection_reason
           - rejection_date
+          - rejection_acknowledged
+
+      gates:
+        archive_rejected:
+          target_stage: content_archived
+          locks:
+            - type: equals
+              property_path: "rejection_acknowledged"
+              expected_value: true
 
     content_abandoned:
       schema:
@@ -276,6 +285,15 @@ process:
           - content_id
           - abandonment_reason
           - abandonment_date
+          - abandonment_finalized
+
+      gates:
+        archive_abandoned:
+          target_stage: content_archived
+          locks:
+            - type: equals
+              property_path: "abandonment_finalized"
+              expected_value: true
 
     content_archived:
       schema:

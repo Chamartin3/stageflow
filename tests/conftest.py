@@ -372,7 +372,13 @@ def simple_two_stage_process() -> ProcessDefinition:
                                 "type": LockType.EXISTS,
                                 "property_path": "email",
                                 "expected_value": None,
-                            }
+                            },
+                            {
+                                # Add new property via gate to satisfy schema transformation
+                                "type": LockType.EXISTS,
+                                "property_path": "verified",
+                                "expected_value": None,
+                            },
                         ],
                     }
                 ],
@@ -385,7 +391,7 @@ def simple_two_stage_process() -> ProcessDefinition:
                 "description": "Final stage",
                 "gates": [],
                 "expected_actions": [],
-                "fields": {},
+                "fields": {"verified": {"type": "boolean", "default": None}},
                 "is_final": True,
             },
         },
@@ -435,6 +441,11 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                                 "property_path": "email",
                                 "expected_value": r"^[^@]+@[^@]+\.[^@]+$",
                             },
+                            {
+                                "type": LockType.EXISTS,
+                                "property_path": "verified",
+                                "expected_value": None,
+                            },
                         ],
                     }
                 ],
@@ -459,7 +470,12 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                                 "type": LockType.EQUALS,
                                 "property_path": "verified",
                                 "expected_value": True,
-                            }
+                            },
+                            {
+                                "type": LockType.EXISTS,
+                                "property_path": "profile.name",
+                                "expected_value": None,
+                            },
                         ],
                     }
                 ],
@@ -487,6 +503,11 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                                 "property_path": "profile.age",
                                 "expected_value": 13,
                             },
+                            {
+                                "type": LockType.EXISTS,
+                                "property_path": "activated_at",
+                                "expected_value": None,
+                            },
                         ],
                     }
                 ],
@@ -504,7 +525,7 @@ def multi_stage_onboarding_process() -> ProcessDefinition:
                 "description": "Active user state",
                 "gates": [],
                 "expected_actions": [],
-                "fields": {},
+                "fields": {"activated_at": {"type": "string", "default": None}},
                 "is_final": True,
             },
         },

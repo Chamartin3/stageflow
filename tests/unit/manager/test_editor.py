@@ -21,7 +21,7 @@ def simple_process():
                         {
                             "name": "to_end",
                             "target_stage": "end",
-                            "locks": [{"exists": "test_field"}],
+                            "locks": [{"exists": "test_field"}, {"exists": "completed_at"}],
                         }
                     ],
                     "expected_actions": [],
@@ -33,7 +33,7 @@ def simple_process():
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "fields": {},
+                    "fields": {"completed_at": {"type": "str"}},
                     "is_final": True,
                 },
             },
@@ -58,7 +58,7 @@ def three_stage_process():
                         {
                             "name": "to_middle",
                             "target_stage": "middle",
-                            "locks": [{"exists": "field1"}],
+                            "locks": [{"exists": "field1"}, {"exists": "field2"}],
                         }
                     ],
                     "expected_actions": [],
@@ -72,7 +72,7 @@ def three_stage_process():
                         {
                             "name": "to_end",
                             "target_stage": "end",
-                            "locks": [{"exists": "field2"}],
+                            "locks": [{"exists": "field2"}, {"exists": "completed_at"}],
                         }
                     ],
                     "expected_actions": [],
@@ -84,7 +84,7 @@ def three_stage_process():
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "fields": {},
+                    "fields": {"completed_at": {"type": "str"}},
                     "is_final": True,
                 },
             },
@@ -103,7 +103,9 @@ class TestProcessEditorInitialization:
 
         assert editor.process.name == "test_process"
         assert not editor.is_dirty
-        assert len(editor.consistency_issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in editor.consistency_issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0
 
     def test_editor_initialization_with_inconsistent_process(self):
         """Test that editor allows initialization with inconsistent process for fixing."""
@@ -167,7 +169,7 @@ class TestProcessEditorAddStage:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "alt_field"}],
+                    "locks": [{"exists": "alt_field"}, {"exists": "completed_at"}],
                 }
             ],
             "expected_actions": [],
@@ -185,12 +187,12 @@ class TestProcessEditorAddStage:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "test_field"}],
+                    "locks": [{"exists": "test_field"}, {"exists": "completed_at"}],
                 },
                 {
                     "name": "to_alternative",
                     "target_stage": "alternative",
-                    "locks": [{"exists": "alt_trigger"}],
+                    "locks": [{"exists": "alt_trigger"}, {"exists": "alt_field"}],
                 },
             ],
             "expected_actions": [],
@@ -205,7 +207,9 @@ class TestProcessEditorAddStage:
 
         assert editor.is_dirty
         assert editor.process.get_stage("alternative") is not None
-        assert len(editor.consistency_issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in editor.consistency_issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0
 
     def test_add_duplicate_stage_raises_error(self, simple_process):
         """Test that adding a duplicate stage raises an error."""
@@ -241,7 +245,7 @@ class TestProcessEditorRemoveStage:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "alt_field"}],
+                    "locks": [{"exists": "alt_field"}, {"exists": "completed_at"}],
                 }
             ],
             "expected_actions": [],
@@ -258,12 +262,12 @@ class TestProcessEditorRemoveStage:
                 {
                     "name": "to_middle",
                     "target_stage": "middle",
-                    "locks": [{"exists": "field1"}],
+                    "locks": [{"exists": "field1"}, {"exists": "field2"}],
                 },
                 {
                     "name": "to_alternative",
                     "target_stage": "alternative",
-                    "locks": [{"exists": "alt_trigger"}],
+                    "locks": [{"exists": "alt_trigger"}, {"exists": "alt_field"}],
                 },
             ],
             "expected_actions": [],
@@ -280,7 +284,9 @@ class TestProcessEditorRemoveStage:
 
         assert editor.is_dirty
         assert editor.process.get_stage("middle") is None
-        assert len(editor.consistency_issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in editor.consistency_issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0
 
     def test_remove_initial_stage_raises_error(self, simple_process):
         """Test that removing initial stage raises an error."""
@@ -324,7 +330,7 @@ class TestProcessEditorUpdateStage:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "updated_field"}],
+                    "locks": [{"exists": "updated_field"}, {"exists": "completed_at"}],
                 }
             ],
             "expected_actions": [],
@@ -337,7 +343,9 @@ class TestProcessEditorUpdateStage:
         assert editor.is_dirty
         updated_stage = editor.process.get_stage("start")
         assert updated_stage.name == "Updated Start"
-        assert len(editor.consistency_issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in editor.consistency_issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0
 
     def test_update_nonexistent_stage_raises_error(self, simple_process):
         """Test that updating non-existent stage raises an error."""
@@ -374,7 +382,7 @@ class TestProcessEditorRollback:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "temp_field"}],
+                    "locks": [{"exists": "temp_field"}, {"exists": "completed_at"}],
                 }
             ],
             "expected_actions": [],
@@ -392,12 +400,12 @@ class TestProcessEditorRollback:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "test_field"}],
+                    "locks": [{"exists": "test_field"}, {"exists": "completed_at"}],
                 },
                 {
                     "name": "to_temporary",
                     "target_stage": "temporary",
-                    "locks": [{"exists": "temp_trigger"}],
+                    "locks": [{"exists": "temp_trigger"}, {"exists": "temp_field"}],
                 },
             ],
             "expected_actions": [],
@@ -435,7 +443,7 @@ class TestProcessEditorSync:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "synced_field"}],
+                    "locks": [{"exists": "synced_field"}, {"exists": "completed_at"}],
                 }
             ],
             "expected_actions": [],
@@ -453,12 +461,12 @@ class TestProcessEditorSync:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "test_field"}],
+                    "locks": [{"exists": "test_field"}, {"exists": "completed_at"}],
                 },
                 {
                     "name": "to_synced",
                     "target_stage": "synced",
-                    "locks": [{"exists": "sync_trigger"}],
+                    "locks": [{"exists": "sync_trigger"}, {"exists": "synced_field"}],
                 },
             ],
             "expected_actions": [],
@@ -485,7 +493,7 @@ class TestProcessEditorSync:
                 {
                     "name": "to_end",
                     "target_stage": "end",
-                    "locks": [{"exists": "temp_field"}],
+                    "locks": [{"exists": "temp_field"}, {"exists": "completed_at"}],
                 }
             ],
             "expected_actions": [],
@@ -536,7 +544,9 @@ class TestProcessEditorValidation:
 
         is_valid, issues = editor.validate()
         assert is_valid
-        assert len(issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0
 
 
 class TestProcessEditorContextManager:
@@ -557,7 +567,7 @@ class TestProcessEditorContextManager:
                         {
                             "name": "to_end",
                             "target_stage": "end",
-                            "locks": [{"exists": "context_field"}],
+                            "locks": [{"exists": "context_field"}, {"exists": "completed_at"}],
                         }
                     ],
                     "expected_actions": [],
@@ -575,12 +585,12 @@ class TestProcessEditorContextManager:
                         {
                             "name": "to_end",
                             "target_stage": "end",
-                            "locks": [{"exists": "test_field"}],
+                            "locks": [{"exists": "test_field"}, {"exists": "completed_at"}],
                         },
                         {
                             "name": "to_context",
                             "target_stage": "context",
-                            "locks": [{"exists": "context_trigger"}],
+                            "locks": [{"exists": "context_trigger"}, {"exists": "context_field"}],
                         },
                     ],
                     "expected_actions": [],
@@ -614,7 +624,9 @@ class TestProcessEditorAddTransition:
         editor.add_transition("start", "end")
 
         assert editor.is_dirty
-        assert len(editor.consistency_issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in editor.consistency_issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0
 
     def test_add_transition_with_nonexistent_source_raises_error(self, simple_process):
         """Test that adding transition with non-existent source raises error."""
@@ -658,4 +670,6 @@ class TestProcessEditorUtilityMethods:
 
         issues = editor.consistency_issues
         assert isinstance(issues, list)
-        assert len(issues) == 0
+        # Check no fatal issues (warnings allowed for schema transformation)
+        fatal_issues = [i for i in issues if i.severity == "fatal"]
+        assert len(fatal_issues) == 0

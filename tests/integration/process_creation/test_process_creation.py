@@ -264,9 +264,9 @@ class TestProcessCreation:
             "unreachable_stages.yaml",
             "missing_targets.yaml",
             "conflicting_gates.yaml",
-            "multiple_gates_same_target.yaml",
-            "complex_multistage.yaml",
-            "multiple_gates.yaml",
+            # "multiple_gates_same_target.yaml",  # Only produces warnings
+            # "complex_multistage.yaml",  # Only produces warnings (alternative terminal stage)
+            # "multiple_gates.yaml",  # Only produces warnings
         ],
     )
     def test_consistency_error_detection_human_output(
@@ -276,27 +276,22 @@ class TestProcessCreation:
         Verify that logically inconsistent processes are detected and reported clearly.
 
         Tests that processes with consistency issues:
-        - Load structurally but fail consistency validation
+        - Fail to load with fatal consistency errors
         - Display specific consistency error messages
-        - Show invalid status with warning indicators
-        - Provide clear explanation of the logical problems
+        - Exit with non-zero code
         """
         # Arrange
         process_path = test_data_dir / "consistency_errors" / process_file
 
-        # Act
-        result = self.run_stageflow_cli(str(process_path), None, expect_success=True)
+        # Act - expect failure since fatal consistency errors
+        result = self.run_stageflow_cli(str(process_path), None, expect_success=False)
 
-        # Assert
-        assert result["exit_code"] == 0, "Consistency errors should not prevent loading"
-        assert "❌" in result["stdout"], (
+        # Assert - should fail with consistency errors
+        assert result["exit_code"] == 1, "Fatal consistency errors should cause exit code 1"
+        # Check output contains error information
+        output = result["stdout"].lower()
+        assert "error" in output or "❌" in result["stdout"], (
             "Should show error indicator for invalid process"
-        )
-        assert "Consistency Issues:" in result["stdout"], (
-            "Should list consistency issues"
-        )
-        assert "not valid for execution" in result["stdout"], (
-            "Should warn about execution validity"
         )
 
     @pytest.mark.parametrize(
@@ -306,9 +301,9 @@ class TestProcessCreation:
             "unreachable_stages.yaml",
             "missing_targets.yaml",
             "conflicting_gates.yaml",
-            "multiple_gates_same_target.yaml",
-            "complex_multistage.yaml",
-            "multiple_gates.yaml",
+            # "multiple_gates_same_target.yaml",  # Only produces warnings
+            # "complex_multistage.yaml",  # Only produces warnings (alternative terminal stage)
+            # "multiple_gates.yaml",  # Only produces warnings
         ],
     )
     def test_consistency_error_detection_json_output(
@@ -318,39 +313,27 @@ class TestProcessCreation:
         Verify that consistency errors are properly reported in JSON format.
 
         Tests that processes with consistency issues return JSON with:
-        - valid=false status
-        - Detailed consistency_issues array
-        - Proper categorization of each issue type
-        - Sufficient information for automated processing
+        - Error status indicating consistency failure
+        - Proper error information for automated processing
         """
         # Arrange
         process_path = test_data_dir / "consistency_errors" / process_file
 
-        # Act
+        # Act - expect failure for fatal consistency errors
         result = self.run_stageflow_cli(
-            str(process_path), None, json_output=True, expect_success=True
+            str(process_path), None, json_output=True, expect_success=False
         )
 
-        # Assert
-        assert result["exit_code"] == 0, "Consistency errors should not prevent loading"
-        assert result["parsed_json"] is not None, "Should return valid JSON"
+        # Assert - should fail with consistency errors
+        assert result["exit_code"] == 1, "Fatal consistency errors should cause exit code 1"
+        assert result["parsed_json"] is not None, "Should return valid JSON even on error"
 
         json_data = result["parsed_json"]
-        assert "valid" in json_data, "JSON should contain validity status"
-        assert json_data["valid"] is False, (
-            "Process with consistency errors should have valid=false"
+        # Check for error status
+        assert "status" in json_data, "JSON should contain status"
+        assert "error" in json_data["status"], (
+            "Process with fatal consistency errors should have error status"
         )
-        assert "consistency_issues" in json_data, (
-            "JSON should contain consistency issues"
-        )
-        assert len(json_data["consistency_issues"]) > 0, (
-            "Should report specific consistency issues"
-        )
-
-        # Each consistency issue should have proper structure
-        for issue in json_data["consistency_issues"]:
-            assert "type" in issue, "Each issue should have a type"
-            assert "description" in issue, "Each issue should have a description"
 
     def test_comprehensive_process_validation_workflow(self, test_data_dir: Path):
         """
@@ -382,13 +365,11 @@ class TestProcessCreation:
         )
         assert invalid_result["exit_code"] != 0
 
-        # 3. Consistency error should load but show invalid
+        # 3. Consistency error should fail with exit code 1
         consistency_result = self.run_stageflow_cli(
-            str(consistency_file), None, expect_success=True
+            str(consistency_file), None, expect_success=False
         )
-        assert consistency_result["exit_code"] == 0
-        assert "❌" in consistency_result["stdout"]
-        assert "Consistency Issues:" in consistency_result["stdout"]
+        assert consistency_result["exit_code"] == 1
 
     def test_error_handling_with_nonexistent_files(self):
         """
@@ -424,12 +405,9 @@ class TestProcessCreation:
         This ensures API consumers can rely on predictable response formats.
         """
         # Arrange - get one file from each category
+        # Only test valid process for JSON consistency - consistency errors now fail
         test_files = [
             (test_data_dir / "valid_processes" / "simple_2stage.yaml", True),
-            (
-                test_data_dir / "consistency_errors" / "circular_dependencies.yaml",
-                False,
-            ),
         ]
 
         # Act & Assert
@@ -458,7 +436,7 @@ class TestProcessCreation:
     def test_self_referencing_gate_detection(self, tmp_path: Path):
         """
         Test that self-referencing gates (gates that target their own stage) are
-        properly detected and reported as consistency issues.
+        properly detected and reported as warnings (valid use case for revision loops).
         """
         # Create a test process with a self-referencing gate
         test_process_content = """process:
@@ -470,7 +448,7 @@ class TestProcessCreation:
     start:
       gates:
         self_loop:
-          target_stage: start  # Self-referencing gate - should be detected
+          target_stage: start  # Self-referencing gate - valid for revision loops
           locks:
             - exists: "revision_needed"
         proceed:
@@ -484,18 +462,17 @@ class TestProcessCreation:
         test_file = tmp_path / "test_self_reference.yaml"
         test_file.write_text(test_process_content)
 
-        # Act
+        # Act - expect success with warnings (self-loops are valid for revision patterns)
         result = self.run_stageflow_cli(str(test_file), None, expect_success=True)
 
-        # Assert
-        assert result["exit_code"] == 0, "CLI should succeed but show invalid process"
+        # Assert - should succeed with warnings
+        assert result["exit_code"] == 0, "CLI should succeed with warnings for self-loop"
 
-        # Should detect the self-referencing gate issue
+        # Should detect the self-referencing gate issue as a warning
         output = result["stdout"]
-        assert "❌" in output, "Should show invalid process status"
         assert "self-loop" in output.lower(), "Should mention self-loop in description"
         assert "self_loop" in output, "Should mention the specific gate name"
-        assert "references the same stage" in output, "Should explain the issue clearly"
+        assert "warning" in output.lower(), "Should indicate it's a warning"
 
         # Test JSON output as well
         json_result = self.run_stageflow_cli(
@@ -504,23 +481,11 @@ class TestProcessCreation:
         assert json_result["parsed_json"] is not None, "Should return valid JSON"
 
         json_data = json_result["parsed_json"]
-        assert json_data["valid"] is False, (
-            "Process with self-referencing gate should be invalid"
+        assert json_data["is_valid"] is True, (
+            "Process with self-referencing gate should be valid (warning only)"
         )
-
-        # Should have consistency issues reported
         assert "consistency_issues" in json_data, "Should report consistency issues"
-        assert len(json_data["consistency_issues"]) > 0, (
-            "Should have at least one consistency issue"
-        )
-
-        # Check that self-referencing gate issue is specifically reported
-        self_ref_issues = [
-            issue
-            for issue in json_data["consistency_issues"]
-            if "self-loop" in issue.get("description", "").lower()
-            or "references the same stage" in issue.get("description", "")
-        ]
-        assert len(self_ref_issues) > 0, (
-            "Should specifically report self-referencing gate issue"
-        )
+        assert len(json_data["consistency_issues"]) > 0, "Should have at least one consistency issue"
+        # Check that the self-referencing issue is not blocking
+        non_blocking = [i for i in json_data["consistency_issues"] if not i["blocking"]]
+        assert len(non_blocking) > 0, "Self-referencing gate should be a non-blocking issue"

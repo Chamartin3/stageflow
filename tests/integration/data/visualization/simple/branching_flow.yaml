@@ -89,10 +89,19 @@ process:
       - approval_method
 
     rejected:
+      gates:
+        acknowledge_rejection:
+          target_stage: completed
+          locks:
+          - type: equals
+            property_path: "acknowledged"
+            expected_value: true
+
       fields:
       - request_id
       - rejection_date
       - rejection_reason
+      - acknowledged
 
   allow_stage_skipping: false
   regression_detection: true

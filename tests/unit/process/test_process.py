@@ -14,14 +14,13 @@ import pytest
 
 from stageflow.elements import DictElement, Element
 from stageflow.lock import LockType
-from stageflow.process import (
+from stageflow.models import (
     ConsistencyIssue,
-    PathSearch,
-    Process,
-    ProcessConsistencyChecker,
+    IssueSeverity,
     ProcessDefinition,
     ProcessIssueTypes,
 )
+from stageflow.process import PathSearch, Process
 from stageflow.stage import StageDefinition, StageStatus
 
 
@@ -146,235 +145,133 @@ class TestConsistencyIssue:
             issue.description = "Modified"  # Should raise due to frozen=True
 
 
-class TestProcessConsistencyChecker:
-    """Test ProcessConsistencyChecker for process structural validation."""
+class TestProcessAnalyzer:
+    """Test ProcessAnalyzer for process structural validation."""
 
-    def test_consistency_checker_initialization_valid_process(self):
-        """Verify consistency checker initializes correctly with valid process."""
+    def test_analyzer_initialization_valid_process(self):
+        """Verify analyzer initializes correctly with valid process."""
         # Arrange
-        from stageflow.stage import Stage
-
-        stage1_config: StageDefinition = {
-            "name": "start",
-            "description": "Start stage",
-            "gates": [
-                {
-                    "name": "to_end",
-                    "description": "Gate to end",
-                    "target_stage": "end",
-                    "parent_stage": "start",
-                    "locks": [
-                        {
-                            "type": LockType.EXISTS,
-                            "property_path": "field",
-                            "expected_value": None,
+        process_def = {
+            "name": "test_process",
+            "initial_stage": "start",
+            "final_stage": "end",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "fields": ["field"],
+                    "gates": {
+                        "to_end": {
+                            "target_stage": "end",
+                            "locks": [{"exists": "new_field"}],
                         }
-                    ],
-                }
-            ],
-            "expected_actions": [],
-            "fields": {"field": {"type": "string", "default": None}},
-            "is_final": False,
-        }
-
-        stage2_config: StageDefinition = {
-            "name": "end",
-            "description": "End stage",
-            "gates": [],
-            "expected_actions": [],
-            "fields": {},
-            "is_final": True,
-        }
-
-        stage1 = Stage("start", stage1_config)
-        stage2 = Stage("end", stage2_config)
-        transitions = [("start", "end")]
-
-        # Act
-        checker = ProcessConsistencyChecker(
-            stages=[stage1, stage2],
-            transitions=transitions,
-            initial_stage=stage1,
-            final_stage=stage2,
-        )
-
-        # Assert
-        assert checker.valid is True
-        assert len(checker.issues) == 0
-
-    def test_consistency_checker_detects_dead_end_stage(self):
-        """Verify consistency checker detects stages that cannot reach final stage."""
-        # Arrange
-        from stageflow.stage import Stage
-
-        # Create stages with no path from middle to end
-        stage1_config: StageDefinition = {
-            "name": "start",
-            "description": "Start stage",
-            "gates": [
-                {
-                    "name": "to_middle",
-                    "description": "Gate to middle",
-                    "target_stage": "middle",
-                    "parent_stage": "start",
-                    "locks": [
-                        {
-                            "type": LockType.EXISTS,
-                            "property_path": "field",
-                            "expected_value": None,
-                        }
-                    ],
-                }
-            ],
-            "expected_actions": [],
-            "fields": {"field": {"type": "string", "default": None}},
-            "is_final": False,
-        }
-
-        stage2_config: StageDefinition = {
-            "name": "middle",
-            "description": "Middle stage",
-            "gates": [
-                {
-                    "name": "dummy_gate",
-                    "description": "Dummy gate that never passes",
-                    "target_stage": "end",
-                    "parent_stage": "middle",
-                    "locks": [
-                        {
-                            "type": LockType.EQUALS,
-                            "property_path": "never_exists",
-                            "expected_value": "impossible",
-                        }
-                    ],
-                }
-            ],  # Add dummy gate but with no transition to end in transition map
-            "expected_actions": [],
-            "fields": {
-                "never_exists": {"type": "string", "default": None}
+                    },
+                },
+                "end": {
+                    "name": "End",
+                    "fields": [],
+                },
             },
-            "is_final": False,
         }
-
-        stage3_config: StageDefinition = {
-            "name": "end",
-            "description": "End stage",
-            "gates": [],
-            "expected_actions": [],
-            "fields": {},
-            "is_final": True,
-        }
-
-        stage1 = Stage("start", stage1_config)
-        stage2 = Stage("middle", stage2_config)
-        stage3 = Stage("end", stage3_config)
-        transitions = [("start", "middle")]  # No transition from middle to end
 
         # Act
-        checker = ProcessConsistencyChecker(
-            stages=[stage1, stage2, stage3],
-            transitions=transitions,
-            initial_stage=stage1,
-            final_stage=stage3,
-        )
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
 
         # Assert
-        assert checker.valid is False
-        assert len(checker.issues) >= 1
+        assert process.is_valid is True
+        assert len(process.issues) == 0
+
+    def test_analyzer_detects_dead_end_stage(self):
+        """Verify analyzer detects stages that cannot reach final stage."""
+        # Arrange - middle stage has no gate to end
+        process_def = {
+            "name": "test_process",
+            "initial_stage": "start",
+            "final_stage": "end",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "fields": ["field"],
+                    "gates": {
+                        "to_middle": {
+                            "target_stage": "middle",
+                            "locks": [{"exists": "field"}],
+                        }
+                    },
+                },
+                "middle": {
+                    "name": "Middle",
+                    "fields": ["other_field"],
+                    # No gates - dead end
+                },
+                "end": {
+                    "name": "End",
+                    "fields": [],
+                },
+            },
+        }
+
+        # Act
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
+
+        # Assert - dead end is a warning, not a fatal error
+        assert process.is_valid is True  # Warnings don't make process invalid
         dead_end_issues = [
             issue
-            for issue in checker.issues
+            for issue in process.issues
             if issue.issue_type == ProcessIssueTypes.DEAD_END_STAGE
         ]
         assert len(dead_end_issues) >= 1
-        # The start stage is the dead end since it can't reach the final stage
-        # (no transition from start to middle was added)
-        assert "start" in dead_end_issues[0].stages
+        # Middle stage is a dead end (no path to final)
+        assert any("middle" in issue.stages for issue in dead_end_issues)
+        # Verify it's a warning
+        assert dead_end_issues[0].severity == IssueSeverity.WARNING
 
-    def test_consistency_checker_detects_unreachable_stage(self):
-        """Verify consistency checker detects stages unreachable from initial stage."""
-        # Arrange
-        from stageflow.stage import Stage
-
-        stage1_config: StageDefinition = {
-            "name": "start",
-            "description": "Start stage",
-            "gates": [
-                {
-                    "name": "to_end",
-                    "description": "Gate to end",
-                    "target_stage": "end",
-                    "parent_stage": "start",
-                    "locks": [
-                        {
-                            "type": LockType.EXISTS,
-                            "property_path": "field",
-                            "expected_value": None,
+    def test_analyzer_detects_unreachable_stage(self):
+        """Verify analyzer detects stages unreachable from initial stage."""
+        # Arrange - isolated stage not reachable from start
+        process_def = {
+            "name": "test_process",
+            "initial_stage": "start",
+            "final_stage": "end",
+            "stages": {
+                "start": {
+                    "name": "Start",
+                    "fields": ["field"],
+                    "gates": {
+                        "to_end": {
+                            "target_stage": "end",
+                            "locks": [{"exists": "field"}],
                         }
-                    ],
-                }
-            ],
-            "expected_actions": [],
-            "fields": {"field": {"type": "string", "default": None}},
-            "is_final": False,
+                    },
+                },
+                "isolated": {
+                    "name": "Isolated",
+                    "fields": ["dummy"],
+                    # Has a gate but not reachable from start
+                },
+                "end": {
+                    "name": "End",
+                    "fields": [],
+                },
+            },
         }
-
-        stage2_config: StageDefinition = {
-            "name": "isolated",
-            "description": "Isolated stage",
-            "gates": [
-                {
-                    "name": "dummy_gate",
-                    "description": "Dummy gate",
-                    "target_stage": "end",
-                    "parent_stage": "isolated",
-                    "locks": [
-                        {
-                            "type": LockType.EXISTS,
-                            "property_path": "dummy",
-                            "expected_value": None,
-                        }
-                    ],
-                }
-            ],
-            "expected_actions": [],
-            "fields": {"dummy": {"type": "string", "default": None}},
-            "is_final": False,
-        }
-
-        stage3_config: StageDefinition = {
-            "name": "end",
-            "description": "End stage",
-            "gates": [],
-            "expected_actions": [],
-            "fields": {},
-            "is_final": True,
-        }
-
-        stage1 = Stage("start", stage1_config)
-        stage2 = Stage("isolated", stage2_config)
-        stage3 = Stage("end", stage3_config)
-        transitions = [("start", "end")]  # No transitions to/from isolated
 
         # Act
-        checker = ProcessConsistencyChecker(
-            stages=[stage1, stage2, stage3],
-            transitions=transitions,
-            initial_stage=stage1,
-            final_stage=stage3,
-        )
+        process = Process(process_def)
+        # analyzer now internal - use process.issues and process.is_valid
 
         # Assert
-        assert checker.valid is False
-        assert len(checker.issues) >= 1
-        # The isolated stage becomes a dead end because it's not connected in the transition map
+        assert process.is_valid is False
+        # The isolated stage is a dead end because it can't reach final
         dead_end_issues = [
             issue
-            for issue in checker.issues
+            for issue in process.issues
             if issue.issue_type == ProcessIssueTypes.DEAD_END_STAGE
         ]
         assert len(dead_end_issues) >= 1
-        assert "isolated" in dead_end_issues[0].stages
+        assert any("isolated" in issue.stages for issue in dead_end_issues)
 
 
 class TestProcess:
@@ -391,7 +288,7 @@ class TestProcess:
             {
                 "email": "user@example.com",
                 "password": "securepass123",
-                "verified": True,
+                "verified": True,  # Added for schema transformation tests
                 "profile": {"name": "John Doe", "age": 25},
             }
         )
@@ -407,7 +304,7 @@ class TestProcess:
         assert len(process.stages) == 2
         assert process.initial_stage.name == "Start Stage"
         assert process.final_stage.name == "End Stage"
-        assert process.checker.valid is True
+        assert process.is_valid is True
 
     def test_process_initialization_with_insufficient_stages_raises_error(self):
         """Verify Process initialization fails with insufficient stages."""
@@ -497,7 +394,7 @@ class TestProcess:
         process = Process(simple_two_stage_process)
 
         # Act
-        issues = process.consistency_issues
+        issues = process.issues
 
         # Assert
         assert isinstance(issues, list)
@@ -520,8 +417,7 @@ class TestProcess:
 
     def test_process_evaluate_with_inconsistent_process_raises_error(self):
         """Verify process evaluation fails with inconsistent process configuration."""
-        # Arrange
-        # Create an inconsistent process (dead end stage)
+        # Arrange - Create process with fatal error: final stage has gates
         inconsistent_config: ProcessDefinition = {
             "name": "inconsistent",
             "description": "Inconsistent process",
@@ -531,9 +427,9 @@ class TestProcess:
                     "description": "Start stage",
                     "gates": [
                         {
-                            "name": "to_dead_end",
-                            "description": "Gate to dead end",
-                            "target_stage": "dead_end",
+                            "name": "to_end",
+                            "description": "Gate to end",
+                            "target_stage": "end",
                             "parent_stage": "start",
                             "locks": [
                                 {
@@ -550,36 +446,28 @@ class TestProcess:
                     },
                     "is_final": False,
                 },
-                "dead_end": {
-                    "name": "Dead End",
-                    "description": "Dead end stage",
+                "end": {
+                    "name": "End",
+                    "description": "End stage - but has gates (inconsistent)",
                     "gates": [
                         {
-                            "name": "dummy_gate",
-                            "description": "Dummy gate that never passes",
-                            "target_stage": "nonexistent",
-                            "parent_stage": "dead_end",
+                            "name": "invalid_gate",
+                            "description": "Final stage should not have gates",
+                            "target_stage": "start",
+                            "parent_stage": "end",
                             "locks": [
                                 {
-                                    "type": LockType.EQUALS,
-                                    "property_path": "never_exists",
-                                    "expected_value": "impossible",
+                                    "type": LockType.EXISTS,
+                                    "property_path": "result",
+                                    "expected_value": None,
                                 }
                             ],
                         }
-                    ],  # Gate points to nonexistent stage making it inconsistent
+                    ],  # Final stage has gates - this is a fatal error
                     "expected_actions": [],
                     "fields": {
-                        "never_exists": {"type": "string", "default": None}
+                        "result": {"type": "string", "default": None}
                     },
-                    "is_final": False,
-                },
-                "end": {
-                    "name": "End",
-                    "description": "End stage",
-                    "gates": [],
-                    "expected_actions": [],
-                    "fields": {},
                     "is_final": True,
                 },
             },
@@ -653,9 +541,9 @@ class TestProcess:
         # Arrange
         process = Process(simple_two_stage_process)
         elements = [
-            DictElement({"email": "user1@example.com"}),
-            DictElement({"email": "user2@example.com"}),
-            DictElement({"name": "invalid"}),  # Missing email
+            DictElement({"email": "user1@example.com", "verified": True}),
+            DictElement({"email": "user2@example.com", "verified": True}),
+            DictElement({"name": "invalid"}),  # Missing email and verified
         ]
 
         # Act
@@ -667,11 +555,11 @@ class TestProcess:
         assert results[1]["stage_result"].status == StageStatus.READY
         assert results[2]["stage_result"].status == StageStatus.INCOMPLETE
 
-    def test_process_add_stage_updates_consistency_checker(self, simple_two_stage_process):
-        """Verify adding a stage updates the consistency checker."""
+    def test_process_add_stage_updates_analyzer(self, simple_two_stage_process):
+        """Verify adding a stage updates the analyzer."""
         # Arrange
         process = Process(simple_two_stage_process)
-        initial_issues_count = len(process.consistency_issues)
+        initial_issues_count = len(process.issues)
 
         new_stage_config: StageDefinition = {
             "name": "New Stage",
@@ -703,7 +591,7 @@ class TestProcess:
         assert len(process.stages) == 3
         assert process.get_stage("new_stage") is not None
         # Consistency checker should be updated (may have new issues due to dead end)
-        assert len(process.consistency_issues) >= initial_issues_count
+        assert len(process.issues) >= initial_issues_count
 
     def test_process_remove_stage_updates_transitions_and_checker(
         self, multi_stage_onboarding_process
@@ -840,6 +728,11 @@ class TestProcessIntegration:
                                     "property_path": "password",
                                     "expected_value": None,
                                 },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "email_verified",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -864,7 +757,12 @@ class TestProcessIntegration:
                                     "type": LockType.EQUALS,
                                     "property_path": "email_verified",
                                     "expected_value": True,
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "activated_at",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -879,7 +777,7 @@ class TestProcessIntegration:
                     "description": "Active user",
                     "gates": [],
                     "expected_actions": [],
-                    "fields": {},
+                    "fields": {"activated_at": {"type": "string", "default": None}},
                     "is_final": True,
                 },
             },
@@ -894,6 +792,7 @@ class TestProcessIntegration:
             "email": "john@example.com",
             "password": "securepass123",
             "email_verified": False,
+            "activated_at": "2024-01-01T00:00:00Z",
         }
         element = DictElement(user_data)
 
@@ -1037,7 +936,12 @@ class TestProcessIntegration:
                                     "type": LockType.EQUALS,
                                     "property_path": "route",
                                     "expected_value": "a",
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "a_data",
+                                    "expected_value": None,
+                                },
                             ],
                         },
                         {
@@ -1050,7 +954,12 @@ class TestProcessIntegration:
                                     "type": LockType.EQUALS,
                                     "property_path": "route",
                                     "expected_value": "b",
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "b_data",
+                                    "expected_value": None,
+                                },
                             ],
                         },
                     ],
@@ -1074,7 +983,12 @@ class TestProcessIntegration:
                                     "type": LockType.EXISTS,
                                     "property_path": "a_data",
                                     "expected_value": None,
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "completed_at",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -1098,7 +1012,12 @@ class TestProcessIntegration:
                                     "type": LockType.EXISTS,
                                     "property_path": "b_data",
                                     "expected_value": None,
-                                }
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "completed_at",
+                                    "expected_value": None,
+                                },
                             ],
                         }
                     ],
@@ -1113,7 +1032,7 @@ class TestProcessIntegration:
                     "description": "Final stage",
                     "gates": [],
                     "expected_actions": [],
-                    "fields": {},
+                    "fields": {"completed_at": {"type": "string", "default": None}},
                     "is_final": True,
                 },
             },
@@ -1162,8 +1081,13 @@ class TestProcessIntegration:
                                     "type": LockType.EXISTS,
                                     "property_path": "anything",
                                     "expected_value": None,
-                                }
-                            ],  # Must have at least one lock
+                                },
+                                {
+                                    "type": LockType.EXISTS,
+                                    "property_path": "completed_at",
+                                    "expected_value": None,
+                                },
+                            ],  # Must have at least one lock, including target stage property
                         }
                     ],
                     "expected_actions": [],
@@ -1177,7 +1101,7 @@ class TestProcessIntegration:
                     "description": "",
                     "gates": [],
                     "expected_actions": [],
-                    "fields": {},
+                    "fields": {"completed_at": {"type": "string", "default": None}},
                     "is_final": True,
                 },
             },
@@ -1187,11 +1111,11 @@ class TestProcessIntegration:
 
         # Act & Assert - Should not raise exceptions
         process = Process(minimal_config)
-        element = DictElement({"anything": "value"})
+        element = DictElement({"anything": "value", "completed_at": "2024-01-01"})
         result = process.evaluate(element, "start")
 
         assert result["stage"] == "start"
-        # With no locks, gate should pass immediately
+        # With locks satisfied, gate should pass
         assert result["stage_result"].status == StageStatus.READY
 
 

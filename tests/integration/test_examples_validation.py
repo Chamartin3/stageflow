@@ -23,7 +23,7 @@ class TestExamplesValidation:
     @pytest.fixture(scope="class")
     def valid_example_files(self, examples_dir: Path) -> list[Path]:
         """Get all valid example YAML files that should load successfully."""
-        # Exclude intentionally invalid files
+        # Exclude intentionally invalid files and stage fragment files
         invalid_patterns = [
             "invalid_structure",
             "consistency_errors",
@@ -32,6 +32,8 @@ class TestExamplesValidation:
             "missing_required.yaml",
             "invalid_locks.yaml",
             "outputs",
+            "split_process/stages",  # Stage fragment files, not standalone processes
+            "valid_processes/stages",  # Stage fragment files for split process
         ]
 
         all_yaml_files = list(examples_dir.glob("**/*.yaml"))
@@ -54,7 +56,7 @@ class TestExamplesValidation:
 
         invalid_files = []
         for invalid_dir in invalid_dirs:
-            invalid_path = examples_dir / "case1_process_creation" / invalid_dir
+            invalid_path = examples_dir / "process_validation" / invalid_dir
             if invalid_path.exists():
                 invalid_files.extend(list(invalid_path.glob("*.yaml")))
 
@@ -255,7 +257,7 @@ class TestExamplesValidation:
 
         # Check for expected case directories
         expected_cases = [
-            "case1_process_creation",
+            "process_validation",
             "case2_element_validation",
             "case3_visualization",
         ]

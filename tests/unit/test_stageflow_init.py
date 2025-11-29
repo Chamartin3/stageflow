@@ -385,6 +385,7 @@ class TestStageflowPackageStructure:
             "cli",
             "manager",
             "models",  # Internal models module exposed through imports
+            "analysis",  # Process analysis module
         }  # Artifacts from test imports
 
         unexpected_leaked = (

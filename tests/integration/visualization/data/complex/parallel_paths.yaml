@@ -148,11 +148,26 @@ process:
               expected_value: "approved"
 
         reject_loan:
-          target_stage: loan_decision
+          target_stage: loan_rejected
           locks:
             - type: in_list
               property_path: "overall_decision"
               expected_value: ["rejected", "denied"]
+
+    loan_rejected:
+      schema:
+        required_fields:
+          - application_id
+          - rejection_reason
+          - rejection_acknowledged
+
+      gates:
+        acknowledge_rejection:
+          target_stage: loan_decision
+          locks:
+            - type: equals
+              property_path: "rejection_acknowledged"
+              expected_value: true
 
     loan_decision:
       schema:

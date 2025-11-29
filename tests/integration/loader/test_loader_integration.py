@@ -20,7 +20,7 @@ class TestLoaderAPI:
         """Test that process loading works correctly."""
         # Test with a complex process from examples
         example_process = Path(
-            "examples/case1_process_creation/valid_processes/simple_2stage.yaml"
+            "examples/process_validation/valid_processes/simple_2stage.yaml"
         )
         if example_process.exists():
             # Load using new interface
@@ -276,9 +276,9 @@ class TestRealWorldUsage:
         base_path = Path(__file__).parent.parent.parent.parent
         example_processes = [
             base_path
-            / "examples/case1_process_creation/valid_processes/simple_2stage.yaml",
+            / "examples/process_validation/valid_processes/simple_2stage.yaml",
             base_path
-            / "examples/case1_process_creation/valid_processes/complex_multistage.yaml",
+            / "examples/process_validation/valid_processes/complex_multistage.yaml",
             base_path
             / "examples/case4_manager_testing/sample_processes/user_onboarding.yaml",
         ]
