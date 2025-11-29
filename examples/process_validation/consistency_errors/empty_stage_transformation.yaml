@@ -1,0 +1,25 @@
+# Error: Stage gate doesn't add any properties to initial schema
+# Gates must evaluate at least one property not declared in fields
+process:
+  name: empty_transformation
+  initial_stage: checkout
+  final_stage: complete
+  stages:
+    checkout:
+      name: "Checkout"
+      fields:
+        - cart_id
+        - total
+      gates:
+        proceed:
+          target_stage: complete
+          locks:
+            # ERROR: These locks only check properties already in fields
+            # No new properties are added - gate doesn't transform the schema
+            - exists: "cart_id"
+            - exists: "total"
+    complete:
+      name: "Complete"
+      fields:
+        - cart_id
+        - total

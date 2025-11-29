@@ -1,0 +1,56 @@
+# Consistency Error: Dead End Stage
+# Tests: Process where non-final stages cannot reach the final stage
+# Expected Errors:
+#   - "Stage 'start' cannot reach final stage 'unreachable_final'"
+#   - "Stage 'middle' cannot reach final stage 'unreachable_final'"
+#   - "Stage 'dead_end' cannot reach final stage 'unreachable_final'"
+#   - "Stage 'unreachable_final' is unreachable from initial stage 'start'"
+#
+# This demonstrates stages that form a dead-end with no path to final.
+
+process:
+  name: dead_end_stages
+  initial_stage: start
+  final_stage: unreachable_final
+
+  stages:
+    start:
+      fields:
+        - data
+      gates:
+        proceed:
+          target_stage: middle
+          locks:
+            - exists: "data"
+
+    middle:
+      fields:
+        - data
+        - processed_data
+      gates:
+        go_to_dead_end:
+          target_stage: dead_end
+          locks:
+            - exists: "processed_data"
+
+    dead_end:
+      fields:
+        - final_processed_data
+      # No gates - this is a dead end with no path to final stage
+
+    # This is the declared final stage but it's unreachable
+    unreachable_final:
+      fields:
+        - completion_data
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with dead-end stages that cannot reach final"
+    test_case: "consistency_dead_end_stage"
+    expected_errors:
+      - "Stage 'start' cannot reach final stage 'unreachable_final'"
+      - "Stage 'middle' cannot reach final stage 'unreachable_final'"
+      - "Stage 'dead_end' cannot reach final stage 'unreachable_final'"
+      - "Stage 'unreachable_final' is unreachable from initial stage 'start'"

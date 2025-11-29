@@ -1,0 +1,132 @@
+# Schema Lifecycle Demo Process
+# Demonstrates the initial/final schema lifecycle feature
+#
+# Key Concepts:
+# - Initial Schema: Properties declared in stage `fields` (entry requirements)
+# - Final Schema: Initial + properties evaluated by gate locks (exit requirements)
+# - Property Source: Distinguishes field vs gate_lock properties
+# - Type Inference: Lock types infer JSON Schema types (EQUALS→value type, GREATER_THAN→number)
+#
+# Usage:
+#   # Get initial schema (fields only)
+#   stageflow process schema processes/schema_lifecycle_demo.yaml checkout --stage-specific
+#
+#   # Get final schema for a specific gate (fields + gate lock properties)
+#   stageflow process schema processes/schema_lifecycle_demo.yaml checkout --gate payment_verified
+
+process:
+  name: schema_lifecycle_demo
+  description: Demonstrates initial vs final schema lifecycle
+  initial_stage: checkout
+  final_stage: completed
+
+  stages:
+    checkout:
+      name: "Checkout"
+      description: "User completes checkout form with basic order info"
+
+      # Fields define the initial schema (entry requirements)
+      fields:
+        - customer_email
+        - cart_total
+        # Payment properties - evaluated by payment_verified gate
+        - payment_status
+        - payment_amount
+        - payment_transaction_id
+        # Cancellation properties - evaluated by order_cancelled gate
+        - cancellation_reason
+        - cancellation_confirmed
+
+      gates:
+        # Gate locks evaluate properties to determine exit path
+        # Final schema shows which properties each gate evaluates
+        payment_verified:
+          target_stage: processing
+          locks:
+            - exists: "payment_transaction_id"
+            - type: equals
+              property_path: "payment_status"
+              expected_value: "completed"
+            - type: greater_than
+              property_path: "payment_amount"
+              expected_value: 0
+
+        # Alternative exit: cancel order
+        order_cancelled:
+          target_stage: cancelled
+          locks:
+            - type: equals
+              property_path: "cancellation_confirmed"
+              expected_value: true
+            - exists: "cancellation_reason"
+
+    processing:
+      name: "Order Processing"
+      description: "Order is being prepared and shipped"
+
+      fields:
+        - customer_email
+        - cart_total
+        - payment_status
+        - payment_transaction_id
+        # Shipping properties - evaluated by shipped gate
+        - shipping_tracking_number
+        - shipping_carrier
+        - shipping_status
+
+      gates:
+        shipped:
+          target_stage: completed
+          locks:
+            - exists: "shipping_tracking_number"
+            - exists: "shipping_carrier"
+            - type: equals
+              property_path: "shipping_status"
+              expected_value: "shipped"
+
+    cancelled:
+      name: "Cancelled"
+      description: "Order was cancelled"
+      gates: []
+
+      fields:
+        - customer_email
+        - cancellation_reason
+
+    completed:
+      name: "Completed"
+      description: "Order successfully delivered"
+      gates: []
+
+      fields:
+        - customer_email
+        - shipping_tracking_number
+        - completed_at
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Demonstrates schema lifecycle with initial vs final schemas"
+    test_case: "schema_lifecycle"
+    expected_outcomes:
+      - "Initial schema contains only fields with source=field"
+      - "Final schema contains fields evaluated by the specific gate"
+      - "Each gate has its own distinct final schema"
+      - "Property types are inferred from lock types"
+
+# Schema Lifecycle Output Example:
+#
+# Initial Schema (checkout):
+#   All 7 properties with source=field
+#
+# Final Schema (checkout, gate=payment_verified):
+#   Shows which properties this gate evaluates:
+#   - payment_transaction_id (evaluated by EXISTS lock)
+#   - payment_status (evaluated by EQUALS lock -> type: string)
+#   - payment_amount (evaluated by GREATER_THAN lock -> type: number)
+#
+# Final Schema (checkout, gate=order_cancelled):
+#   Shows different set of evaluated properties:
+#   - cancellation_confirmed (evaluated by EQUALS lock -> type: boolean)
+#   - cancellation_reason (evaluated by EXISTS lock)

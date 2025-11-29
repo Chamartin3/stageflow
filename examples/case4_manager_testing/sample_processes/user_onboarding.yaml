@@ -25,7 +25,6 @@ process:
       fields:
       - email
       - user_id
-      - email_verified_at
 
     profile_setup:
       name: "Profile Setup"
@@ -40,6 +39,8 @@ process:
             property_path: "profile.last_name"
           - type: not_empty
             property_path: "profile.first_name"
+          - type: exists
+            property_path: "profile_completed_at"
 
       fields:
       - profile
@@ -63,7 +64,6 @@ process:
       fields:
       - verification
       - verification.document_uploaded
-      - verification.status
 
     active_user:
       name: "Active User"

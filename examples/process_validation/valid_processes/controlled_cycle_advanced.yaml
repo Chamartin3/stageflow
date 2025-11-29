@@ -1,0 +1,139 @@
+# Example: Advanced Controlled Cycle with State Change Tracking
+# Use Case: Document quality improvement loop
+
+process:
+  name: document_quality_refinement
+  initial_stage: draft
+  final_stage: closed
+
+  # Advanced cycle control with state change tracking
+  cycle_control:
+    enabled: true
+    strategy: state_change
+
+    # Iteration tracking
+    iteration_property: "revision_number"
+    default_max_iterations: 5
+
+    # Progress tracking
+    tracked_properties:
+    - "quality_score"
+    - "error_count"
+    change_direction:
+      "quality_score": "increase"  # Must go up each iteration
+      "error_count": "decrease"    # Must go down each iteration
+
+  stages:
+    draft:
+      gates:
+        submit_for_review:
+          target_stage: review
+          locks:
+          - exists: "document.content"
+          - type: not_empty
+            property_path: "document.content"
+          - type: greater_than
+            property_path: "quality_score"
+            expected_value: 0
+
+      fields:
+      - document.content
+      - revision_number
+      - quality_score
+      - quality_score_previous
+      - error_count
+      - error_count_previous
+
+    review:
+      gates:
+        # Forward path: Approve if quality is good
+        approve:
+          target_stage: published
+          locks:
+          - type: equals
+            property_path: "review.status"
+            expected_value: "approved"
+          - type: greater_than
+            property_path: "quality_score"
+            expected_value: 80
+          - type: equals
+            property_path: "error_count"
+            expected_value: 0
+
+        # CYCLE: Request revisions (back to draft)
+        request_revisions:
+          target_stage: draft
+          increment_property: "revision_number"
+
+          locks:
+          - type: equals
+            property_path: "review.status"
+            expected_value: "needs_revision"
+
+            # Ensure we haven't hit max iterations
+          - type: less_than
+            property_path: "revision_number"
+            expected_value: 5
+
+            # Ensure quality is improving (validate progress)
+          - type: greater_than
+            property_path: "quality_score"
+            expected_value_property: "quality_score_previous"
+
+            # Ensure errors are decreasing
+          - type: less_than
+            property_path: "error_count"
+            expected_value_property: "error_count_previous"
+
+        # Reject if no progress after multiple attempts
+        reject:
+          target_stage: rejected
+          locks:
+          - type: equals
+            property_path: "review.status"
+            expected_value: "needs_revision"
+          - type: greater_than
+            property_path: "revision_number"
+            expected_value: 4
+
+      fields:
+      - document.content
+      - review.status
+      - review.comments
+      - quality_score
+      - error_count
+      - revision_number
+
+    published:
+      gates:
+        close_published:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+          - exists: "closed_at"
+      fields:
+      - document.content
+      - published_date
+      - final_quality_score
+      - closing_reason
+
+    rejected:
+      gates:
+        close_rejected:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+          - exists: "closed_at"
+      fields:
+      - rejection_reason
+      - final_revision_number
+      - closing_reason
+
+    closed:
+      fields:
+      - closing_reason
+      - closed_at
+
+  metadata:
+    description: "Document quality refinement with state change validation"
+    version: "1.0.0"

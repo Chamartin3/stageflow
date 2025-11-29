@@ -1,0 +1,62 @@
+# Consistency Error: Uncontrolled Cycle
+# Tests: Process with circular dependencies without clear termination conditions
+# Expected Error: "Uncontrolled cycle detected: stage_a → stage_b → stage_c → stage_a"
+#
+# This cycle HAS an exit path to final stage but lacks termination conditions
+# (no counter bounds, no complementary boolean gates).
+
+process:
+  name: circular_dependencies
+  initial_stage: stage_a
+  final_stage: stage_d
+
+  stages:
+    stage_a:
+      fields:
+        - data_a
+      gates:
+        go_to_b:
+          target_stage: stage_b
+          locks:
+            - exists: "data_a"
+
+    stage_b:
+      fields:
+        - data_a
+        - data_b
+      gates:
+        go_to_c:
+          target_stage: stage_c
+          locks:
+            - exists: "data_b"
+
+    stage_c:
+      fields:
+        - data_a
+        - data_b
+        - data_c
+        - final_condition
+      gates:
+        # Creates circular dependency without termination condition
+        go_back_to_a:
+          target_stage: stage_a
+          locks:
+            - exists: "data_c"
+
+        # Exit path exists but no clear way to guarantee termination
+        go_to_d:
+          target_stage: stage_d
+          locks:
+            - exists: "final_condition"
+
+    stage_d:
+      fields:
+        - final_data
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with uncontrolled circular dependencies"
+    test_case: "consistency_uncontrolled_cycle"
+    expected_error: "Uncontrolled cycle detected: stage_a → stage_b → stage_c → stage_a"

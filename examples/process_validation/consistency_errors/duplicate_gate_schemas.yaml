@@ -1,0 +1,78 @@
+# Error: Two gates produce identical final schemas
+# Both gates have the same locks with identical expected values
+process:
+  name: duplicate_gate_schemas
+  initial_stage: processing
+  final_stage: archived
+
+  stages:
+    processing:
+      name: "Processing"
+      fields:
+        - document_id:
+            type: string
+            description: "Unique document identifier"
+        - content:
+            type: string
+            description: "Document content"
+      actions:
+        - name: "send_notification"
+          related_properties:
+            - notification_sent
+      gates:
+        complete_v1:
+          target_stage: completed
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "done"
+        # ERROR: Identical schema as complete_v1
+        # Same property + same expected value = duplicate
+        complete_v2:
+          target_stage: review
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "done"
+
+    completed:
+      name: "Completed"
+      fields:
+        - document_id:
+            type: string
+        - content:
+            type: string
+        - status:
+            type: string
+      gates:
+        archive:
+          target_stage: archived
+          locks:
+            - exists: "archived_at"
+
+    review:
+      name: "Review"
+      fields:
+        - document_id:
+            type: string
+        - content:
+            type: string
+        - status:
+            type: string
+      gates:
+        archive:
+          target_stage: archived
+          locks:
+            - exists: "archived_at"
+
+    archived:
+      name: "Archived"
+      fields:
+        - document_id:
+            type: string
+        - content:
+            type: string
+        - status:
+            type: string
+        - archived_at:
+            type: string

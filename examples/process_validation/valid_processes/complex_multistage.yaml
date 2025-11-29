@@ -1,0 +1,155 @@
+# Case 1.1: Complex Multi-Stage Process
+# Tests: Complex process with multiple stages and branching paths
+process:
+  name: ecommerce_order_processing
+  initial_stage: cart
+  final_stage: closed
+  stages:
+    cart:
+      gates:
+        proceed_to_checkout:
+          target_stage: checkout
+          locks:
+          - exists: "items"
+            error_message: "Shopping cart cannot be empty. Add at least one item before
+              proceeding to checkout."
+          - type: not_empty
+            property_path: "items"
+            error_message: "Shopping cart cannot be empty. Add at least one item before
+              proceeding to checkout."
+          - exists: "customer_id"
+            error_message: "Customer account is required. Please log in or create
+              an account to continue."
+          - exists: "shipping_address"
+      fields:
+      - items
+      - customer_id
+    checkout:
+      gates:
+        submit_payment:
+          target_stage: payment_processing
+          locks:
+          - exists: "shipping_address.street"
+            error_message: "Shipping address is required. Please provide a complete
+              shipping address."
+          - exists: "billing_address.street"
+            error_message: "Billing address is required. Please provide a complete
+              billing address."
+          - exists: "payment_method"
+            error_message: "Payment method is required. Please select a payment method
+              to complete your order."
+      fields:
+      - items
+      - customer_id
+      - shipping_address
+      - shipping_address.street
+      - billing_address
+      - billing_address.street
+      - payment_method
+    payment_processing:
+      gates:
+        payment_success:
+          target_stage: fulfillment
+          locks:
+          - type: equals
+            property_path: "payment_status"
+            expected_value: "completed"
+            error_message: "Payment must be completed successfully. Please check your
+              payment method and try again."
+          - exists: "transaction_id"
+            error_message: "Payment transaction ID is required. Contact support if
+              this error persists."
+          - exists: "shipping_carrier"
+        payment_failed:
+          target_stage: payment_retry
+          locks:
+          - type: equals
+            property_path: "payment_status"
+            expected_value: "failed"
+          - exists: "retry_count"
+      fields:
+      - payment_method
+      - payment_status
+      - transaction_id
+      - total_amount
+    payment_retry:
+      gates:
+        retry_payment:
+          target_stage: payment_processing
+          locks:
+          - type: less_than
+            property_path: "retry_count"
+            expected_value: 3
+          - exists: "payment_method"
+          - exists: "total_amount"
+        payment_abandoned:
+          target_stage: abandoned
+          locks:
+          - type: greater_than
+            property_path: "retry_count"
+            expected_value: 2
+          - exists: "abandonment_reason"
+      fields:
+      - payment_method
+      - retry_count
+    fulfillment:
+      gates:
+        order_shipped:
+          target_stage: shipped
+          locks:
+          - exists: "tracking_number"
+          - type: not_empty
+            property_path: "tracking_number"
+          - exists: "shipped_date"
+      fields:
+      - shipping_carrier
+      - tracking_number
+    shipped:
+      gates:
+        order_delivered:
+          target_stage: completed
+          locks:
+          - exists: "delivery_date"
+          - type: equals
+            property_path: "delivery_status"
+            expected_value: "delivered"
+          - exists: "order_status"
+      fields:
+      - tracking_number
+      - delivery_date
+      - delivery_status
+      - shipped_date
+    completed:
+      gates:
+        close_completed:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+          - exists: "closed_at"
+      fields:
+      - delivery_date
+      - delivery_status
+      - order_status
+      - closing_reason
+    abandoned:
+      gates:
+        close_abandoned:
+          target_stage: closed
+          locks:
+          - exists: "closing_reason"
+          - exists: "closed_at"
+      fields:
+      - abandonment_reason
+      - abandonment_date
+      - closing_reason
+    closed:
+      fields:
+      - closing_reason
+      - closed_at
+  allow_stage_skipping: false
+  regression_detection: true
+  metadata:
+    description: "Complex e-commerce order processing workflow"
+    version: "1.0.0"
+    test_case: "valid_complex_multistage"
+

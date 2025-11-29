@@ -1,0 +1,96 @@
+# Consistency Error: Logical Conflict
+# Tests: Process with logically conflicting gate conditions within the same gate
+# Expected Error: "Gate 'impossible_path' in stage 'start' has conflicting conditions for property 'value': Property must be > 100 AND < 50 (impossible)"
+# Expected Error: "Gate 'finish_path_a' in stage 'middle_a' has conflicting conditions for property 'completion_status': Property must equal multiple different values: done, pending"
+#
+# This demonstrates locks within a single gate that can NEVER all be satisfied.
+
+process:
+  name: conflicting_gates
+  initial_stage: start
+  final_stage: end
+
+  stages:
+    start:
+      fields:
+        - status
+        - value
+      gates:
+        # Valid gate - no internal conflicts
+        path_a:
+          target_stage: middle_a
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+            - type: greater_than
+              property_path: "value"
+              expected_value: 100
+
+        # Valid gate - no internal conflicts
+        path_b:
+          target_stage: middle_b
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+            - type: less_than
+              property_path: "value"
+              expected_value: 50
+
+        # CONFLICT: This gate has impossible conditions (value > 100 AND < 50)
+        impossible_path:
+          target_stage: end
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+            - type: greater_than
+              property_path: "value"
+              expected_value: 100
+            - type: less_than
+              property_path: "value"
+              expected_value: 50
+
+    middle_a:
+      fields:
+        - status
+        - value
+        - path_a_data
+        - completion_status
+      gates:
+        # CONFLICT: completion_status must equal both "done" AND "pending"
+        finish_path_a:
+          target_stage: end
+          locks:
+            - type: equals
+              property_path: "completion_status"
+              expected_value: "done"
+            - type: equals
+              property_path: "completion_status"
+              expected_value: "pending"
+
+    middle_b:
+      fields:
+        - status
+        - value
+        - path_b_data
+      gates:
+        finish_path_b:
+          target_stage: end
+          locks:
+            - exists: "path_b_data"
+
+    end:
+      fields:
+        - final_result
+
+  allow_stage_skipping: false
+  regression_detection: true
+
+  metadata:
+    description: "Process with logically conflicting gate conditions"
+    test_case: "consistency_logical_conflict"
+    expected_errors:
+      - "Gate 'impossible_path' in stage 'start' has conflicting conditions for property 'value': Property must be > 100 AND < 50 (impossible)"
+      - "Gate 'finish_path_a' in stage 'middle_a' has conflicting conditions for property 'completion_status': Property must equal multiple different values: done, pending"
