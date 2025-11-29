@@ -22,16 +22,28 @@ def view_command(
     cli_ctx.json_mode = json_output
     cli_ctx.printer.json_mode = json_output
 
-    # Load process using context (handles all error reporting, warnings, and exits on failure)
-    process = cli_ctx.load_process_or_exit(source)
+    # Load process (non-exiting to allow printing details even with issues)
+    success = cli_ctx.load_process(source)
 
-    # Get source type for display
+    if not success:
+        # Load failed completely (file not found, parse error, etc.)
+        raise typer.Exit(code=1)
+
+    process = cli_ctx.process
     source_type = cli_ctx.loader.detect_source_type(source)
 
-    # Print process details (handles JSON vs normal mode, errors, and formatting)
+    # Print process details (handles JSON vs normal mode)
     cli_ctx.printer.print_process_details(
         process=process,
         source=cli_ctx.source,
         source_type_value=source_type.value,
         load_result=cli_ctx.load_result,
     )
+
+    # Show consistency issues after process details
+    if process.issues and not json_output:
+        cli_ctx.printer.print_all_consistency_issues(process)
+
+    # Exit with code 1 if process has blocking issues
+    if not process.is_valid:
+        raise typer.Exit(code=1)

@@ -138,18 +138,28 @@ class CLIContext:
         # Store result
         self.load_result = result
 
-        # Check if successful
+        # Check if successful (process created)
         if result.success and result.process is not None:
             self.process = result.process
 
-            # Show warnings if any (but continue)
-            # In JSON mode, warnings will be included in the final output, so don't print them here
-            if result.has_warnings and not self.json_mode:
-                self.printer.print_load_result(result, json_mode=False)
-            elif self.verbose:
+            # Show consistency issues if any
+            if result.process.issues and not self.json_mode:
+                self.printer.print_all_consistency_issues(result.process)
+
+            # If process has blocking issues, exit with code 1 after returning process
+            # This allows callers to still access the process for display
+            if not result.process.is_valid:
+                # Print blocking issues in JSON mode
+                if self.json_mode:
+                    self.printer.print_consistency_issues_json(result.process, source)
+                elif self.verbose:
+                    self.print_verbose("[red]✗ Process has blocking issues[/red]")
+                raise typer.Exit(code=1)
+
+            if self.verbose and not result.process.issues:
                 self.print_verbose("[green]✓ Process loaded successfully[/green]")
 
-            return result.process  # Return the non-None process from result
+            return result.process
         else:
             # Loading failed - show errors and exit
             self.printer.print_load_result(result, json_mode=self.json_mode)

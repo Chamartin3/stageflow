@@ -115,24 +115,14 @@ class ProcessFormatter:
         Returns:
             ProcessDescription dictionary
         """
-        # Determine validity based on consistency checker
-        consistency_valid = (
-            process.checker.valid
-            if hasattr(process, "checker") and process.checker
-            else True
-        )
+        # Determine validity based on process.is_valid (checks for blocking issues)
+        consistency_valid = process.is_valid
 
-        # Collect consistency issues
-        consistency_issues: list[ConsistencyIssue] = []
-        if (
-            hasattr(process, "checker")
-            and process.checker
-            and hasattr(process.checker, "issues")
-        ):
-            consistency_issues = [
-                {"type": str(issue.issue_type), "description": issue.description}
-                for issue in process.checker.issues
-            ]
+        # Collect consistency issues from process.issues
+        consistency_issues: list[ConsistencyIssue] = [
+            {"type": str(issue.issue_type), "description": issue.description}
+            for issue in process.issues
+        ]
 
         # Collect stages in traversal order
         visited: set[str] = set()

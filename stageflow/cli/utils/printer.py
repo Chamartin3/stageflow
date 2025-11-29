@@ -100,6 +100,24 @@ class CliPrinter:
             json_data = dict(description)
             json_data["source"] = source
             json_data["source_type"] = source_type_value
+            json_data["is_valid"] = process.is_valid
+
+            # Set status based on validity
+            if process.is_valid:
+                json_data["status"] = "success"
+            else:
+                json_data["status"] = "consistency_error"
+
+            # Include consistency issues from process
+            json_data["consistency_issues"] = [
+                {
+                    "issue_type": str(i.issue_type),
+                    "description": i.description,
+                    "stages": i.stages,
+                    "blocking": i.issue_type in process.BLOCKING_ISSUE_TYPES,
+                }
+                for i in process.issues
+            ]
 
             if load_result:
                 json_data["load_status"] = load_result.status.value
@@ -180,6 +198,95 @@ class CliPrinter:
             message: Error message to print
         """
         self.console.print(f"[red]❌ Error:[/red] {message}")
+
+    def print_consistency_issues(self, process: Process) -> None:
+        """Print process consistency issues.
+
+        Args:
+            process: Process with consistency issues
+        """
+        blocking_issues = [
+            i for i in process.issues
+            if i.issue_type in process.BLOCKING_ISSUE_TYPES
+        ]
+        warning_issues = [
+            i for i in process.issues
+            if i.issue_type not in process.BLOCKING_ISSUE_TYPES
+        ]
+
+        self.console.print(f"[red]❌ Process has {len(blocking_issues)} blocking issue(s)[/red]")
+
+        for issue in blocking_issues:
+            self.console.print(f"  [red]• {issue.issue_type}: {issue.description}[/red]")
+            if issue.stages:
+                self.console.print(f"    Stages: {', '.join(issue.stages)}")
+
+        if warning_issues:
+            self.console.print(f"\n[yellow]⚠ {len(warning_issues)} warning(s)[/yellow]")
+            for issue in warning_issues:
+                self.console.print(f"  [yellow]• {issue.issue_type}: {issue.description}[/yellow]")
+
+    def print_consistency_warnings(self, process: Process) -> None:
+        """Print non-blocking consistency warnings.
+
+        Args:
+            process: Process with warnings
+        """
+        warning_issues = [
+            i for i in process.issues
+            if i.issue_type not in process.BLOCKING_ISSUE_TYPES
+        ]
+        if warning_issues:
+            self.console.print(f"[yellow]⚠ {len(warning_issues)} warning(s)[/yellow]")
+            for issue in warning_issues:
+                self.console.print(f"  [yellow]• {issue.issue_type}: {issue.description}[/yellow]")
+
+    def print_all_consistency_issues(self, process: Process) -> None:
+        """Print all consistency issues (blocking and warnings).
+
+        Args:
+            process: Process with issues
+        """
+        blocking = [i for i in process.issues if i.issue_type in process.BLOCKING_ISSUE_TYPES]
+        warnings = [i for i in process.issues if i.issue_type not in process.BLOCKING_ISSUE_TYPES]
+
+        if blocking:
+            self.console.print(f"[red]❌ {len(blocking)} blocking issue(s)[/red]")
+            for issue in blocking:
+                self.console.print(f"  [red]• {issue.issue_type}: {issue.description}[/red]")
+
+        if warnings:
+            self.console.print(f"[yellow]⚠ {len(warnings)} warning(s)[/yellow]")
+            for issue in warnings:
+                self.console.print(f"  [yellow]• {issue.issue_type}: {issue.description}[/yellow]")
+
+    def print_consistency_issues_json(self, process: Process, source: str) -> None:
+        """Print process consistency issues as JSON.
+
+        Args:
+            process: Process with consistency issues
+            source: Source file path
+        """
+        issues_data = []
+        for issue in process.issues:
+            issue_dict = {
+                "issue_type": str(issue.issue_type),
+                "description": issue.description,
+                "stages": issue.stages,
+                "blocking": issue.issue_type in process.BLOCKING_ISSUE_TYPES,
+            }
+            if issue.details:
+                issue_dict["details"] = issue.details
+            issues_data.append(issue_dict)
+
+        result = {
+            "status": "consistency_error",
+            "source": source,
+            "process": process.to_dict(),
+            "is_valid": process.is_valid,
+            "consistency_issues": issues_data,
+        }
+        self.console.print_json(data=result)
 
     def print_evaluation_error(
         self, error: Exception, json_mode: bool | None = None
