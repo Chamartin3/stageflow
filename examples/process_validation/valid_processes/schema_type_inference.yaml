@@ -1,0 +1,116 @@
+# Schema Lifecycle - Type Inference Example
+# Demonstrates how lock types infer JSON Schema types
+#
+# Type Inference Rules:
+# - EXISTS -> any
+# - EQUALS -> inferred from value (string, number, boolean, etc.)
+# - GREATER_THAN, LESS_THAN, RANGE -> number
+# - REGEX, LENGTH -> string
+# - IN_LIST, NOT_IN_LIST, CONTAINS -> any
+# - TYPE_CHECK -> direct from expected value
+
+process:
+  name: schema_type_inference
+  description: Demonstrates type inference from different lock types
+  initial_stage: validation
+  final_stage: complete
+
+  stages:
+    validation:
+      name: "Data Validation"
+      description: "Validates various data types"
+
+      fields:
+        # String-inferred properties
+        - email
+        - phone
+        - status
+        # Number-inferred properties
+        - age
+        - score
+        - price
+        # Boolean-inferred properties
+        - is_active
+        - has_consent
+        # Any-type properties
+        - metadata
+        - tags
+
+      gates:
+        # This gate demonstrates various type inferences
+        all_valid:
+          target_stage: complete
+          locks:
+            # EXISTS -> type: any
+            - exists: "metadata"
+
+            # REGEX -> type: string
+            - type: regex
+              property_path: "email"
+              expected_value: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+            # LENGTH -> type: string
+            - type: length
+              property_path: "phone"
+              expected_value: 10
+
+            # EQUALS with string -> type: string
+            - type: equals
+              property_path: "status"
+              expected_value: "active"
+
+            # GREATER_THAN -> type: number
+            - type: greater_than
+              property_path: "age"
+              expected_value: 18
+
+            # LESS_THAN -> type: number
+            - type: less_than
+              property_path: "score"
+              expected_value: 100
+
+            # RANGE -> type: number
+            - type: range
+              property_path: "price"
+              expected_value: [0, 1000]
+
+            # EQUALS with boolean -> type: boolean
+            - type: equals
+              property_path: "is_active"
+              expected_value: true
+
+            # EQUALS with boolean -> type: boolean
+            - type: equals
+              property_path: "has_consent"
+              expected_value: true
+
+            # IN_LIST -> type: any
+            - type: in_list
+              property_path: "tags"
+              expected_value: ["premium", "standard", "basic"]
+
+            # Require validated_at to transform schema
+            - exists: "validated_at"
+
+    complete:
+      name: "Complete"
+      description: "Validation complete"
+      gates: []
+      fields:
+        - email
+        - status
+        - validated_at
+
+  metadata:
+    description: "Demonstrates type inference from lock types"
+    test_case: "schema_type_inference"
+    type_inference_examples:
+      - "EXISTS -> any"
+      - "REGEX -> string"
+      - "LENGTH -> string"
+      - "EQUALS(string) -> string"
+      - "EQUALS(boolean) -> boolean"
+      - "GREATER_THAN -> number"
+      - "LESS_THAN -> number"
+      - "RANGE -> number"
+      - "IN_LIST -> any"

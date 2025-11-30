@@ -1,0 +1,57 @@
+# Interview Round 1 - Team interviews
+name: "Interview Round 1"
+description: "First round of interviews with team members and hiring manager"
+
+fields:
+  - interview1.scheduled_at
+  - interview1.completed_at
+  - interview1.interviewers
+  - interview1.format
+  - interview1.duration_minutes
+  - interview1.technical_score
+  - interview1.behavioral_score
+  - interview1.team_fit_score
+  - interview1.communication_score
+  - interview1.overall_recommendation
+  - interview1.strengths
+  - interview1.concerns
+  - interview1.decision
+  - interview1.notes
+  - candidate.withdrew
+
+gates:
+  advance_to_round_2:
+    target_stage: interview_round_2
+    locks:
+      - exists: "interview1.decision"
+      - type: equals
+        property_path: "interview1.decision"
+        expected_value: "advance"
+      - type: greater_than
+        property_path: "interview1.technical_score"
+        expected_value: 7
+      - type: greater_than
+        property_path: "interview1.behavioral_score"
+        expected_value: 6
+      - type: greater_than
+        property_path: "interview1.team_fit_score"
+        expected_value: 6
+      - type: in_list
+        property_path: "interview1.overall_recommendation"
+        expected_value: ["strong_yes", "yes"]
+
+  reject_at_interview1:
+    target_stage: rejected
+    locks:
+      - exists: "interview1.decision"
+      - type: equals
+        property_path: "interview1.decision"
+        expected_value: "reject"
+      - exists: "interview1.notes"
+
+  candidate_withdrew:
+    target_stage: withdrawn
+    locks:
+      - type: equals
+        property_path: "candidate.withdrew"
+        expected_value: true

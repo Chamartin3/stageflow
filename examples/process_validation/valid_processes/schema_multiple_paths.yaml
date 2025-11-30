@@ -1,0 +1,123 @@
+# Schema Lifecycle - Multiple Exit Paths
+# Demonstrates how each gate has its own distinct final schema
+#
+# This process has 3 different exit paths from the same stage,
+# each evaluating completely different properties
+
+process:
+  name: schema_multiple_paths
+  description: Multiple exit paths with different schemas
+  initial_stage: triage
+  final_stage: resolved
+
+  stages:
+    triage:
+      name: "Triage"
+      description: "Initial ticket triage - determines handling path"
+
+      # All possible properties for different exit paths
+      fields:
+        # Common
+        - ticket_id
+        - description
+        # Auto-resolve path
+        - is_known_issue
+        - auto_resolution_id
+        # Escalation path
+        - priority
+        - escalation_reason
+        - assigned_team
+        # Manual resolution path
+        - assignee_id
+        - resolution_type
+
+      gates:
+        # Path 1: Auto-resolve known issues
+        # Final schema includes: is_known_issue, auto_resolution_id
+        auto_resolve:
+          target_stage: resolved
+          locks:
+            - type: equals
+              property_path: "is_known_issue"
+              expected_value: true
+            - exists: "auto_resolution_id"
+            - exists: "resolved_at"
+
+        # Path 2: Escalate critical issues
+        # Final schema includes: priority, escalation_reason, assigned_team
+        escalate:
+          target_stage: escalated
+          locks:
+            - type: in_list
+              property_path: "priority"
+              expected_value: ["critical", "high"]
+            - exists: "escalation_reason"
+            - exists: "assigned_team"
+            - exists: "escalation_status"
+
+        # Path 3: Assign for manual handling
+        # Final schema includes: assignee_id, resolution_type
+        assign:
+          target_stage: in_progress
+          locks:
+            - exists: "assignee_id"
+            - type: in_list
+              property_path: "resolution_type"
+              expected_value: ["bug_fix", "feature_request", "support"]
+            - exists: "work_status"
+
+    escalated:
+      name: "Escalated"
+      description: "High priority handling"
+
+      fields:
+        - ticket_id
+        - priority
+        - assigned_team
+        - escalation_status
+
+      gates:
+        complete_escalation:
+          target_stage: resolved
+          locks:
+            - type: equals
+              property_path: "escalation_status"
+              expected_value: "completed"
+            - exists: "resolved_at"
+
+    in_progress:
+      name: "In Progress"
+      description: "Being worked on"
+
+      fields:
+        - ticket_id
+        - assignee_id
+        - work_status
+        - resolution_notes
+
+      gates:
+        complete_work:
+          target_stage: resolved
+          locks:
+            - type: equals
+              property_path: "work_status"
+              expected_value: "completed"
+            - exists: "resolution_notes"
+            - exists: "resolved_at"
+
+    resolved:
+      name: "Resolved"
+      description: "Ticket resolved"
+      gates: []
+      fields:
+        - ticket_id
+        - resolved_at
+        - resolution_summary
+
+  metadata:
+    description: "Shows how multiple gates create distinct final schemas"
+    test_case: "schema_multiple_paths"
+    gate_schemas:
+      auto_resolve: ["is_known_issue (boolean)", "auto_resolution_id (any)"]
+      escalate: ["priority (any)", "escalation_reason (any)", "assigned_team (any)"]
+      assign: ["assignee_id (any)", "resolution_type (any)"]

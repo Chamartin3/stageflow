@@ -1,0 +1,55 @@
+# Valid: Two gates check same property but with DIFFERENT expected values
+# This produces different final schemas, so it's allowed
+process:
+  name: gates_same_property_different_values
+  initial_stage: review
+  final_stage: archived
+  stages:
+    review:
+      name: "Review"
+      fields:
+        - document_id
+        - content
+      gates:
+        approve:
+          target_stage: approved
+          locks:
+            - type: equals
+              property_path: "status"
+              expected_value: "approved"
+        reject:
+          target_stage: rejected
+          locks:
+            # Different expected value = different final schema
+            - type: equals
+              property_path: "status"
+              expected_value: "rejected"
+    approved:
+      name: "Approved"
+      fields:
+        - document_id
+        - content
+        - status
+      gates:
+        archive:
+          target_stage: archived
+          locks:
+            - exists: "archived_at"
+    rejected:
+      name: "Rejected"
+      fields:
+        - document_id
+        - content
+        - status
+      gates:
+        archive:
+          target_stage: archived
+          locks:
+            - exists: "archived_at"
+    archived:
+      name: "Archived"
+      fields:
+        - document_id
+        - content
+        - status
+        - archived_at

@@ -1,0 +1,122 @@
+# Schema Lifecycle - Basic Example
+# Demonstrates how different gates evaluate different property subsets
+#
+# This process shows:
+# - Initial schema: All fields declared for entry
+# - Final schema per gate: Which properties each gate evaluates
+# - Type inference: Lock types determine JSON Schema types
+
+process:
+  name: schema_lifecycle_basic
+  description: Basic schema lifecycle demonstration
+  initial_stage: draft
+  final_stage: published
+
+  stages:
+    draft:
+      name: "Draft"
+      description: "Article is being written"
+
+      # All properties that might be evaluated by gates
+      fields:
+        - title
+        - content
+        - author_id
+        # Review-related
+        - review_status
+        - reviewer_id
+        # Rejection-related
+        - rejection_reason
+        # Cycle control
+        - revision_count
+
+      gates:
+        # Gate 1: Submit for review
+        # Evaluates: title, content, author_id
+        submit_for_review:
+          target_stage: review
+          locks:
+            - exists: "title"
+            - exists: "content"
+            - exists: "author_id"
+            - exists: "review_score"
+
+        # Gate 2: Direct rejection (different properties)
+        # Evaluates: rejection_reason
+        reject_early:
+          target_stage: rejected
+          locks:
+            - exists: "rejection_reason"
+            - exists: "revised"
+
+    review:
+      name: "Under Review"
+      description: "Article is being reviewed"
+
+      fields:
+        - title
+        - content
+        - author_id
+        - review_status
+        - reviewer_id
+        - review_score
+        - revision_count
+
+      gates:
+        # Evaluates: review_status (EQUALS -> string), review_score (GREATER_THAN -> number)
+        approve:
+          target_stage: published
+          locks:
+            - type: equals
+              property_path: "review_status"
+              expected_value: "approved"
+            - type: greater_than
+              property_path: "review_score"
+              expected_value: 7
+            - exists: "published_at"
+
+        # Different evaluation path (controlled cycle via less_than lock)
+        request_changes:
+          target_stage: draft
+          locks:
+            - type: equals
+              property_path: "review_status"
+              expected_value: "changes_requested"
+            - type: less_than
+              property_path: "revision_count"
+              expected_value: 3
+            - exists: "rejection_reason"
+
+    rejected:
+      name: "Rejected"
+      description: "Article was rejected"
+      fields:
+        - title
+        - rejection_reason
+        - revised
+        - revision_count
+      gates:
+        # Allow revision after rejection (controlled cycle via less_than lock)
+        revise:
+          target_stage: draft
+          locks:
+            - type: equals
+              property_path: "revised"
+              expected_value: true
+            - type: less_than
+              property_path: "revision_count"
+              expected_value: 3
+            - exists: "content"
+
+    published:
+      name: "Published"
+      description: "Article is live"
+      gates: []
+      fields:
+        - title
+        - content
+        - published_at
+
+  metadata:
+    description: "Demonstrates basic schema lifecycle with multiple gates"
+    test_case: "schema_lifecycle_basic"
