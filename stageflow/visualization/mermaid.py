@@ -73,11 +73,11 @@ class MermaidDiagramGenerator:
             )
 
             if is_initial:
-                lines.append(f"    {node_id}[{stage_label}]")
+                lines.append(f'    {node_id}["{stage_label}"]')
             elif is_final:
-                lines.append(f"    {node_id}[{stage_label}]")
+                lines.append(f'    {node_id}["{stage_label}"]')
             else:
-                lines.append(f"    {node_id}[{stage_label}]")
+                lines.append(f'    {node_id}["{stage_label}"]')
 
         # Generate stage transitions based on actual gate relationships
         for stage_name in stage_order:

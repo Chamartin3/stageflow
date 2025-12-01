@@ -3,6 +3,7 @@
 import typer
 
 from stageflow.cli.commands.diagram import diagram_command
+from stageflow.cli.commands.docs import docs_command
 from stageflow.cli.commands.new import new_command
 from stageflow.cli.commands.registry import reg_app
 from stageflow.cli.commands.schema import schema_command
@@ -19,6 +20,7 @@ process_app = typer.Typer(
 process_app.command("view")(view_command)
 process_app.command("new")(new_command)
 process_app.command("diagram")(diagram_command)
+process_app.command("docs")(docs_command)
 process_app.command("schema")(schema_command)
 
 # Add registry as subcommand group with explicit name
