@@ -1,29 +1,28 @@
 # Basic Process Template
 # Simple two-stage workflow with start and end stages
 
-description_template: "Basic {process_name} workflow"
+process:
+  name: basic_workflow
+  description: "Basic workflow template"
+  initial_stage: start
+  final_stage: end
 
-stages:
-  start:
-    name: "Start"
-    description: "Initial stage"
-    schema:
-      required_fields:
+  stages:
+    start:
+      name: "Start"
+      description: "Initial stage"
+      fields:
         - id
-    gates:
-      - name: to_end
-        description: "Proceed to end"
-        target_stage: end
-        locks:
-          - exists: id
+      gates:
+        to_end:
+          target_stage: end
+          locks:
+            - exists: id
+            - exists: completed_at
 
-  end:
-    name: "End"
-    description: "Final stage"
-    schema:
-      required_fields: []
-    gates: []
-    is_final: true
-
-initial_stage: start
-final_stage: end
+    end:
+      name: "End"
+      description: "Final stage"
+      fields:
+        - id
+        - completed_at

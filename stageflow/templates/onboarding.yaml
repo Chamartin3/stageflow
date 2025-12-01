@@ -1,47 +1,47 @@
 # User Onboarding Process Template
 # User registration, verification, and profile setup workflow
 
-description_template: "{process_name} user onboarding workflow"
+process:
+  name: user_onboarding
+  description: "User onboarding workflow"
+  initial_stage: registration
+  final_stage: active
 
-stages:
-  registration:
-    name: "Registration"
-    description: "User registration stage"
-    schema:
-      required_fields:
+  stages:
+    registration:
+      name: "Registration"
+      description: "User registration stage"
+      fields:
         - email
         - password
-    gates:
-      - name: email_verified
-        description: "Email verification completed"
-        target_stage: profile_setup
-        locks:
-          - exists: email
-          - exists: email_verified_at
+      gates:
+        email_verified:
+          target_stage: profile_setup
+          locks:
+            - exists: email
+            - exists: email_verified_at
 
-  profile_setup:
-    name: "Profile Setup"
-    description: "Complete user profile"
-    schema:
-      required_fields:
+    profile_setup:
+      name: "Profile Setup"
+      description: "Complete user profile"
+      fields:
+        - email
+        - password
+        - email_verified_at
         - profile.first_name
         - profile.last_name
-    gates:
-      - name: profile_complete
-        description: "Profile completed"
-        target_stage: active
-        locks:
-          - exists: profile.first_name
-          - exists: profile.last_name
+      gates:
+        profile_complete:
+          target_stage: active
+          locks:
+            - exists: profile.first_name
+            - exists: profile.last_name
 
-  active:
-    name: "Active User"
-    description: "Active user account"
-    schema:
-      required_fields:
+    active:
+      name: "Active User"
+      description: "Active user account"
+      fields:
+        - email
+        - profile.first_name
+        - profile.last_name
         - activated_at
-    gates: []
-    is_final: true
-
-initial_stage: registration
-final_stage: active

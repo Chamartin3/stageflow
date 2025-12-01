@@ -1,35 +1,34 @@
 # Approval Process Template
 # Content submission and review workflow
 
-description_template: "{process_name} approval workflow"
+process:
+  name: approval_workflow
+  description: "Content approval workflow"
+  initial_stage: submitted
+  final_stage: completed
 
-stages:
-  submitted:
-    name: "Submitted"
-    description: "Content submitted for approval"
-    schema:
-      required_fields:
+  stages:
+    submitted:
+      name: "Submitted"
+      description: "Content submitted for approval"
+      fields:
         - title
         - content
         - author
-    gates:
-      - name: review_complete
-        description: "Review completed"
-        target_stage: completed
-        locks:
-          - exists: review.status
-          - exists: review.reviewer
+      gates:
+        review_complete:
+          target_stage: completed
+          locks:
+            - exists: review.status
+            - exists: review.reviewer
 
-  completed:
-    name: "Review Completed"
-    description: "Review process completed"
-    schema:
-      required_fields:
+    completed:
+      name: "Review Completed"
+      description: "Review process completed"
+      fields:
+        - title
+        - content
+        - author
         - review.status
         - review.reviewer
         - completed_at
-    gates: []
-    is_final: true
-
-initial_stage: submitted
-final_stage: completed
