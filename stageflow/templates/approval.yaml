@@ -15,6 +15,16 @@ process:
         - title
         - content
         - author
+      expected_actions:
+        - name: "complete_review"
+          description: "Complete the review process"
+          instructions:
+            - "Review the submitted content"
+            - "Set the review status (approved/rejected)"
+            - "Add reviewer comments if needed"
+          related_properties:
+            - review.status
+            - review.reviewer
       gates:
         review_complete:
           target_stage: completed

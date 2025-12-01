@@ -14,6 +14,15 @@ process:
       fields:
         - email
         - password
+      expected_actions:
+        - name: "verify_email"
+          description: "Verify email address ownership"
+          instructions:
+            - "Check inbox for verification email"
+            - "Click the verification link"
+          related_properties:
+            - email
+            - email_verified_at
       gates:
         email_verified:
           target_stage: profile_setup
@@ -30,6 +39,15 @@ process:
         - email_verified_at
         - profile.first_name
         - profile.last_name
+      expected_actions:
+        - name: "complete_profile"
+          description: "Fill in profile information"
+          instructions:
+            - "Enter your first name"
+            - "Enter your last name"
+          related_properties:
+            - profile.first_name
+            - profile.last_name
       gates:
         profile_complete:
           target_stage: active
