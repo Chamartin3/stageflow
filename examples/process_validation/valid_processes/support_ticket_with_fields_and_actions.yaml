@@ -1,0 +1,259 @@
+# Support Ticket Process - Field Schema Levels + Actions
+# Demonstrates all 3 field schema levels with different types and nested fields
+
+process:
+  name: support_ticket
+  description: "Customer support ticket handling workflow"
+  initial_stage: submitted
+  final_stage: closed
+
+  stages:
+    submitted:
+      name: "Submitted"
+      description: "Customer submitted a support ticket"
+
+      # Level 1: Simple field list
+      fields:
+        - ticket.id
+        - ticket.metadata.created_at
+        - customer.profile.email
+        - customer.profile.name
+        - issue.category
+        - issue.details.description
+        - issue.details.priority
+
+      expected_actions:
+        - name: "triage_ticket"
+          description: "Review and categorize the support ticket"
+          instructions:
+            - "Read the ticket subject and description"
+            - "Assign appropriate priority level"
+            - "Route to correct support team"
+          related_properties:
+            - issue.category
+            - issue.details.description
+          target_properties:
+            - issue.details.priority
+            - assignment.team.id
+
+      gates:
+        assign_ticket:
+          target_stage: in_progress
+          locks:
+            - exists: "ticket.id"
+              error_message: "Ticket ID is required"
+            - exists: "issue.details.priority"
+              error_message: "Priority must be assigned"
+            - type: in_list
+              property_path: "issue.details.priority"
+              expected_value: ["low", "medium", "high", "critical"]
+              error_message: "Priority must be low, medium, high, or critical"
+            - exists: "assignment.team.id"
+              error_message: "Ticket must be assigned to a team"
+
+    in_progress:
+      name: "In Progress"
+      description: "Support agent is working on the ticket"
+
+      # Level 2: Type shortcuts (property: type)
+      fields:
+        ticket.id: string
+        ticket.metadata.updated_at: string
+        customer.profile.email: string
+        customer.account.is_premium: bool
+        assignment.team.id: string
+        assignment.agent.id: string
+        assignment.agent.name: string
+        work.started_at: string
+        work.time_spent_minutes: int
+        work.notes.internal: string
+
+      expected_actions:
+        - name: "investigate_issue"
+          description: "Investigate the reported issue"
+          instructions:
+            - "Review customer account history"
+            - "Check system logs if applicable"
+            - "Document findings in notes"
+          related_properties:
+            - customer.profile.email
+            - customer.account.is_premium
+          target_properties:
+            - work.notes.internal
+
+        - name: "propose_resolution"
+          description: "Propose a solution to the customer"
+          instructions:
+            - "Draft resolution steps"
+            - "Send proposed solution to customer"
+            - "Track response"
+          related_properties:
+            - work.notes.internal
+          target_properties:
+            - resolution.summary
+            - resolution.steps_taken
+
+      gates:
+        resolve_ticket:
+          target_stage: pending_confirmation
+          locks:
+            - exists: "resolution.summary"
+              error_message: "Resolution must be provided"
+            - type: not_empty
+              property_path: "resolution.summary"
+              error_message: "Resolution cannot be empty"
+            - exists: "work.notes.internal"
+              error_message: "Work notes are required"
+            - exists: "resolution.steps_taken"
+              error_message: "Resolution steps required"
+
+        escalate_ticket:
+          target_stage: escalated
+          locks:
+            - type: equals
+              property_path: "escalation.required"
+              expected_value: true
+              error_message: "Escalation not flagged"
+
+    escalated:
+      name: "Escalated"
+      description: "Ticket escalated to senior support or management"
+
+      # Level 3: Full specs with type and optional format
+      fields:
+        ticket.id:
+          type: string
+        issue.details.priority:
+          type: string
+        escalation.reason:
+          type: string
+        escalation.level:
+          type: int
+        escalation.handler.id:
+          type: string
+        escalation.handler.role:
+          type: string
+        escalation.timestamps.escalated_at:
+          type: string
+          format: date-time
+        escalation.approval.status:
+          type: string
+        escalation.approval.approved_by:
+          type: string
+
+      expected_actions:
+        - name: "senior_review"
+          description: "Senior support reviews escalated ticket"
+          instructions:
+            - "Review ticket history and previous attempts"
+            - "Assess escalation reason"
+            - "Determine appropriate resolution path"
+          related_properties:
+            - escalation.reason
+            - escalation.level
+          target_properties:
+            - resolution.summary
+
+        - name: "management_approval"
+          description: "Get management approval if needed"
+          instructions:
+            - "Submit request for approval"
+            - "Document business justification"
+            - "Track approval status"
+          related_properties:
+            - escalation.reason
+          target_properties:
+            - escalation.approval.status
+
+      gates:
+        resolve_escalation:
+          target_stage: pending_confirmation
+          locks:
+            - exists: "resolution.summary"
+              error_message: "Resolution required"
+            - type: equals
+              property_path: "escalation.approval.status"
+              expected_value: "approved"
+              error_message: "Management approval required"
+
+    pending_confirmation:
+      name: "Pending Confirmation"
+      description: "Awaiting customer confirmation that issue is resolved"
+
+      fields:
+        ticket.id: string
+        resolution.summary: string
+        resolution.timestamps.resolved_at: string
+        feedback.customer.confirmed: bool
+        feedback.customer.comments: string
+        feedback.rating.score: int
+        feedback.rating.category: string
+
+      expected_actions:
+        - name: "follow_up"
+          description: "Follow up with customer on resolution"
+          instructions:
+            - "Send resolution summary to customer"
+            - "Ask for confirmation issue is fixed"
+            - "Set reminder for follow-up"
+          related_properties:
+            - resolution.summary
+          target_properties:
+            - feedback.customer.confirmed
+
+        - name: "collect_feedback"
+          description: "Request customer satisfaction feedback"
+          instructions:
+            - "Send satisfaction survey"
+            - "Record customer rating"
+          target_properties:
+            - feedback.rating.score
+
+      gates:
+        close_ticket:
+          target_stage: closed
+          locks:
+            - type: equals
+              property_path: "feedback.customer.confirmed"
+              expected_value: true
+              error_message: "Customer must confirm resolution"
+            - exists: "feedback.rating.score"
+              error_message: "Satisfaction rating required"
+            - type: range
+              property_path: "feedback.rating.score"
+              expected_value: [1, 5]
+              error_message: "Rating must be between 1 and 5"
+
+        reopen_ticket:
+          target_stage: in_progress
+          locks:
+            - type: equals
+              property_path: "feedback.customer.confirmed"
+              expected_value: false
+              error_message: "Only reopen if customer rejects resolution"
+
+    closed:
+      name: "Closed"
+      description: "Ticket has been resolved and closed"
+
+      fields:
+        ticket.id:
+          type: string
+        ticket.metadata.closed_at:
+          type: string
+          format: date-time
+        resolution.summary:
+          type: string
+        metrics.total_time_hours:
+          type: float
+        metrics.escalation_count:
+          type: int
+        feedback.rating.score:
+          type: int
+        feedback.rating.nps_category:
+          type: string
+
+  metadata:
+    version: "1.0.0"
+    test_case: "field_schema_levels_with_nested_fields"
+    description: "Demonstrates Level 1, 2, 3 field schemas with nested fields and various types"

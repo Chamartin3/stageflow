@@ -14,7 +14,7 @@ process:
           instructions:
             - "Ensure the document has a clear title and body content."
             - "Review for any spelling or grammatical errors."
-          related_properties:
+          target_properties:
             - content.summary
       fields:
         - title

@@ -1,0 +1,297 @@
+# E-Commerce Order Process with Nested Fields and Actions
+# Demonstrates: Deeply nested fields, various types, and expected_actions
+
+process:
+  name: ecommerce_order
+  description: "E-commerce order processing workflow"
+  initial_stage: cart
+  final_stage: delivered
+
+  stages:
+    cart:
+      name: "Shopping Cart"
+      description: "Customer adding items to cart before checkout"
+
+      fields:
+        customer.account.id: string
+        customer.account.is_guest: bool
+        cart.items.count: int
+        cart.totals.subtotal: float
+        cart.totals.currency: string
+
+      expected_actions:
+        - name: "add_items"
+          description: "Add products to the shopping cart"
+          instructions:
+            - "Browse the product catalog"
+            - "Select quantity for each item"
+            - "Click 'Add to Cart' button"
+          target_properties:
+            - cart.items.count
+            - cart.totals.subtotal
+
+        - name: "login_or_register"
+          description: "Authenticate or create account"
+          instructions:
+            - "Enter email address"
+            - "Login with existing account or create new one"
+          target_properties:
+            - customer.account.id
+
+      gates:
+        proceed_to_checkout:
+          target_stage: checkout
+          locks:
+            - exists: "customer.account.id"
+              error_message: "Please login or register to continue"
+            - type: greater_than
+              property_path: "cart.items.count"
+              expected_value: 0
+              error_message: "Your cart is empty"
+            - type: greater_than
+              property_path: "cart.totals.subtotal"
+              expected_value: 0
+              error_message: "Cart total must be greater than zero"
+
+    checkout:
+      name: "Checkout"
+      description: "Customer provides shipping and payment information"
+
+      fields:
+        customer.account.id:
+          type: string
+        cart.totals.subtotal:
+          type: float
+        cart.totals.tax:
+          type: float
+        cart.totals.shipping_cost:
+          type: float
+        cart.totals.grand_total:
+          type: float
+        shipping.address.street:
+          type: string
+        shipping.address.city:
+          type: string
+        shipping.address.postal_code:
+          type: string
+        shipping.address.country.code:
+          type: string
+        shipping.method.carrier:
+          type: string
+        shipping.method.speed:
+          type: string
+        payment.method.type:
+          type: string
+        payment.card.last_four:
+          type: string
+        payment.card.brand:
+          type: string
+
+      expected_actions:
+        - name: "enter_shipping_address"
+          description: "Provide shipping address details"
+          instructions:
+            - "Enter street address"
+            - "Enter city and postal code"
+          target_properties:
+            - shipping.address.street
+            - shipping.address.city
+            - shipping.address.postal_code
+
+        - name: "enter_payment"
+          description: "Provide payment information"
+          instructions:
+            - "Select payment method (card, PayPal, etc.)"
+            - "Enter card details securely"
+          target_properties:
+            - payment.method.type
+
+      gates:
+        place_order:
+          target_stage: payment_processing
+          locks:
+            - exists: "shipping.address.street"
+              error_message: "Street address is required"
+            - exists: "shipping.address.city"
+              error_message: "City is required"
+            - exists: "shipping.address.postal_code"
+              error_message: "Postal code is required"
+            - exists: "payment.method.type"
+              error_message: "Please select a payment method"
+            - type: in_list
+              property_path: "payment.method.type"
+              expected_value: ["card", "paypal", "bank_transfer"]
+              error_message: "Invalid payment method"
+
+    payment_processing:
+      name: "Payment Processing"
+      description: "Payment is being processed by the payment gateway"
+
+      fields:
+        order.id:
+          type: string
+        order.timestamps.created_at:
+          type: string
+          format: date-time
+        payment.method.type:
+          type: string
+        payment.transaction.id:
+          type: string
+        payment.transaction.status:
+          type: string
+        payment.transaction.amount:
+          type: float
+        payment.transaction.processor_response.code:
+          type: string
+        payment.transaction.processor_response.message:
+          type: string
+
+      expected_actions:
+        - name: "verify_payment"
+          description: "Payment gateway verifies the transaction"
+          instructions:
+            - "System validates card with issuing bank"
+            - "Fraud detection checks are performed"
+            - "Transaction is authorized"
+          related_properties:
+            - payment.method.type
+          target_properties:
+            - payment.transaction.status
+            - payment.transaction.id
+
+        - name: "retry_payment"
+          description: "Retry if initial payment fails"
+          instructions:
+            - "Check error message from payment provider"
+            - "Verify card details are correct"
+            - "Try alternative payment method if needed"
+          related_properties:
+            - payment.transaction.processor_response.message
+          target_properties:
+            - payment.transaction.status
+
+      gates:
+        payment_success:
+          target_stage: order_confirmed
+          locks:
+            - type: equals
+              property_path: "payment.transaction.status"
+              expected_value: "completed"
+              error_message: "Payment has not been completed"
+            - exists: "payment.transaction.id"
+              error_message: "Transaction ID missing"
+
+        payment_failed:
+          target_stage: checkout
+          locks:
+            - type: equals
+              property_path: "payment.transaction.status"
+              expected_value: "failed"
+
+    order_confirmed:
+      name: "Order Confirmed"
+      description: "Order is confirmed and being prepared for shipping"
+
+      fields:
+        order.id: string
+        order.timestamps.confirmed_at: string
+        order.status.current: string
+        fulfillment.warehouse.id: string
+        fulfillment.warehouse.location: string
+        fulfillment.picking.status: string
+        fulfillment.packing.status: string
+        shipping.label.tracking_number: string
+        shipping.label.carrier: string
+        shipping.label.service_type: string
+
+      expected_actions:
+        - name: "generate_shipping_label"
+          description: "Create shipping label with carrier"
+          instructions:
+            - "Submit shipment to carrier API"
+            - "Generate tracking number"
+            - "Print shipping label"
+          related_properties:
+            - order.id
+          target_properties:
+            - shipping.label.tracking_number
+            - shipping.label.carrier
+
+      gates:
+        ship_order:
+          target_stage: shipped
+          locks:
+            - exists: "shipping.label.tracking_number"
+              error_message: "Tracking number has not been generated"
+            - exists: "shipping.label.carrier"
+              error_message: "Shipping carrier not assigned"
+
+    shipped:
+      name: "Shipped"
+      description: "Order has been shipped and is in transit"
+
+      fields:
+        order.id: string
+        shipping.label.tracking_number: string
+        shipping.label.carrier: string
+        shipping.tracking.status: string
+        shipping.tracking.last_location.city: string
+        shipping.tracking.last_location.country: string
+        shipping.tracking.timestamps.shipped_at: string
+        shipping.tracking.timestamps.estimated_delivery: string
+        delivery.timestamps.delivered_at: string
+        delivery.signature.required: bool
+        delivery.signature.name: string
+
+      expected_actions:
+        - name: "track_shipment"
+          description: "Monitor shipment progress"
+          instructions:
+            - "Use tracking number to check status"
+            - "View estimated delivery date"
+            - "Sign up for delivery notifications"
+          related_properties:
+            - shipping.label.tracking_number
+          target_properties:
+            - shipping.tracking.status
+            - delivery.timestamps.delivered_at
+
+      gates:
+        mark_delivered:
+          target_stage: delivered
+          locks:
+            - type: equals
+              property_path: "shipping.tracking.status"
+              expected_value: "delivered"
+              error_message: "Package has not been delivered yet"
+            - exists: "delivery.timestamps.delivered_at"
+              error_message: "Delivery timestamp not recorded"
+
+    delivered:
+      name: "Delivered"
+      description: "Order has been successfully delivered to customer"
+
+      fields:
+        order.id:
+          type: string
+        delivery.timestamps.delivered_at:
+          type: string
+          format: date-time
+        delivery.proof.photo_url:
+          type: string
+        delivery.proof.signature_image:
+          type: string
+        feedback.rating.overall:
+          type: int
+        feedback.rating.delivery_speed:
+          type: int
+        feedback.review.text:
+          type: string
+        feedback.review.submitted_at:
+          type: string
+          format: date-time
+
+  metadata:
+    version: "1.0.0"
+    test_case: "nested_fields_with_actions"
+    description: "E-commerce order flow with deeply nested fields and various types"

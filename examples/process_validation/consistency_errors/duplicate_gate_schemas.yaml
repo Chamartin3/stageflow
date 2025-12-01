@@ -17,7 +17,7 @@ process:
             description: "Document content"
       actions:
         - name: "send_notification"
-          related_properties:
+          target_properties:
             - notification_sent
       gates:
         complete_v1:

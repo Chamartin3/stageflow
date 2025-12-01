@@ -12,7 +12,7 @@ process:
         - "Set bug type (crash, performance, ui, data, security)"
         - "Assign severity level (critical, high, medium, low)"
         - "Verify this is a bug and not a feature request"
-        related_properties:
+        target_properties:
         - "bug_type"
         - "severity"
 
@@ -41,6 +41,9 @@ process:
         - "Document what should happen (expected behavior)"
         - "Document what actually happens (actual behavior)"
         related_properties:
+        - "bug_type"
+        - "severity"
+        target_properties:
         - "description"
         - "steps_to_reproduce"
 
