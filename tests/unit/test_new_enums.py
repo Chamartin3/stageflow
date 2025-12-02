@@ -1,9 +1,15 @@
-"""Tests for new enums added in v2.0."""
+"""Tests for enums and types added in v2.0."""
 
 import pytest
 
-from stageflow.models import RegressionPolicy
-from stageflow.stage import Action, ActionSource, ActionType, StageStatus
+from stageflow.models import (
+    Action,
+    ActionSource,
+    ActionType,
+    RegressionDetails,
+    RegressionPolicy,
+)
+from stageflow.stage import StageStatus
 
 
 class TestRegressionPolicyEnum:
@@ -41,17 +47,40 @@ class TestActionSourceEnum:
     def test_enum_values(self):
         """Test enum has correct values."""
         assert ActionSource.CONFIGURED == "configured"
-        assert ActionSource.GENERATED == "generated"
+        assert ActionSource.COMPUTED == "computed"
 
     def test_enum_from_string(self):
         """Test creating enum from string value."""
         assert ActionSource("configured") == ActionSource.CONFIGURED
-        assert ActionSource("generated") == ActionSource.GENERATED
+        assert ActionSource("computed") == ActionSource.COMPUTED
 
     def test_enum_invalid_value(self):
         """Test invalid value raises ValueError."""
         with pytest.raises(ValueError):
             ActionSource("invalid")
+
+
+class TestActionTypeEnum:
+    """Tests for ActionType enum."""
+
+    def test_enum_values(self):
+        """Test enum has correct values."""
+        assert ActionType.PROVIDE_DATA == "provide_data"
+        assert ActionType.RESOLVE_VALIDATION == "resolve_validation"
+        assert ActionType.EXECUTE_ACTION == "execute_action"
+        assert ActionType.TRANSITION == "transition"
+
+    def test_enum_from_string(self):
+        """Test creating enum from string value."""
+        assert ActionType("provide_data") == ActionType.PROVIDE_DATA
+        assert ActionType("resolve_validation") == ActionType.RESOLVE_VALIDATION
+        assert ActionType("execute_action") == ActionType.EXECUTE_ACTION
+        assert ActionType("transition") == ActionType.TRANSITION
+
+    def test_enum_invalid_value(self):
+        """Test invalid value raises ValueError."""
+        with pytest.raises(ValueError):
+            ActionType("invalid")
 
 
 class TestStageStatusAliases:
@@ -75,8 +104,6 @@ class TestRegressionDetailsType:
 
     def test_minimal_instance(self):
         """Test creating minimal valid instance."""
-        from stageflow.models import RegressionDetails
-
         details: RegressionDetails = {
             "detected": False,
             "policy": "warn",
@@ -91,8 +118,6 @@ class TestRegressionDetailsType:
 
     def test_full_instance(self):
         """Test creating instance with all optional fields."""
-        from stageflow.models import RegressionDetails
-
         details: RegressionDetails = {
             "detected": True,
             "policy": "block",
@@ -115,40 +140,67 @@ class TestRegressionDetailsType:
         assert "failed_gates" in details
 
 
-class TestActionDataclassUpdates:
-    """Tests for Action dataclass new fields."""
+class TestActionTypedDict:
+    """Tests for Action TypedDict structure."""
 
-    def test_action_with_defaults(self):
-        """Test Action with default source and gate_name."""
-        action = Action(
-            description="Test action",
-            related_properties=["email"],
-            action_type=ActionType.UPDATE
-        )
+    def test_action_with_required_fields(self):
+        """Test Action with all required fields."""
+        action: Action = {
+            "action_type": ActionType.PROVIDE_DATA,
+            "source": ActionSource.COMPUTED,
+            "description": "Provide required property 'email'",
+            "related_properties": [],
+            "target_properties": ["email"],
+        }
 
-        assert action.source == ActionSource.CONFIGURED
-        assert action.gate_name is None
+        assert action["action_type"] == ActionType.PROVIDE_DATA
+        assert action["source"] == ActionSource.COMPUTED
+        assert action["description"] == "Provide required property 'email'"
+        assert action["target_properties"] == ["email"]
 
-    def test_action_with_explicit_source(self):
-        """Test Action with explicit GENERATED source."""
-        action = Action(
-            description="Email must be verified",
-            related_properties=["verified"],
-            action_type=ActionType.EXCECUTE,
-            source=ActionSource.GENERATED,
-            gate_name="verify_email"
-        )
+    def test_action_with_optional_fields(self):
+        """Test Action with optional fields."""
+        action: Action = {
+            "action_type": ActionType.TRANSITION,
+            "source": ActionSource.COMPUTED,
+            "description": "Ready to transition to 'next'",
+            "related_properties": ["email", "name"],
+            "target_properties": [],
+            "target_stage": "next",
+            "gate_name": "complete_gate",
+        }
 
-        assert action.source == ActionSource.GENERATED
-        assert action.gate_name == "verify_email"
+        assert action["target_stage"] == "next"
+        assert action["gate_name"] == "complete_gate"
 
-    def test_action_immutability(self):
-        """Test Action is still frozen/immutable."""
-        action = Action(
-            description="Test",
-            related_properties=[],
-            action_type=ActionType.UPDATE
-        )
+    def test_execute_action_type(self):
+        """Test EXECUTE_ACTION for configured actions."""
+        action: Action = {
+            "action_type": ActionType.EXECUTE_ACTION,
+            "source": ActionSource.CONFIGURED,
+            "description": "Contact support for verification",
+            "related_properties": ["support_ticket"],
+            "target_properties": ["verified"],
+            "name": "contact_support",
+            "instructions": ["Call the support hotline", "Provide your ticket number"],
+        }
 
-        with pytest.raises(AttributeError):
-            action.description = "Modified"  # type: ignore
+        assert action["action_type"] == ActionType.EXECUTE_ACTION
+        assert action["source"] == ActionSource.CONFIGURED
+        assert action["name"] == "contact_support"
+        assert len(action["instructions"]) == 2
+
+    def test_resolve_validation_type(self):
+        """Test RESOLVE_VALIDATION for computed actions from failed gates."""
+        action: Action = {
+            "action_type": ActionType.RESOLVE_VALIDATION,
+            "source": ActionSource.COMPUTED,
+            "description": "Email must be verified",
+            "related_properties": [],
+            "target_properties": ["verified"],
+            "gate_name": "verify_email",
+        }
+
+        assert action["action_type"] == ActionType.RESOLVE_VALIDATION
+        assert action["source"] == ActionSource.COMPUTED
+        assert action["gate_name"] == "verify_email"

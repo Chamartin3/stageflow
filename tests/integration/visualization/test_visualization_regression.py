@@ -168,7 +168,8 @@ class TestVisualizationRegression:
                     parts = line.strip().split("[", 1)
                     if len(parts) == 2:
                         node_id = parts[0].strip()
-                        stage_name = parts[1].rstrip("]")
+                        # Remove trailing ] and any surrounding quotes
+                        stage_name = parts[1].rstrip("]").strip('"')
                         stage_mappings[stage_name] = node_id
 
             # Find which node is styled as final
@@ -327,7 +328,8 @@ class TestVisualizationRegression:
                     parts = line.strip().split("[", 1)
                     if len(parts) == 2:
                         node_id = parts[0].strip()
-                        stage_name = parts[1].rstrip("]")
+                        # Remove trailing ] and any surrounding quotes
+                        stage_name = parts[1].rstrip("]").strip('"')
                         stage_to_node[stage_name] = node_id
 
             # Build expected transitions based on actual process structure

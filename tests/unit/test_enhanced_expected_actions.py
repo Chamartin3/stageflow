@@ -32,8 +32,8 @@ class TestActionDefinitionBasic:
         assert len(stage.stage_actions) == 1
         assert stage.stage_actions[0]["description"] == "Complete the task"
 
-    def test_action_with_description_and_related_properties(self):
-        """Verify backward compatibility with description and related_properties."""
+    def test_action_with_description_and_target_properties(self):
+        """Verify action with description and target_properties."""
         # Arrange & Act
         stage_config: StageDefinition = {
             "name": "test_stage",
@@ -56,7 +56,7 @@ class TestActionDefinitionBasic:
             "expected_actions": [
                 {
                     "description": "Update field",
-                    "related_properties": ["field1"],
+                    "target_properties": ["field1"],
                 }
             ],
             "fields": {"field1": None},
@@ -68,7 +68,7 @@ class TestActionDefinitionBasic:
         # Assert
         assert len(stage.stage_actions) == 1
         assert stage.stage_actions[0]["description"] == "Update field"
-        assert stage.stage_actions[0]["related_properties"] == ["field1"]
+        assert stage.stage_actions[0]["target_properties"] == ["field1"]
 
     def test_action_missing_description_raises_error(self):
         """Verify error is raised when description is missing."""
@@ -334,7 +334,7 @@ class TestActionDefinitionWithInstructions:
 
 
 class TestActionDefinitionCompleteStructure:
-    """Test ActionDefinition with all fields (name, description, instructions, related_properties)."""
+    """Test ActionDefinition with all fields (name, description, instructions, related_properties, target_properties)."""
 
     def test_action_with_all_fields(self):
         """Verify action can include all optional and required fields."""
@@ -371,7 +371,8 @@ class TestActionDefinitionCompleteStructure:
                         "Choose a strong password",
                         "Verify your phone number",
                     ],
-                    "related_properties": ["field1", "field2"],
+                    "related_properties": ["field1"],
+                    "target_properties": ["field1", "field2"],
                 }
             ],
             "fields": {"field1": None, "field2": None},
@@ -386,10 +387,11 @@ class TestActionDefinitionCompleteStructure:
         assert action["name"] == "complete_form"
         assert action["description"] == "Complete the registration form"
         assert len(action["instructions"]) == 3
-        assert action["related_properties"] == ["field1", "field2"]
+        assert action["related_properties"] == ["field1"]
+        assert action["target_properties"] == ["field1", "field2"]
 
     def test_mixed_action_formats(self):
-        """Verify stage can have mix of old format and new format actions."""
+        """Verify stage can have mix of simple and enhanced actions."""
         # Arrange & Act
         stage_config: StageDefinition = {
             "name": "test_stage",
@@ -415,17 +417,18 @@ class TestActionDefinitionCompleteStructure:
                 }
             ],
             "expected_actions": [
-                # Old format (backward compatible)
+                # Simple format (no target_properties)
                 {
                     "description": "Simple action",
                     "related_properties": ["field1"],
                 },
-                # New format with all fields
+                # Enhanced format with all fields
                 {
                     "name": "enhanced_action",
                     "description": "Enhanced action with instructions",
                     "instructions": ["Step 1", "Step 2"],
-                    "related_properties": ["field2"],
+                    "related_properties": ["field1"],
+                    "target_properties": ["field2"],
                 },
             ],
             "fields": {"field1": None, "field2": None},
@@ -437,17 +440,18 @@ class TestActionDefinitionCompleteStructure:
         # Assert
         assert len(stage.stage_actions) == 2
 
-        # First action (old format)
+        # First action (simple format)
         action1 = stage.stage_actions[0]
         assert action1["description"] == "Simple action"
         assert "name" not in action1
         assert "instructions" not in action1
 
-        # Second action (new format)
+        # Second action (enhanced format)
         action2 = stage.stage_actions[1]
         assert action2["name"] == "enhanced_action"
         assert action2["description"] == "Enhanced action with instructions"
         assert len(action2["instructions"]) == 2
+        assert action2["target_properties"] == ["field2"]
 
 
 class TestActionDefinitionSerialization:
@@ -521,7 +525,8 @@ class TestActionDefinitionIntegration:
                         "Navigate to the field editor",
                         "Add field2 with appropriate value",
                     ],
-                    "related_properties": ["field2"],
+                    "related_properties": ["field1"],
+                    "target_properties": ["field2"],
                 }
             ],
             "fields": {"field1": None, "field2": None},
@@ -538,6 +543,7 @@ class TestActionDefinitionIntegration:
         assert len(stage.stage_actions) == 1
         assert stage.stage_actions[0]["name"] == "add_field"
         assert len(stage.stage_actions[0]["instructions"]) == 2
+        assert stage.stage_actions[0]["target_properties"] == ["field2"]
 
 
 class TestRealWorldScenarios:
@@ -586,6 +592,9 @@ class TestRealWorldScenarios:
                         "Attach relevant screenshots or logs",
                     ],
                     "related_properties": [
+                        "bug_id",
+                    ],
+                    "target_properties": [
                         "severity",
                         "description",
                         "steps_to_reproduce",
@@ -593,6 +602,7 @@ class TestRealWorldScenarios:
                 }
             ],
             "fields": {
+                "bug_id": None,
                 "severity": None,
                 "description": None,
                 "steps_to_reproduce": None,
@@ -607,7 +617,8 @@ class TestRealWorldScenarios:
         action = stage.stage_actions[0]
         assert action["name"] == "document_bug"
         assert len(action["instructions"]) == 5
-        assert len(action["related_properties"]) == 3
+        assert len(action["related_properties"]) == 1
+        assert len(action["target_properties"]) == 3
 
     def test_feature_development_workflow_actions(self):
         """Test enhanced actions in a feature development workflow."""
@@ -644,7 +655,8 @@ class TestRealWorldScenarios:
                         "Perform integration testing",
                         "Verify edge cases are handled",
                     ],
-                    "related_properties": ["testing_results"],
+                    "related_properties": ["feature_id"],
+                    "target_properties": ["testing_results"],
                 },
                 {
                     "name": "request_code_review",
@@ -654,10 +666,12 @@ class TestRealWorldScenarios:
                         "Address reviewer feedback",
                         "Ensure all checks pass",
                     ],
-                    "related_properties": ["code_review_approved"],
+                    "related_properties": ["testing_results"],
+                    "target_properties": ["code_review_approved"],
                 },
             ],
             "fields": {
+                "feature_id": None,
                 "testing_results": None,
                 "code_review_approved": None,
             },
@@ -672,3 +686,5 @@ class TestRealWorldScenarios:
         assert stage.stage_actions[1]["name"] == "request_code_review"
         assert len(stage.stage_actions[0]["instructions"]) == 3
         assert len(stage.stage_actions[1]["instructions"]) == 3
+        assert stage.stage_actions[0]["target_properties"] == ["testing_results"]
+        assert stage.stage_actions[1]["target_properties"] == ["code_review_approved"]

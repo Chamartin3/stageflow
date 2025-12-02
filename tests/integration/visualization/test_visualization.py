@@ -664,15 +664,16 @@ class TestVisualization:
         content = output_file.read_text()
         lines = content.split("\n")
 
-        # Extract stage node mappings (S0[stage_name])
+        # Extract stage node mappings (S0["stage_name"])
         stage_mappings = {}
         for line in lines:
             if "[" in line and "]" in line and line.strip().startswith("S"):
-                # Parse line like "    S0[order_received]"
+                # Parse line like '    S0["order_received"]'
                 parts = line.strip().split("[", 1)
                 if len(parts) == 2:
                     node_id = parts[0].strip()
-                    stage_name = parts[1].rstrip("]")
+                    # Remove trailing ] and any surrounding quotes
+                    stage_name = parts[1].rstrip("]").strip('"')
                     stage_mappings[stage_name] = node_id
 
         # Extract styling assignments
@@ -809,10 +810,11 @@ class TestVisualization:
         represented_stages = set()
         for line in lines:
             if "[" in line and "]" in line and line.strip().startswith("S"):
-                # Parse line like "    S0[order_received]"
+                # Parse line like '    S0["order_received"]'
                 parts = line.strip().split("[", 1)
                 if len(parts) == 2:
-                    stage_name = parts[1].rstrip("]")
+                    # Remove trailing ] and any surrounding quotes
+                    stage_name = parts[1].rstrip("]").strip('"')
                     represented_stages.add(stage_name)
 
         # All stages should be represented in the visualization

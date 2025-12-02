@@ -101,9 +101,9 @@ class TestMermaidProcessDiagramGeneration:
         expected_elements = [
             "```mermaid",
             "flowchart TD",
-            "S0[First Stage]",
-            "S1[Second Stage]",
-            "S2[Final Stage]",
+            'S0["First Stage"]',
+            'S1["Second Stage"]',
+            'S2["Final Stage"]',
             "S0 --> S1",
             "S1 --> S2",
             "```",

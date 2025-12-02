@@ -4,62 +4,69 @@ import pytest
 
 from stageflow.elements import DictElement
 from stageflow.lock import LockType
+from stageflow.models import Action, ActionSource, ActionType, StageDefinition
 from stageflow.stage import (
-    Action,
-    ActionType,
     Stage,
-    StageDefinition,
     StageEvaluationResult,
     StageStatus,
 )
 
 
 class TestAction:
-    """Test Action dataclass."""
+    """Test Action TypedDict."""
 
     def test_action_creation(self):
         """Verify Action can be created with required fields."""
         # Arrange & Act
-        action = Action(
-            description="Update user email",
-            related_properties=["user.email"],
-            action_type=ActionType.UPDATE,
-        )
+        action: Action = {
+            "action_type": ActionType.RESOLVE_VALIDATION,
+            "source": ActionSource.COMPUTED,
+            "description": "Update user email",
+            "related_properties": ["user.email"],
+            "target_properties": ["email"],
+        }
 
         # Assert
-        assert action.description == "Update user email"
-        assert action.related_properties == ["user.email"]
-        assert action.action_type == ActionType.UPDATE
-        assert action.target_stage is None
+        assert action["description"] == "Update user email"
+        assert action["related_properties"] == ["user.email"]
+        assert action["action_type"] == ActionType.RESOLVE_VALIDATION
+        assert action["source"] == ActionSource.COMPUTED
 
     def test_action_creation_with_target_stage(self):
         """Verify Action can be created with target stage."""
         # Arrange & Act
-        action = Action(
-            description="Ready to proceed",
-            related_properties=[],
-            action_type=ActionType.TRANSITION,
-            target_stage="next_stage",
-        )
+        action: Action = {
+            "action_type": ActionType.TRANSITION,
+            "source": ActionSource.COMPUTED,
+            "description": "Ready to proceed",
+            "related_properties": [],
+            "target_properties": [],
+            "target_stage": "next_stage",
+        }
 
         # Assert
-        assert action.description == "Ready to proceed"
-        assert action.related_properties == []
-        assert action.action_type == ActionType.TRANSITION
-        assert action.target_stage == "next_stage"
+        assert action["description"] == "Ready to proceed"
+        assert action["related_properties"] == []
+        assert action["action_type"] == ActionType.TRANSITION
+        assert action["target_stage"] == "next_stage"
 
-    def test_action_immutability(self):
-        """Verify Action is immutable (frozen dataclass)."""
-        # Arrange
-        action = Action(
-            description="Test action",
-            related_properties=["field"],
-            action_type=ActionType.UPDATE,
-        )
+    def test_action_with_configured_source(self):
+        """Verify Action can be created with configured source."""
+        # Arrange & Act
+        action: Action = {
+            "action_type": ActionType.EXECUTE_ACTION,
+            "source": ActionSource.CONFIGURED,
+            "description": "Contact support",
+            "related_properties": ["ticket_id"],
+            "target_properties": ["verified"],
+            "name": "contact_support",
+            "instructions": ["Open ticket", "Wait for response"],
+        }
 
-        # Act & Assert
-        with pytest.raises(AttributeError):
-            action.description = "Modified"  # Should raise due to frozen=True
+        # Assert
+        assert action["source"] == ActionSource.CONFIGURED
+        assert action["name"] == "contact_support"
+        assert len(action["instructions"]) == 2
 
 
 class TestStageEvaluationResult:
@@ -71,14 +78,23 @@ class TestStageEvaluationResult:
         result = StageEvaluationResult(
             status=StageStatus.BLOCKED,
             results={"gate1": "result1"},
-            configured_actions=[],
+            actions=[
+                {
+                    "action_type": ActionType.RESOLVE_VALIDATION,
+                    "source": ActionSource.COMPUTED,
+                    "description": "Test action",
+                    "related_properties": [],
+                    "target_properties": ["field1"],
+                }
+            ],
             validation_messages=["Test message"],
         )
 
         # Assert
         assert result.status == StageStatus.BLOCKED
         assert result.results == {"gate1": "result1"}
-        assert result.configured_actions == []
+        assert len(result.actions) == 1
+        assert result.actions[0]["action_type"] == ActionType.RESOLVE_VALIDATION
         assert result.validation_messages == ["Test message"]
 
     def test_stage_evaluation_result_immutability(self):
@@ -87,7 +103,7 @@ class TestStageEvaluationResult:
         result = StageEvaluationResult(
             status=StageStatus.INCOMPLETE,
             results={},
-            configured_actions=[],
+            actions=[],
             validation_messages=[]
         )
 
@@ -307,7 +323,10 @@ class TestStage:
 
         # Assert
         assert result.status == StageStatus.READY
-        assert len(result.configured_actions) == 0  # No explicit actions in YAML
+        # Verify transition action is generated
+        assert len(result.actions) == 1
+        assert result.actions[0]["action_type"] == ActionType.TRANSITION
+        assert result.actions[0]["source"] == ActionSource.COMPUTED
         assert "user_validation" in result.results
         assert result.results["user_validation"].success
 
@@ -359,7 +378,16 @@ class TestStage:
 
         # Assert
         assert result.status == StageStatus.INCOMPLETE
-        assert len(result.configured_actions) == 0  # No explicit actions in YAML
+        # INCOMPLETE status generates PROVIDE_DATA actions for missing properties
+        assert len(result.actions) >= 1
+        assert all(
+            action["action_type"] == ActionType.PROVIDE_DATA
+            for action in result.actions
+        )
+        assert all(
+            action["source"] == ActionSource.COMPUTED
+            for action in result.actions
+        )
         # Validation messages should indicate missing properties
         assert len(result.validation_messages) > 0
         assert result.results == {}  # No gates evaluated when schema invalid
@@ -410,10 +438,16 @@ class TestStage:
 
         # Assert
         assert result.status == StageStatus.BLOCKED
-        assert len(result.configured_actions) >= 1  # At least one action suggested
+        # Stage has expected_actions, so "configured first" priority applies
+        assert len(result.actions) >= 1
+        # All actions should come from configured source (expected_actions in YAML)
         assert any(
             action["description"] == "Fix email format"
-            for action in result.configured_actions
+            for action in result.actions
+        )
+        assert all(
+            action["source"] == ActionSource.CONFIGURED
+            for action in result.actions
         )
         assert "email_validation" in result.results
         assert not result.results["email_validation"].success
@@ -450,8 +484,8 @@ class TestStage:
         stage = Stage("nested_id", stage_config)
         assert stage.name == "nested_validation"
 
-    def test_stage_action_validation_fails_with_unrelated_properties(self):
-        """Verify stage creation fails when action properties aren't evaluated by gates."""
+    def test_stage_action_validation_fails_with_unevaluated_target_properties(self):
+        """Verify stage creation fails when target_properties aren't evaluated by gates."""
         # Arrange
         invalid_config: StageDefinition = {
             "name": "invalid_action_stage",
@@ -473,8 +507,8 @@ class TestStage:
             ],
             "expected_actions": [
                 {
-                    "description": "Action that references unevaluated property",
-                    "related_properties": [
+                    "description": "Action that references unevaluated target property",
+                    "target_properties": [
                         "field1",
                         "field2",
                     ],  # field2 not evaluated by any gate
@@ -489,9 +523,60 @@ class TestStage:
 
         # Act & Assert
         with pytest.raises(
-            ValueError, match="Action property 'field2' is not evaluated by any gate"
+            ValueError, match="Action target_property 'field2' is not evaluated by any gate"
         ):
             Stage("invalid_id", invalid_config)
+
+    def test_stage_action_related_properties_emits_warning_for_unknown_fields(self):
+        """Verify related_properties with unknown fields only emits warning, not error."""
+        import warnings
+
+        # Arrange
+        config: StageDefinition = {
+            "name": "action_with_related_props",
+            "description": "Stage with related_properties referencing unknown field",
+            "gates": [
+                {
+                    "name": "gate1",
+                    "description": "Gate",
+                    "target_stage": "next",
+                    "parent_stage": "current",
+                    "locks": [
+                        {
+                            "type": LockType.EXISTS,
+                            "property_path": "field1",
+                            "expected_value": None,
+                        }
+                    ],
+                }
+            ],
+            "expected_actions": [
+                {
+                    "description": "Action with related property not in fields",
+                    "related_properties": [
+                        "unknown_field",  # Not in fields and not evaluated
+                    ],
+                }
+            ],
+            "fields": {
+                "field1": {"type": "string", "default": None},
+            },
+            "is_final": False,
+        }
+
+        # Act & Assert - should emit warning but not raise error
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            stage = Stage("valid_id", config)
+
+            # Should have created stage successfully
+            assert stage.name == "action_with_related_props"
+
+            # Should have emitted a warning about unknown related_property
+            assert len(w) == 1
+            assert issubclass(w[0].category, UserWarning)
+            assert "unknown_field" in str(w[0].message)
+            assert "not defined in fields" in str(w[0].message)
 
     def test_stage_serialization_to_dict(self):
         """Verify stage can be serialized back to dictionary format."""
@@ -515,7 +600,7 @@ class TestStage:
                 }
             ],
             "expected_actions": [
-                {"description": "Test action", "related_properties": ["field"]}
+                {"description": "Test action", "target_properties": ["field"]}
             ],
             "fields": {"field": {"type": "string", "default": None}},
             "is_final": False,
@@ -625,10 +710,11 @@ class TestStageIntegration:
         result = stage.evaluate(element)
 
         # Assert
-        # First gate should pass, triggering READY status
+        # First gate should pass, triggering READY status with TRANSITION action
         assert result.status == StageStatus.READY
-        assert len(result.configured_actions) == 1
-        assert result.configured_actions[0]["description"] == "Complete profile verification"
+        assert len(result.actions) == 1
+        assert result.actions[0]["action_type"] == ActionType.TRANSITION
+        assert result.actions[0]["source"] == ActionSource.COMPUTED
         # Verify gates were evaluated
         assert "basic_requirements" in result.results
         assert result.results["basic_requirements"].success
@@ -728,10 +814,11 @@ class TestStageIntegration:
         result = stage.evaluate(element)
 
         # Assert
-        # First gate passes, so should be READY status
+        # First gate passes, so should be READY status with TRANSITION action
         assert result.status == StageStatus.READY
-        assert len(result.configured_actions) == 1
-        assert result.configured_actions[0]["description"] == "Verify all department heads"
+        assert len(result.actions) == 1
+        assert result.actions[0]["action_type"] == ActionType.TRANSITION
+        assert result.actions[0]["source"] == ActionSource.COMPUTED
         # Verify at least one gate passed
         assert "basic_info" in result.results
         assert result.results["basic_info"].success
@@ -764,9 +851,9 @@ class TestStageIntegration:
         result = stage.evaluate(element)
 
         # Assert
-        # Final stages with valid schema should show ACTION_REQUIRED with no actions
+        # Final stages with valid schema should show BLOCKED status with no actions
         assert result.status == StageStatus.BLOCKED
-        assert len(result.configured_actions) == 0  # No actions for final stage
+        assert len(result.actions) == 0  # No actions for final stage (no configured, no gates to compute from)
         assert result.results == {}  # No gates to evaluate
 
 
