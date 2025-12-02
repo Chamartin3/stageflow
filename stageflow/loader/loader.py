@@ -270,21 +270,60 @@ class ProcessLoader:
         Returns:
             ProcessLoadResult with status and errors
         """
-        # Registry loading not yet implemented
-        errors = [
-            LoadError(
-                error_type=LoadErrorType.FILE_NOT_FOUND,
-                severity=ErrorSeverity.FATAL,
-                message=f"Registry loading not yet implemented: {registry_id}",
-                context={"registry_id": registry_id},
+        from stageflow.manager.config import ManagerConfig
+        from stageflow.manager.registry import ProcessRegistry, ProcessRegistryError
+
+        # Strip the @ prefix to get the process name
+        process_name = registry_id.lstrip("@")
+
+        try:
+            # Initialize registry with config from environment variables
+            config = ManagerConfig.from_env()
+            registry = ProcessRegistry(config)
+
+            # Load the process from registry
+            process = registry.load_process(process_name)
+
+            return ProcessLoadResult(
+                status=LoadResultStatus.SUCCESS,
+                process=process,
+                errors=[],
+                source=registry_id,
             )
-        ]
-        return ProcessLoadResult(
-            status=LoadResultStatus.FILE_ERROR,
-            process=None,
-            errors=errors,
-            source=registry_id,
-        )
+
+        except ProcessRegistryError as e:
+            errors = [
+                LoadError(
+                    error_type=LoadErrorType.FILE_NOT_FOUND,
+                    severity=ErrorSeverity.FATAL,
+                    message=str(e),
+                    context={"registry_id": registry_id, "process_name": process_name},
+                )
+            ]
+            return ProcessLoadResult(
+                status=LoadResultStatus.FILE_ERROR,
+                process=None,
+                errors=errors,
+                source=registry_id,
+            )
+        except Exception as e:
+            errors = [
+                LoadError(
+                    error_type=LoadErrorType.VALIDATION_ERROR,
+                    severity=ErrorSeverity.FATAL,
+                    message=f"Unexpected error loading from registry: {e}",
+                    context={
+                        "registry_id": registry_id,
+                        "exception_type": type(e).__name__,
+                    },
+                )
+            ]
+            return ProcessLoadResult(
+                status=LoadResultStatus.FILE_ERROR,
+                process=None,
+                errors=errors,
+                source=registry_id,
+            )
 
     def _detect_file_format(self, file_path: Path) -> FileFormat:
         """

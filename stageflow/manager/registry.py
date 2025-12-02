@@ -398,20 +398,24 @@ class ProcessRegistry:
 
             stages_def = {}
             for stage in process.stages:
-                stage_data = {
-                    "name": stage.name,
-                    "description": stage.description or "",
-                    "gates": [],
+                # Use Stage.to_dict() for complete serialization and convert to plain dict
+                stage_dict = stage.to_dict()
+                stage_data: dict[str, Any] = {
+                    "name": stage_dict["name"],
+                    "description": stage_dict.get("description", ""),
+                    "fields": dict(stage_dict.get("fields", {})),
                     "expected_actions": [
                         {
-                            "description": action.description,
-                            "related_properties": action.related_properties,
+                            "description": action.get("description", ""),
+                            "name": action.get("name", ""),
+                            "instructions": list(action.get("instructions", [])),
+                            "related_properties": list(action.get("related_properties", [])),
+                            "target_properties": list(action.get("target_properties", [])),
                         }
-                        for action in stage.stage_actions
-                    ]
-                    if stage.stage_actions
-                    else [],
-                    "is_final": stage.is_final,
+                        for action in stage_dict.get("expected_actions", [])
+                    ],
+                    "gates": [],
+                    "is_final": stage_dict.get("is_final", False),
                 }
 
                 # Convert gates
@@ -440,13 +444,19 @@ class ProcessRegistry:
 
                 stages_def[stage._id] = stage_data
 
-            process_def = {
+            process_def: dict[str, Any] = {
                 "name": process.name,
                 "description": process.description or "",
                 "stages": stages_def,
                 "initial_stage": process.initial_stage._id,
                 "final_stage": process.final_stage._id,
             }
+
+            # Include optional process properties if set
+            if process.stage_prop:
+                process_def["stage_prop"] = process.stage_prop
+            if process.regression_policy and process.regression_policy != "warn":
+                process_def["regression_policy"] = process.regression_policy
 
             return {"process": process_def}
 

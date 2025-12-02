@@ -3,6 +3,9 @@
 from typing import cast
 
 from stageflow.models import (
+    Action,
+    ActionSource,
+    ActionType,
     ConsistencyIssue,
     ExpectedObjectSchmema,
     ProcessDefinition,
@@ -429,6 +432,63 @@ class Process:
 
         return stage_order
 
+    def _inject_stage_prop_into_actions(
+        self, stage_result: StageEvaluationResult
+    ) -> StageEvaluationResult:
+        """Inject stage_prop into transition actions if configured.
+
+        When a process has stage_prop configured, transition actions should
+        include that property as the first related_property since that's
+        what the user needs to update to perform the transition.
+
+        Args:
+            stage_result: Original stage evaluation result
+
+        Returns:
+            Updated StageEvaluationResult with stage_prop injected
+        """
+        if not self.stage_prop:
+            return stage_result
+
+        if stage_result.status != StageStatus.READY:
+            return stage_result
+
+        # Inject stage_prop into transition actions
+        updated_actions: list[Action] = []
+        for action in stage_result.actions:
+            if action["action_type"] == ActionType.TRANSITION:
+                # Create new action with stage_prop as first property
+                related_props = action["related_properties"]
+                if self.stage_prop not in related_props:
+                    related_props = [self.stage_prop] + list(related_props)
+                else:
+                    # Move stage_prop to front if already present
+                    related_props = [self.stage_prop] + [
+                        p for p in related_props if p != self.stage_prop
+                    ]
+
+                updated_action: Action = {
+                    "action_type": action["action_type"],
+                    "source": action["source"],
+                    "description": action["description"],
+                    "related_properties": related_props,
+                    "target_properties": action["target_properties"],
+                }
+                if "target_stage" in action:
+                    updated_action["target_stage"] = action["target_stage"]
+                if "gate_name" in action:
+                    updated_action["gate_name"] = action["gate_name"]
+                updated_actions.append(updated_action)
+            else:
+                updated_actions.append(action)
+
+        return StageEvaluationResult(
+            status=stage_result.status,
+            results=stage_result.results,
+            actions=updated_actions,
+            validation_messages=stage_result.validation_messages,
+        )
+
     def evaluate(
         self, element: Element, current_stage_name: str | None = None
     ) -> ProcessElementEvaluationResult:
@@ -461,6 +521,9 @@ class Process:
         # Evaluate current stage
         current_stage_result = current_stage.evaluate(element)
 
+        # Inject stage_prop into transition actions if configured
+        current_stage_result = self._inject_stage_prop_into_actions(current_stage_result)
+
         # Get regression policy
         try:
             policy = RegressionPolicy(self.regression_policy)
@@ -484,11 +547,20 @@ class Process:
             # If policy is BLOCK and regression detected, override status
             if policy == RegressionPolicy.BLOCK and regression_details["detected"]:
                 if current_stage_result.status == StageStatus.READY:
-                    # Override to BLOCKED
+                    # Override to BLOCKED - build appropriate actions
+                    blocked_actions: list[Action] = [
+                        {
+                            "action_type": ActionType.RESOLVE_VALIDATION,
+                            "source": ActionSource.COMPUTED,
+                            "description": "Resolve regression issues in previous stages",
+                            "related_properties": regression_details["failed_stages"],
+                            "target_properties": [],
+                        }
+                    ]
                     current_stage_result = StageEvaluationResult(
                         status=StageStatus.BLOCKED,
                         results=current_stage_result.results,
-                        configured_actions=current_stage_result.configured_actions,
+                        actions=blocked_actions,
                         validation_messages=[
                             "Cannot transition: previous stages have data quality issues",
                             *self._format_regression_messages(regression_details)

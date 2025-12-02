@@ -1,6 +1,5 @@
 """Process documentation generator for StageFlow."""
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -90,9 +89,9 @@ class ProcessDocumentGenerator:
                 required = prop_def.get("required", False)
                 nested = prop_def.get("properties", {})
             else:
-                prop_type = getattr(prop_def, "type", "any")
-                if hasattr(prop_type, "value"):
-                    prop_type = prop_type.value
+                prop_type_attr = getattr(prop_def, "type", "any")
+                # Handle enum types that have a .value attribute
+                prop_type = getattr(prop_type_attr, "value", prop_type_attr)
                 required = getattr(prop_def, "required", False)
                 nested = getattr(prop_def, "properties", {}) or {}
 
@@ -197,6 +196,7 @@ class ProcessDocumentGenerator:
         description = action.get("description", "")
         action_type = action.get("type", "execute")
         related_props = action.get("related_properties", [])
+        target_props = action.get("target_properties", [])
         instructions = action.get("instructions", [])
 
         emoji = self.ACTION_EMOJIS.get(action_type, "📌")
@@ -206,12 +206,14 @@ class ProcessDocumentGenerator:
         if instructions:
             instructions_str = "\n".join(f"> - {inst}" for inst in instructions)
 
-        # Format properties as nested list (like schema)
-        if related_props:
-            props_lines = [">", "> **Properties:**"]
-            # Build tree from dot-notation paths
+        # Helper to build property tree from dot-notation paths
+        def build_props_section(props: list[str], title: str) -> str:
+            if not props:
+                return f">\n> **{title}:** *(none)*"
+
+            props_lines = [">", f"> **{title}:**"]
             tree: dict[str, Any] = {}
-            for prop in related_props:
+            for prop in props:
                 parts = prop.split(".")
                 current = tree
                 for part in parts:
@@ -227,9 +229,11 @@ class ProcessDocumentGenerator:
                         render_tree(children, indent + 1)
 
             render_tree(tree)
-            props_str = "\n".join(props_lines)
-        else:
-            props_str = ">\n> **Properties:** *(none)*"
+            return "\n".join(props_lines)
+
+        # Format both property sections
+        related_props_str = build_props_section(related_props, "Related Properties")
+        target_props_str = build_props_section(target_props, "Target Properties")
 
         return self._render_template("action", {
             "name": name,
@@ -237,7 +241,8 @@ class ProcessDocumentGenerator:
             "description": description,
             "action_type": action_type,
             "instructions": instructions_str,
-            "related_properties": props_str,
+            "related_properties": related_props_str,
+            "target_properties": target_props_str,
         })
 
     def _render_stage(self, stage: Stage, process: Process) -> str:

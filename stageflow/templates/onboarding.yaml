@@ -22,6 +22,7 @@ process:
             - "Click the verification link"
           related_properties:
             - email
+          target_properties:
             - email_verified_at
       gates:
         email_verified:
@@ -45,7 +46,7 @@ process:
           instructions:
             - "Enter your first name"
             - "Enter your last name"
-          related_properties:
+          target_properties:
             - profile.first_name
             - profile.last_name
       gates:

@@ -23,6 +23,9 @@ process:
             - "Set the review status (approved/rejected)"
             - "Add reviewer comments if needed"
           related_properties:
+            - title
+            - content
+          target_properties:
             - review.status
             - review.reviewer
       gates:

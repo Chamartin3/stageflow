@@ -7,7 +7,7 @@ imported by other modules.
 """
 
 import re
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import TYPE_CHECKING, Any, Literal, NotRequired, Required, TypedDict
 
 # Type alias for regression policy values (matches RegressionPolicy enum)
@@ -28,6 +28,9 @@ __all__ = [
     "GateDefinition",
     # Stage types
     "ActionDefinition",
+    "Action",
+    "ActionType",
+    "ActionSource",
     "StageObjectPropertyDefinition",
     "ExpectedObjectSchmema",
     "StageFieldsDefinition",
@@ -294,13 +297,135 @@ class ActionDefinition(TypedDict):
         description: Brief summary of what the action accomplishes (required)
         name: Optional unique identifier for the action within the stage
         instructions: Optional list of guidelines for completing the action
-        related_properties: Optional list of property paths involved in this action
+        related_properties: Optional list of property paths that inform/influence this action
+        target_properties: Optional list of property paths where action results are captured
     """
 
     description: str  # Required: Brief summary
     name: NotRequired[str]  # Optional: Action identifier
     instructions: NotRequired[list[str]]  # Optional: List of guidelines
-    related_properties: NotRequired[list[str]]  # Optional: Related property paths
+    related_properties: NotRequired[list[str]]  # Optional: Properties that inform the action
+    target_properties: NotRequired[list[str]]  # Optional: Properties where results are captured
+
+
+class ActionSource(StrEnum):
+    """Source of an action in evaluation results.
+
+    Actions can come from two sources:
+    - CONFIGURED: Explicitly defined in the stage YAML expected_actions
+    - COMPUTED: Auto-generated from validation status (missing props, failed gates, etc.)
+
+    When a stage has expected_actions configured, ONLY configured actions are returned.
+    When no expected_actions are configured, actions are computed from the evaluation.
+    """
+
+    CONFIGURED = "configured"  # From stage's expected_actions in YAML
+    COMPUTED = "computed"      # Auto-generated from validation status
+
+
+class ActionType(StrEnum):
+    """Types of actions based on what needs to happen.
+
+    Schema/Data Actions (INCOMPLETE status):
+    - PROVIDE_DATA: Element is missing required properties
+
+    Validation Actions (BLOCKED status):
+    - RESOLVE_VALIDATION: Gate lock failed - auto-generated from validation
+    - EXECUTE_ACTION: Configured expected_action from YAML - external action required
+
+    Transition Actions (READY status):
+    - TRANSITION: Element is ready to move to next stage
+    """
+
+    # Missing required fields - user must provide data
+    PROVIDE_DATA = "provide_data"
+
+    # Gate validation failed - data needs to be corrected (auto-generated)
+    RESOLVE_VALIDATION = "resolve_validation"
+
+    # Configured expected_action from YAML - external action required
+    EXECUTE_ACTION = "execute_action"
+
+    # Ready to move forward to next stage
+    TRANSITION = "transition"
+
+
+class Action(TypedDict):
+    """Action returned in evaluation results.
+
+    This is the unified structure for all actions in StageEvaluationResult.
+    Actions follow a "configured first" priority:
+    - If stage has expected_actions in YAML, use ONLY those (source=configured)
+    - Otherwise, compute actions from evaluation status (source=computed)
+
+    Fields:
+        action_type: Type of action needed (ActionType enum)
+        source: Where this action came from (ActionSource enum)
+        description: Human-readable description of the action
+        related_properties: List of property paths that inform/influence this action
+        target_properties: List of property paths where action results are captured
+        target_stage: (Optional) Target stage for transition actions
+        gate_name: (Optional) Gate name for validation-related actions
+        default_value: (Optional) Suggested default value for provide_data actions
+        name: (Optional) Action identifier from YAML configuration
+        instructions: (Optional) List of guidelines from YAML configuration
+
+    Examples:
+        >>> # INCOMPLETE status - computed action for missing properties
+        >>> Action(
+        ...     action_type=ActionType.PROVIDE_DATA,
+        ...     source=ActionSource.COMPUTED,
+        ...     description="Provide required property 'email'",
+        ...     related_properties=[],
+        ...     target_properties=["email"],
+        ...     default_value=None
+        ... )
+
+        >>> # BLOCKED status - configured action from YAML
+        >>> Action(
+        ...     action_type=ActionType.RESOLVE_VALIDATION,
+        ...     source=ActionSource.CONFIGURED,
+        ...     description="Contact support for account verification",
+        ...     related_properties=["support_ticket"],
+        ...     target_properties=["verified"],
+        ...     name="contact_support",
+        ...     instructions=["Open a support ticket", "Provide account ID"]
+        ... )
+
+        >>> # BLOCKED status - computed action from failed gate
+        >>> Action(
+        ...     action_type=ActionType.RESOLVE_VALIDATION,
+        ...     source=ActionSource.COMPUTED,
+        ...     description="Email must be verified",
+        ...     related_properties=[],
+        ...     target_properties=["verified"],
+        ...     gate_name="verify_email"
+        ... )
+
+        >>> # READY status - computed transition action
+        >>> Action(
+        ...     action_type=ActionType.TRANSITION,
+        ...     source=ActionSource.COMPUTED,
+        ...     description="Ready to transition to 'active'",
+        ...     related_properties=[],
+        ...     target_properties=[],
+        ...     target_stage="active",
+        ...     gate_name="verify_email"
+        ... )
+    """
+
+    action_type: ActionType
+    source: ActionSource
+    description: str
+    related_properties: list[str]  # Properties that inform the action
+    target_properties: list[str]  # Properties where results are captured
+    target_stage: NotRequired[str]
+    gate_name: NotRequired[str]
+    default_value: NotRequired[Any]
+    name: NotRequired[str]  # From YAML configuration
+    instructions: NotRequired[list[str]]  # From YAML configuration
+
+
 
 
 class StageObjectPropertyDefinition(TypedDict):

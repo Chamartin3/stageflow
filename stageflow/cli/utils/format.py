@@ -8,6 +8,7 @@ than printing directly.
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from stageflow.models import (
+    Action,
     ActionDefinition,
     ExpectedObjectSchmema,
     ProcessLoadResult,
@@ -72,10 +73,9 @@ class EvaluationData(TypedDict):
     stage: str
     status: str
     regression: bool
-    actions: list[ActionInfo]
+    actions: list[Action]  # Single unified actions list (configured first priority)
     gate_results: dict[str, GateResultInfo]
     regression_details: NotRequired["RegressionDetails"]
-    configured_actions: NotRequired[list[ActionDefinition]]
     validation_messages: NotRequired[list[str]]
 
 
@@ -325,6 +325,7 @@ class EvaluationFormatter:
             description = action.get("description", "No description")
             instructions = action.get("instructions", [])
             related_properties = action.get("related_properties", [])
+            target_properties = action.get("target_properties", [])
 
             # Display action name and description
             if name:
@@ -339,10 +340,15 @@ class EvaluationFormatter:
                 for i, instruction in enumerate(instructions, 1):
                     lines.append(f"{indent}      {i}. {instruction}")
 
-            # Display related properties if available
+            # Display related properties if available (inputs that inform the action)
             if related_properties:
                 props_str = ", ".join(related_properties)
                 lines.append(f"{indent}    [dim]Related properties:[/dim] {props_str}")
+
+            # Display target properties if available (where results are captured)
+            if target_properties:
+                props_str = ", ".join(target_properties)
+                lines.append(f"{indent}    [dim]Target properties:[/dim] {props_str}")
 
         return "\n".join(lines)
 
@@ -387,11 +393,11 @@ class EvaluationFormatter:
         """
         stage_result = result["stage_result"]
 
-        # Combine configured actions and validation messages
+        # Combine actions and validation messages
         all_messages = []
         all_messages.extend(stage_result.validation_messages)
-        for action_def in stage_result.configured_actions:
-            all_messages.append(action_def["description"])
+        for action in stage_result.actions:
+            all_messages.append(action["description"])
 
         if not all_messages:
             return ""
@@ -453,6 +459,8 @@ class EvaluationFormatter:
         Returns:
             Formatted evaluation result string with rich markup
         """
+        from stageflow.models import ActionSource
+
         sections = [
             EvaluationFormatter.format_status_header(result),
             EvaluationFormatter.format_transitions(result),
@@ -461,10 +469,26 @@ class EvaluationFormatter:
 
         # Add configured actions for blocked status
         stage_result = result["stage_result"]
-        configured_actions = stage_result.configured_actions
+        configured_actions = [
+            action for action in stage_result.actions
+            if action.get("source") == ActionSource.CONFIGURED
+        ]
         if configured_actions and str(stage_result.status) == "blocked":
+            # Convert Action to ActionDefinition format for display
+            action_defs: list[ActionDefinition] = []
+            for action in configured_actions:
+                action_def: ActionDefinition = {
+                    "description": action["description"],
+                    "related_properties": action.get("related_properties", []),
+                    "target_properties": action.get("target_properties", []),
+                }
+                if "name" in action:
+                    action_def["name"] = action["name"]
+                if "instructions" in action:
+                    action_def["instructions"] = action["instructions"]
+                action_defs.append(action_def)
             sections.append(
-                EvaluationFormatter.format_expected_actions(configured_actions)
+                EvaluationFormatter.format_expected_actions(action_defs)
             )
 
         # Add regression information
@@ -542,23 +566,6 @@ class EvaluationFormatter:
 
         stage_result = evaluation_result["stage_result"]
 
-        # Format actions (backward compatibility - combine configured and generated)
-        actions: list[ActionInfo] = []
-
-        # Add configured actions
-        for action_def in stage_result.configured_actions:
-            actions.append(ActionInfo(
-                description=action_def["description"],
-                type="execute"  # Configured actions are execute type
-            ))
-
-        # Add validation messages as generated actions
-        for msg in stage_result.validation_messages:
-            actions.append(ActionInfo(
-                description=msg,
-                type="execute"  # Generated actions are execute type
-            ))
-
         # Format gate results
         gate_results: dict[str, GateResultInfo] = {
             gate_name: GateResultInfo(
@@ -570,15 +577,14 @@ class EvaluationFormatter:
             for gate_name, gate_result in stage_result.results.items()
         }
 
-        # Format evaluation section
+        # Format evaluation section - use the unified actions field
         evaluation_data = EvaluationData(
             stage=evaluation_result["stage"],
             status=stage_result.status,
             regression=evaluation_result["regression_details"]["detected"],
-            actions=actions,
+            actions=stage_result.actions,  # Single unified actions list
             gate_results=gate_results,
             regression_details=evaluation_result.get("regression_details"),
-            configured_actions=stage_result.configured_actions,
             validation_messages=stage_result.validation_messages,
         )
 

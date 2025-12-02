@@ -7,8 +7,10 @@ from typing import Any, cast
 from .elements import Element
 from .gate import Gate, GateResult
 from .models import (
+    Action,
     ActionDefinition,
-    ExtractedProperty,
+    ActionSource,
+    ActionType,
     GateDefinition,
     InferredType,
     PropertySchema,
@@ -17,92 +19,6 @@ from .models import (
     StageSchema,
     StageSchemaMutations,
 )
-
-
-class ActionType(StrEnum):
-    UPDATE = "update"  # The opject needs to update properties to meet gate requirements
-    TRANSITION = "transition"  # The object is ready to transition
-    EXCECUTE = "execute"  # An external action is required to meet gate requirements
-
-
-class ActionSource(StrEnum):
-    """Source of an action in evaluation results.
-
-    Actions can come from two sources:
-    - CONFIGURED: Explicitly defined in the stage YAML configuration
-    - GENERATED: Auto-generated from validation failures
-
-    This distinction helps users understand which actions are custom guidance
-    vs. which are automatic feedback from the validation system.
-
-    Examples:
-        >>> # Action from YAML config
-        >>> Action(
-        ...     description="Contact support for verification",
-        ...     source=ActionSource.CONFIGURED,
-        ...     ...
-        ... )
-
-        >>> # Auto-generated from failed lock
-        >>> Action(
-        ...     description="Email must be verified",
-        ...     source=ActionSource.GENERATED,
-        ...     gate_name="verify_email",
-        ...     ...
-        ... )
-    """
-    CONFIGURED = "configured"  # From stage's expected_actions in YAML
-    GENERATED = "generated"    # Auto-generated from validation failures
-
-
-@dataclass(frozen=True)
-class Action:
-    """Action that can be taken to help an element progress through stages.
-
-    Actions provide guidance to users on what needs to be done to move an
-    element forward in the process. They can come from two sources:
-    1. CONFIGURED: Explicitly defined in stage YAML configuration
-    2. GENERATED: Auto-generated from validation failures
-
-    Fields:
-        description: Human-readable action description
-        related_properties: List of property paths this action affects
-        action_type: Type of action (UPDATE, TRANSITION, EXECUTE)
-        source: Where this action came from (CONFIGURED or GENERATED)
-        target_stage: (Optional) Target stage for TRANSITION actions
-        gate_name: (Optional) Gate that generated this action (for GENERATED actions)
-
-    Examples:
-        >>> # Configured action from YAML
-        >>> Action(
-        ...     description="Contact support for account verification",
-        ...     related_properties=["verified", "verification_code"],
-        ...     action_type=ActionType.EXECUTE,
-        ...     source=ActionSource.CONFIGURED
-        ... )
-
-        >>> # Generated action from failed gate
-        >>> Action(
-        ...     description="Email must be verified",
-        ...     related_properties=["verified"],
-        ...     action_type=ActionType.EXECUTE,
-        ...     source=ActionSource.GENERATED,
-        ...     gate_name="verify_email"
-        ... )
-    """
-    description: str
-    related_properties: list[str]
-    action_type: ActionType
-    source: ActionSource = ActionSource.CONFIGURED  # NEW: default to configured
-    target_stage: str | None = None
-    gate_name: str | None = None  # NEW: for generated actions
-
-    def get_properties(self) -> list[ExtractedProperty]:
-        """Get properties touched by this action."""
-        return [
-            ExtractedProperty(path=prop, inferred_type=InferredType.ANY)
-            for prop in self.related_properties
-        ]
 
 
 class StageStatus(StrEnum):
@@ -137,56 +53,98 @@ class StageEvaluationResult:
 
     Provides comprehensive evaluation results including:
     - status: Evaluation outcome (INCOMPLETE, BLOCKED, or READY)
-    - results: Detailed gate validation results (renamed from gate_results)
-    - configured_actions: Actions explicitly defined in stage YAML
+    - results: Detailed gate validation results
+    - actions: Single unified list of actions (configured first priority)
     - validation_messages: Auto-generated messages from validation failures
 
-    The separation of configured_actions and validation_messages allows
-    users to distinguish between custom guidance (configured) and automatic
-    feedback (generated) from the validation system.
+    Actions follow a "configured first" priority:
+    - If stage has expected_actions in YAML, ONLY those are returned (source=configured)
+    - Otherwise, actions are computed from the evaluation status (source=computed)
+
+    Action types vary by status:
+    - INCOMPLETE: PROVIDE_DATA actions for missing required properties (always computed)
+    - BLOCKED: EXECUTE_ACTION (configured) OR RESOLVE_VALIDATION (computed if no configured)
+    - READY: TRANSITION action to the next stage (always computed)
 
     Fields:
         status: Stage evaluation status (INCOMPLETE/BLOCKED/READY)
         results: Map of gate_name → GateResult (detailed validation results)
-        configured_actions: Actions defined in stage configuration
+        actions: Single unified list of Action (configured first priority)
         validation_messages: Generated messages from failed validations
 
     Examples:
-        >>> # INCOMPLETE status (missing properties)
+        >>> # INCOMPLETE status (missing properties - always computed)
         >>> StageEvaluationResult(
         ...     status=StageStatus.INCOMPLETE,
-        ...     results={},  # Gates not evaluated
-        ...     configured_actions=[...],
-        ...     validation_messages=[
-        ...         "Missing required property 'email' (suggested default: None)"
-        ...     ]
+        ...     results={},
+        ...     actions=[
+        ...         Action(
+        ...             action_type=ActionType.PROVIDE_DATA,
+        ...             source=ActionSource.COMPUTED,
+        ...             description="Provide required property 'email'",
+        ...             related_properties=[],
+        ...             target_properties=["email"],
+        ...         )
+        ...     ],
+        ...     validation_messages=[...]
         ... )
 
-        >>> # BLOCKED status (validation failed)
+        >>> # BLOCKED status with configured expected_actions
         >>> StageEvaluationResult(
         ...     status=StageStatus.BLOCKED,
         ...     results={"verify_email": GateResult(success=False, ...)},
-        ...     configured_actions=[...],
-        ...     validation_messages=[
-        ...         "To transition via 'verify_email' to stage 'active':",
-        ...         "  → Email must be verified"
-        ...     ]
+        ...     actions=[
+        ...         Action(
+        ...             action_type=ActionType.EXECUTE_ACTION,
+        ...             source=ActionSource.CONFIGURED,
+        ...             description="Contact support for verification",
+        ...             related_properties=["support_ticket"],
+        ...             target_properties=["verified"],
+        ...             name="contact_support"
+        ...         )
+        ...     ],
+        ...     validation_messages=[...]
         ... )
 
-        >>> # READY status (can transition)
+        >>> # BLOCKED status without configured actions (computed from gates)
+        >>> StageEvaluationResult(
+        ...     status=StageStatus.BLOCKED,
+        ...     results={"verify_email": GateResult(success=False, ...)},
+        ...     actions=[
+        ...         Action(
+        ...             action_type=ActionType.RESOLVE_VALIDATION,
+        ...             source=ActionSource.COMPUTED,
+        ...             description="Email must be verified",
+        ...             related_properties=[],
+        ...             target_properties=["verified"],
+        ...             gate_name="verify_email"
+        ...         )
+        ...     ],
+        ...     validation_messages=[...]
+        ... )
+
+        >>> # READY status (can transition - always computed)
         >>> StageEvaluationResult(
         ...     status=StageStatus.READY,
         ...     results={"verify_email": GateResult(success=True)},
-        ...     configured_actions=[],
-        ...     validation_messages=[
-        ...         "Ready to transition to 'active' via gate 'verify_email'"
-        ...     ]
+        ...     actions=[
+        ...         Action(
+        ...             action_type=ActionType.TRANSITION,
+        ...             source=ActionSource.COMPUTED,
+        ...             description="Ready to transition to 'active'",
+        ...             related_properties=[],
+        ...             target_properties=[],
+        ...             target_stage="active",
+        ...             gate_name="verify_email"
+        ...         )
+        ...     ],
+        ...     validation_messages=[...]
         ... )
     """
     status: StageStatus
-    results: dict[str, GateResult]              # Renamed from gate_results
-    configured_actions: list[ActionDefinition]  # From YAML config
-    validation_messages: list[str]              # Generated from gate failures
+    results: dict[str, GateResult]       # Gate validation results
+    actions: list[Action]                # Single unified actions list (configured first)
+    validation_messages: list[str]       # Generated from gate failures
 
 
 
@@ -322,12 +280,16 @@ class Stage:
         - Required 'description' field is present
         - Optional 'name' field is a string if present
         - Optional 'instructions' field is a list of strings if present
-        - Action related properties are evaluated by gates
+        - Action target_properties are evaluated by gates (strict validation)
+        - Action related_properties are validated against fields (warning only)
         - Emits warning for duplicate action names
         """
         import warnings
 
         action_names: set[str] = set()
+
+        # Get all field property names for related_properties validation
+        field_names = set(self._properties.keys()) if self._properties else set()
 
         for idx, action in enumerate(actions):
             # Validate required description field
@@ -373,12 +335,25 @@ class Stage:
                         stacklevel=3,
                     )
 
-            # Validate related properties
-            properties = action.get("related_properties", [])
-            for prop in properties:
+            # Validate related_properties (warning only - these inform the action)
+            related_properties = action.get("related_properties", [])
+            for prop in related_properties:
+                # Check if property exists in fields (using root property name for nested paths)
+                root_prop = prop.split(".")[0]
+                if root_prop not in field_names and prop not in self._evaluated_paths:
+                    warnings.warn(
+                        f"Action related_property '{prop}' in stage '{self.name}' is not defined in fields. "
+                        f"Consider adding it to the stage fields definition.",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+
+            # Validate target_properties (strict - must be evaluated by gates)
+            target_properties = action.get("target_properties", [])
+            for prop in target_properties:
                 if prop not in self._evaluated_paths:
                     raise ValueError(
-                        f"Action property '{prop}' is not evaluated by any gate in stage '{self.name}'"
+                        f"Action target_property '{prop}' is not evaluated by any gate in stage '{self.name}'"
                     )
 
     def _validate_gate_targets(self) -> None:
@@ -429,6 +404,102 @@ class Stage:
         check_properties(self._properties)
         return missing
 
+    def _build_actions(
+        self,
+        status: StageStatus,
+        missing_properties: dict[str, Any] | None = None,
+        gate_evaluation_results: dict[str, GateResult] | None = None,
+        passing_gate: "Gate | None" = None,
+        passing_gate_result: GateResult | None = None,
+    ) -> list[Action]:
+        """Build actions based on evaluation status with "configured first" priority.
+
+        Priority logic:
+        - INCOMPLETE: Always compute PROVIDE_DATA actions (no configured option)
+        - BLOCKED: If stage has expected_actions, use ONLY those (configured).
+                   Otherwise, compute RESOLVE_VALIDATION from failed gates.
+        - READY: Always compute TRANSITION action (no configured option)
+
+        Args:
+            status: The evaluation status (INCOMPLETE, BLOCKED, or READY)
+            missing_properties: Dict of property_path → default_value (for INCOMPLETE)
+            gate_evaluation_results: Dict of gate_name → GateResult (for BLOCKED)
+            passing_gate: The gate that passed (for READY)
+            passing_gate_result: The successful gate result (for READY)
+
+        Returns:
+            List of Action appropriate for the given status
+        """
+        actions: list[Action] = []
+
+        if status == StageStatus.INCOMPLETE and missing_properties:
+            # INCOMPLETE: Always compute PROVIDE_DATA actions
+            for prop_path, default_value in missing_properties.items():
+                action: Action = {
+                    "action_type": ActionType.PROVIDE_DATA,
+                    "source": ActionSource.COMPUTED,
+                    "description": f"Provide required property '{prop_path}'",
+                    "related_properties": [],
+                    "target_properties": [prop_path],
+                }
+                if default_value is not None:
+                    action["default_value"] = default_value
+                actions.append(action)
+
+        elif status == StageStatus.BLOCKED and gate_evaluation_results:
+            # BLOCKED: "Configured first" priority
+            if self.stage_actions:
+                # Stage has configured expected_actions - use ONLY those
+                for action_def in self.stage_actions:
+                    action: Action = {
+                        "action_type": ActionType.EXECUTE_ACTION,
+                        "source": ActionSource.CONFIGURED,
+                        "description": action_def.get("description", ""),
+                        "related_properties": action_def.get("related_properties", []),
+                        "target_properties": action_def.get("target_properties", []),
+                    }
+                    # Include optional fields from configuration
+                    if "name" in action_def:
+                        action["name"] = action_def["name"]
+                    if "instructions" in action_def:
+                        action["instructions"] = action_def["instructions"]
+                    actions.append(action)
+            else:
+                # No configured actions - compute from failed gates
+                for gate in self.gates:
+                    gate_result = gate_evaluation_results.get(gate.name)
+                    if gate_result and not gate_result.success:
+                        for lock_result in gate_result.failed:
+                            action: Action = {
+                                "action_type": ActionType.RESOLVE_VALIDATION,
+                                "source": ActionSource.COMPUTED,
+                                "description": lock_result.error_message
+                                or f"Resolve validation for '{lock_result.property_path}'",
+                                "related_properties": [],
+                                "target_properties": [lock_result.property_path],
+                                "gate_name": gate.name,
+                            }
+                            actions.append(action)
+
+        elif status == StageStatus.READY and passing_gate and passing_gate_result:
+            # READY: Always compute TRANSITION action
+            validated_properties = [
+                lock_result.property_path
+                for lock_result in passing_gate_result.passed
+            ]
+            action: Action = {
+                "action_type": ActionType.TRANSITION,
+                "source": ActionSource.COMPUTED,
+                "description": f"Ready to transition to '{passing_gate.target_stage}'",
+                "related_properties": validated_properties,
+                "target_properties": [],
+                "target_stage": passing_gate.target_stage,
+                "gate_name": passing_gate.name,
+            }
+            actions.append(action)
+
+        return actions
+
     def evaluate(self, element: Element) -> StageEvaluationResult:
         """
         Evaluate element against this stage's requirements.
@@ -437,7 +508,7 @@ class Stage:
             element: Element to evaluate
 
         Returns:
-            StageResult containing evaluation outcome and details
+            StageEvaluationResult containing evaluation outcome and details
         """
         missing_properties = self._get_missing_properties(element)
         schema_valid = len(missing_properties) == 0
@@ -450,7 +521,10 @@ class Stage:
             return StageEvaluationResult(
                 status=StageStatus.INCOMPLETE,
                 results={},
-                configured_actions=self.stage_actions,
+                actions=self._build_actions(
+                    status=StageStatus.INCOMPLETE,
+                    missing_properties=missing_properties,
+                ),
                 validation_messages=validation_messages,
             )
 
@@ -459,10 +533,15 @@ class Stage:
             gate_result = gate.evaluate(element)
             if gate_result.success:
                 transition_message = f"Ready to transition to '{gate.target_stage}' via gate '{gate.name}'"
+
                 return StageEvaluationResult(
                     status=StageStatus.READY,
                     results={gate.name: gate_result},
-                    configured_actions=self.stage_actions,
+                    actions=self._build_actions(
+                        status=StageStatus.READY,
+                        passing_gate=gate,
+                        passing_gate_result=gate_result,
+                    ),
                     validation_messages=[transition_message],
                 )
             gate_evaluation_results[gate.name] = gate_result
@@ -481,7 +560,10 @@ class Stage:
         return StageEvaluationResult(
             status=StageStatus.BLOCKED,
             results=gate_evaluation_results,
-            configured_actions=self.stage_actions,
+            actions=self._build_actions(
+                status=StageStatus.BLOCKED,
+                gate_evaluation_results=gate_evaluation_results,
+            ),
             validation_messages=validation_messages,
         )
 
@@ -584,15 +666,15 @@ class Stage:
     def _build_final_schema(self, gate: Gate) -> StageSchema:
         """Build final schema for a specific gate.
 
-        Merges: initial (fields) + action props + gate lock props
+        Merges: initial (fields) + action target_properties + gate lock props
         """
         # 1. Start with initial schema properties
         properties: dict[str, PropertySchema] = dict(self.get_initial_schema()["properties"])
 
-        # 2. Add action properties from stage_actions
+        # 2. Add target_properties from stage_actions (where results are captured)
         for action_def in self.stage_actions:
-            related_props = action_def.get("related_properties", [])
-            for prop_path in related_props:
+            target_props = action_def.get("target_properties", [])
+            for prop_path in target_props:
                 if prop_path not in properties:
                     properties[prop_path] = PropertySchema(
                         type=InferredType.ANY,

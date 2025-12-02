@@ -25,7 +25,10 @@ from .analysis import (
     StageSchemaMutations,
 )
 from .base import (
+    Action,
     ActionDefinition,
+    ActionSource,
+    ActionType,
     ConditionalLockDict,
     ExpectedObjectSchmema,
     GateDefinition,
@@ -128,6 +131,9 @@ __all__ = [
     "GateDefinition",
     # Stage types
     "ActionDefinition",
+    "Action",
+    "ActionType",
+    "ActionSource",
     "StageObjectPropertyDefinition",
     "ExpectedObjectSchmema",
     "StageFieldsDefinition",
