@@ -1,0 +1,5 @@
+{
+  "title": "Example Article with Bad Tags",
+  "tags": ["py", "this-is-a-very-long-tag-that-exceeds-twenty-characters", "ok"],
+  "stage": "draft"
+}

@@ -1,0 +1,58 @@
+process:
+  name: tag_validation
+  description: "Demonstrate strlen, minlen, and maxlen functions"
+  initial_stage: draft
+  final_stage: approved
+
+  stages:
+    draft:
+      name: "Draft"
+      description: "Initial content creation with tags"
+      fields:
+        - title
+        - tags
+
+      gates:
+        validate_tags:
+          target_stage: review
+          locks:
+            # Each tag must be at least 3 characters
+            - type: greater_than
+              property_path: "minlen(tags)"
+              expected_value: 2
+              error_message: "All tags must be at least 3 characters long"
+
+            # No tag can exceed 20 characters
+            - type: less_than
+              property_path: "maxlen(tags)"
+              expected_value: 21
+              error_message: "Tags cannot exceed 20 characters"
+
+            # Total tag length must be under 100 characters
+            - type: less_than
+              property_path: "strlen(tags)"
+              expected_value: 100
+              error_message: "Combined tag length must be under 100 characters"
+
+    review:
+      name: "Review"
+      description: "Content under review"
+      fields:
+        - title
+        - tags
+        - reviewed_at
+
+      gates:
+        approve:
+          target_stage: approved
+          locks:
+            - exists: "reviewed_at"
+
+    approved:
+      name: "Approved"
+      description: "Content approved and ready"
+      fields:
+        - title
+        - tags
+        - reviewed_at
+        - approved_at
