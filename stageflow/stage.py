@@ -430,56 +430,119 @@ class Stage:
         Returns:
             List of Action appropriate for the given status
         """
+        from stageflow.common import (
+            ensure_unique_action_names,
+            generate_action_id,
+            generate_action_name,
+        )
+
         actions: list[Action] = []
+        action_index = 0  # Global action index for this evaluation
 
         if status == StageStatus.INCOMPLETE and missing_properties:
             # INCOMPLETE: Always compute PROVIDE_DATA actions
             for prop_path, default_value in missing_properties.items():
+                name = generate_action_name(
+                    action_type=ActionType.PROVIDE_DATA,
+                    property_path=prop_path
+                )
+                action_id = generate_action_id(
+                    index=action_index,
+                    stage_id=self._id,
+                    name=name,
+                )
+
+                # Generate helpful instructions for providing data
+                instructions = [f"Add the '{prop_path}' property to the element"]
+                if default_value is not None:
+                    instructions.append(f"Suggested value: {default_value}")
+
                 action: Action = {
+                    "action_id": action_id,
+                    "name": name,
                     "action_type": ActionType.PROVIDE_DATA,
                     "source": ActionSource.COMPUTED,
                     "description": f"Provide required property '{prop_path}'",
+                    "instructions": instructions,
                     "related_properties": [],
                     "target_properties": [prop_path],
+                    "related_gates": None,
+                    "target_stage": None,
+                    "default_value": default_value,
                 }
-                if default_value is not None:
-                    action["default_value"] = default_value
                 actions.append(action)
+                action_index += 1
 
         elif status == StageStatus.BLOCKED and gate_evaluation_results:
             # BLOCKED: "Configured first" priority
             if self.stage_actions:
                 # Stage has configured expected_actions - use ONLY those
                 for action_def in self.stage_actions:
+                    name = action_def.get("name") or generate_action_name(
+                        action_type=ActionType.EXECUTE_ACTION,
+                    )
+                    action_id = generate_action_id(
+                        index=action_index,
+                        stage_id=self._id,
+                        name=name,
+                    )
+
                     action: Action = {
+                        "action_id": action_id,
+                        "name": name,
                         "action_type": ActionType.EXECUTE_ACTION,
                         "source": ActionSource.CONFIGURED,
                         "description": action_def.get("description", ""),
+                        "instructions": action_def.get("instructions", []),
                         "related_properties": action_def.get("related_properties", []),
                         "target_properties": action_def.get("target_properties", []),
+                        "related_gates": None,  # Configured actions don't tie to specific gates
+                        "target_stage": None,
+                        "default_value": None,
                     }
-                    # Include optional fields from configuration
-                    if "name" in action_def:
-                        action["name"] = action_def["name"]
-                    if "instructions" in action_def:
-                        action["instructions"] = action_def["instructions"]
                     actions.append(action)
+                    action_index += 1
             else:
                 # No configured actions - compute from failed gates
                 for gate in self.gates:
                     gate_result = gate_evaluation_results.get(gate.name)
                     if gate_result and not gate_result.success:
                         for lock_result in gate_result.failed:
+                            name = generate_action_name(
+                                action_type=ActionType.RESOLVE_VALIDATION,
+                                gate_name=gate.name,
+                            )
+                            action_id = generate_action_id(
+                                index=action_index,
+                                stage_id=self._id,
+                                name=name,
+                            )
+
+                            # Generate helpful instructions for resolving validation
+                            instructions = [
+                                f"Update the '{lock_result.property_path}' property to satisfy validation",
+                            ]
+                            if hasattr(lock_result, 'expected_value') and lock_result.expected_value is not None:
+                                instructions.append(f"Expected: {lock_result.expected_value}")
+                            if hasattr(lock_result, 'actual_value') and lock_result.actual_value is not None:
+                                instructions.append(f"Current: {lock_result.actual_value}")
+
                             action: Action = {
+                                "action_id": action_id,
+                                "name": name,
                                 "action_type": ActionType.RESOLVE_VALIDATION,
                                 "source": ActionSource.COMPUTED,
                                 "description": lock_result.error_message
                                 or f"Resolve validation for '{lock_result.property_path}'",
+                                "instructions": instructions,
                                 "related_properties": [],
                                 "target_properties": [lock_result.property_path],
-                                "gate_name": gate.name,
+                                "related_gates": [gate.name],
+                                "target_stage": None,
+                                "default_value": None,
                             }
                             actions.append(action)
+                            action_index += 1
 
         elif status == StageStatus.READY and passing_gate and passing_gate_result:
             # READY: Always compute TRANSITION action
@@ -487,16 +550,40 @@ class Stage:
                 lock_result.property_path
                 for lock_result in passing_gate_result.passed
             ]
+
+            name = generate_action_name(
+                action_type=ActionType.TRANSITION,
+                target_stage=passing_gate.target_stage,
+            )
+            action_id = generate_action_id(
+                index=0,  # READY status always has single transition action
+                stage_id=self._id,
+                name=name,
+            )
+
+            # Generate helpful instructions for transition
+            instructions = [
+                f"All requirements satisfied for stage '{self.name}'",
+                f"Proceed to next stage: '{passing_gate.target_stage}'",
+            ]
+
             action: Action = {
+                "action_id": action_id,
+                "name": name,
                 "action_type": ActionType.TRANSITION,
                 "source": ActionSource.COMPUTED,
                 "description": f"Ready to transition to '{passing_gate.target_stage}'",
+                "instructions": instructions,
                 "related_properties": validated_properties,
                 "target_properties": [],
+                "related_gates": [passing_gate.name],
                 "target_stage": passing_gate.target_stage,
-                "gate_name": passing_gate.name,
+                "default_value": None,
             }
             actions.append(action)
+
+        # Ensure all action names are unique within this evaluation
+        ensure_unique_action_names(actions)
 
         return actions
 

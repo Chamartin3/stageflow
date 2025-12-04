@@ -39,6 +39,9 @@ class FunctionCall:
         Examples:
             length(items) → FunctionCall("length", "items")
             count(array) → FunctionCall("count", "array")
+            strlen(tags) → FunctionCall("strlen", "tags")
+            minlen(tags) → FunctionCall("minlen", "tags")
+            maxlen(tags) → FunctionCall("maxlen", "tags")
             items.length → None (not function syntax)
             regular.path → None (not function syntax)
         """
@@ -53,8 +56,9 @@ class FunctionCall:
         function_name = path[:paren_pos].strip()
         argument_path = path[paren_pos + 1 : -1].strip()
 
-        # Only support length/count functions initially
-        if function_name.lower() in ("length", "count"):
+        # Support length/count and string length functions
+        supported_functions = ("length", "count", "strlen", "minlen", "maxlen")
+        if function_name.lower() in supported_functions:
             return cls(function_name=function_name.lower(), argument_path=argument_path)
 
         return None
@@ -655,6 +659,191 @@ class DictElement(Element):
             # Return None for any length operation errors
             return None
 
+    def _stringify_value(self, value: Any) -> str | None:
+        """
+        Convert a value to string representation for string length calculations.
+
+        Args:
+            value: Value to stringify
+
+        Returns:
+            String representation, or None if value cannot be stringified
+            (rejects dicts/objects)
+
+        Examples:
+            "hello" → "hello"
+            123 → "123"
+            True → "True"
+            {"key": "val"} → None (rejected)
+            [1, 2] → None (rejected)
+        """
+        # Reject dicts and lists (objects)
+        if isinstance(value, (dict, list)):
+            return None
+
+        # Convert primitives to string
+        if isinstance(value, (str, int, float, bool)):
+            return str(value)
+
+        # Reject other types
+        return None
+
+    def _get_strlen(self, path: str) -> int | None:
+        """
+        Get the sum of string lengths for all elements in a list/array.
+
+        Stringifies non-string elements (numbers, booleans) but rejects objects/dicts.
+
+        Args:
+            path: Property path in format strlen(property.path)
+
+        Returns:
+            Sum of all string lengths, or None if operation is invalid
+
+        Examples:
+            strlen(tags) where tags=["hello", "world"] → 10
+            strlen(tags) where tags=["a", "bb", "ccc"] → 6
+            strlen(tags) where tags=[1, 22, 333] → 6 (stringified as "1", "22", "333")
+            strlen(tags) where tags=[] → 0
+            strlen(missing) → None
+        """
+        function_call = FunctionCall.parse(path)
+        if not function_call or function_call.function_name != "strlen":
+            raise ValueError(f"Path '{path}' is not a valid strlen operation")
+
+        base_path = function_call.argument_path
+        if not base_path.strip():
+            return None
+
+        # Resolve the base property
+        try:
+            value = self._resolve_path(self._data, base_path)
+        except (KeyError, IndexError, TypeError):
+            return None
+
+        # Must be a list/array
+        if not isinstance(value, (list, tuple)):
+            return None
+
+        # Sum string lengths
+        total_length = 0
+        for item in value:
+            str_value = self._stringify_value(item)
+            if str_value is None:
+                # Reject if any item can't be stringified
+                return None
+            total_length += len(str_value)
+
+        return total_length
+
+    def _get_minlen(self, path: str) -> int | None:
+        """
+        Get the minimum string length among elements in a list/array.
+
+        Stringifies non-string elements (numbers, booleans) but rejects objects/dicts.
+
+        Args:
+            path: Property path in format minlen(property.path)
+
+        Returns:
+            Minimum string length, or None if operation is invalid
+
+        Examples:
+            minlen(tags) where tags=["hello", "world", "hi"] → 2
+            minlen(tags) where tags=["a", "bb", "ccc"] → 1
+            minlen(tags) where tags=[1, 22, 333] → 1 (stringified)
+            minlen(tags) where tags=[] → None
+            minlen(missing) → None
+        """
+        function_call = FunctionCall.parse(path)
+        if not function_call or function_call.function_name != "minlen":
+            raise ValueError(f"Path '{path}' is not a valid minlen operation")
+
+        base_path = function_call.argument_path
+        if not base_path.strip():
+            return None
+
+        # Resolve the base property
+        try:
+            value = self._resolve_path(self._data, base_path)
+        except (KeyError, IndexError, TypeError):
+            return None
+
+        # Must be a list/array
+        if not isinstance(value, (list, tuple)):
+            return None
+
+        # Empty list has no minimum
+        if not value:
+            return None
+
+        # Find minimum string length
+        min_length = None
+        for item in value:
+            str_value = self._stringify_value(item)
+            if str_value is None:
+                # Reject if any item can't be stringified
+                return None
+            item_length = len(str_value)
+            if min_length is None or item_length < min_length:
+                min_length = item_length
+
+        return min_length
+
+    def _get_maxlen(self, path: str) -> int | None:
+        """
+        Get the maximum string length among elements in a list/array.
+
+        Stringifies non-string elements (numbers, booleans) but rejects objects/dicts.
+
+        Args:
+            path: Property path in format maxlen(property.path)
+
+        Returns:
+            Maximum string length, or None if operation is invalid
+
+        Examples:
+            maxlen(tags) where tags=["hello", "world", "hi"] → 5
+            maxlen(tags) where tags=["a", "bb", "ccc"] → 3
+            maxlen(tags) where tags=[1, 22, 333] → 3 (stringified)
+            maxlen(tags) where tags=[] → None
+            maxlen(missing) → None
+        """
+        function_call = FunctionCall.parse(path)
+        if not function_call or function_call.function_name != "maxlen":
+            raise ValueError(f"Path '{path}' is not a valid maxlen operation")
+
+        base_path = function_call.argument_path
+        if not base_path.strip():
+            return None
+
+        # Resolve the base property
+        try:
+            value = self._resolve_path(self._data, base_path)
+        except (KeyError, IndexError, TypeError):
+            return None
+
+        # Must be a list/array
+        if not isinstance(value, (list, tuple)):
+            return None
+
+        # Empty list has no maximum
+        if not value:
+            return None
+
+        # Find maximum string length
+        max_length = None
+        for item in value:
+            str_value = self._stringify_value(item)
+            if str_value is None:
+                # Reject if any item can't be stringified
+                return None
+            item_length = len(str_value)
+            if max_length is None or item_length > max_length:
+                max_length = item_length
+
+        return max_length
+
     def get_property(self, path: str) -> Any:
         """
         Get a property value using dot/bracket notation.
@@ -684,13 +873,33 @@ class DictElement(Element):
             # Property doesn't exist normally, check for length operations
             pass
 
-        # Check if this is a length operation
+        # Check if this is a function call operation
         try:
             function_call = FunctionCall.parse(path)
-            if function_call and function_call.function_name in ("length", "count"):
-                result = self._get_length(path)
-                if result is not None:
-                    return result
+            if function_call:
+                func_name = function_call.function_name
+
+                # Handle length/count functions
+                if func_name in ("length", "count"):
+                    result = self._get_length(path)
+                    if result is not None:
+                        return result
+
+                # Handle string length functions
+                elif func_name == "strlen":
+                    result = self._get_strlen(path)
+                    if result is not None:
+                        return result
+
+                elif func_name == "minlen":
+                    result = self._get_minlen(path)
+                    if result is not None:
+                        return result
+
+                elif func_name == "maxlen":
+                    result = self._get_maxlen(path)
+                    if result is not None:
+                        return result
         except ValueError:
             # Not a valid function call
             pass

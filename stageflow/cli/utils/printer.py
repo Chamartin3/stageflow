@@ -154,7 +154,7 @@ class CliPrinter:
             self.console.print_json(data=json_result)
         else:
             # In normal mode, use formatted output
-            formatted = EvaluationFormatter.format_evaluation_result(result)
+            formatted = EvaluationFormatter.format_evaluation_result(result, process)
             self.console.print(formatted)
 
     def show_progress(self, message: str) -> None:

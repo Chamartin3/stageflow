@@ -71,6 +71,7 @@ class EvaluationData(TypedDict):
     """Type definition for evaluation data in JSON output."""
 
     stage: str
+    stage_description: NotRequired[str]
     status: str
     regression: bool
     actions: list[Action]  # Single unified actions list (configured first priority)
@@ -353,11 +354,14 @@ class EvaluationFormatter:
         return "\n".join(lines)
 
     @staticmethod
-    def format_status_header(result: ProcessElementEvaluationResult) -> str:
+    def format_status_header(
+        result: ProcessElementEvaluationResult, stage_description: str = ""
+    ) -> str:
         """Format evaluation result status header.
 
         Args:
             result: Evaluation result from Process.evaluate()
+            stage_description: Optional description of the current stage
 
         Returns:
             Formatted header string with status emoji and basic info
@@ -376,8 +380,13 @@ class EvaluationFormatter:
         lines = [
             f"\n{status_emoji} [bold]Evaluation Result[/bold]",
             f"   Current Stage: {current_stage}",
-            f"   Status: {status}",
         ]
+
+        # Add description if available
+        if stage_description:
+            lines.append(f"   Description: {stage_description}")
+
+        lines.append(f"   Status: {status}")
 
         return "\n".join(lines)
 
@@ -450,19 +459,27 @@ class EvaluationFormatter:
         return f"   [green]Passed Gate(s):[/green] {gates_str}"
 
     @staticmethod
-    def format_evaluation_result(result: ProcessElementEvaluationResult) -> str:
+    def format_evaluation_result(
+        result: ProcessElementEvaluationResult, process: Process
+    ) -> str:
         """Format complete human-readable evaluation result.
 
         Args:
             result: Evaluation result from Process.evaluate()
+            process: Process instance for accessing stage details
 
         Returns:
             Formatted evaluation result string with rich markup
         """
         from stageflow.models import ActionSource
 
+        # Extract stage description
+        current_stage = result["stage"]
+        stage = process.get_stage(current_stage)
+        stage_description = getattr(stage, "description", "") if stage else ""
+
         sections = [
-            EvaluationFormatter.format_status_header(result),
+            EvaluationFormatter.format_status_header(result, stage_description),
             EvaluationFormatter.format_transitions(result),
             EvaluationFormatter.format_passed_gates(result),
         ]
@@ -471,7 +488,7 @@ class EvaluationFormatter:
         stage_result = result["stage_result"]
         configured_actions = [
             action for action in stage_result.actions
-            if action.get("source") == ActionSource.CONFIGURED
+            if action["source"] == ActionSource.CONFIGURED
         ]
         if configured_actions and str(stage_result.status) == "blocked":
             # Convert Action to ActionDefinition format for display
@@ -479,12 +496,13 @@ class EvaluationFormatter:
             for action in configured_actions:
                 action_def: ActionDefinition = {
                     "description": action["description"],
-                    "related_properties": action.get("related_properties", []),
-                    "target_properties": action.get("target_properties", []),
+                    "related_properties": action["related_properties"],
+                    "target_properties": action["target_properties"],
                 }
-                if "name" in action:
+                # Only include name and instructions if non-empty
+                if action["name"]:
                     action_def["name"] = action["name"]
-                if "instructions" in action:
+                if action["instructions"]:  # Only if non-empty list
                     action_def["instructions"] = action["instructions"]
                 action_defs.append(action_def)
             sections.append(
@@ -577,16 +595,25 @@ class EvaluationFormatter:
             for gate_name, gate_result in stage_result.results.items()
         }
 
+        # Extract stage description
+        current_stage = evaluation_result["stage"]
+        stage = process.get_stage(current_stage)
+        stage_description = getattr(stage, "description", "") if stage else ""
+
         # Format evaluation section - use the unified actions field
-        evaluation_data = EvaluationData(
-            stage=evaluation_result["stage"],
-            status=stage_result.status,
-            regression=evaluation_result["regression_details"]["detected"],
-            actions=stage_result.actions,  # Single unified actions list
-            gate_results=gate_results,
-            regression_details=evaluation_result.get("regression_details"),
-            validation_messages=stage_result.validation_messages,
-        )
+        evaluation_data: EvaluationData = {
+            "stage": evaluation_result["stage"],
+            "status": stage_result.status,
+            "regression": evaluation_result["regression_details"]["detected"],
+            "actions": stage_result.actions,  # Single unified actions list
+            "gate_results": gate_results,
+            "regression_details": evaluation_result.get("regression_details"),
+            "validation_messages": stage_result.validation_messages,
+        }
+
+        # Add stage_description if available
+        if stage_description:
+            evaluation_data["stage_description"] = stage_description
 
         return EvaluationJsonResult(
             process=process_description, evaluation=evaluation_data

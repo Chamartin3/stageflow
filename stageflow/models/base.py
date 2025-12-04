@@ -351,79 +351,110 @@ class ActionType(StrEnum):
 
 
 class Action(TypedDict):
-    """Action returned in evaluation results.
+    """Standardized action structure with consistent fields.
 
-    This is the unified structure for all actions in StageEvaluationResult.
+    All fields are required. Use None for fields that don't apply to this action type.
+    Use empty list [] for list fields when no items present.
+
     Actions follow a "configured first" priority:
     - If stage has expected_actions in YAML, use ONLY those (source=configured)
     - Otherwise, compute actions from evaluation status (source=computed)
 
     Fields:
+        action_id: Unique identifier for referencing this action
+        name: Unique name within evaluation (derived if not configured)
         action_type: Type of action needed (ActionType enum)
         source: Where this action came from (ActionSource enum)
         description: Human-readable description of the action
-        related_properties: List of property paths that inform/influence this action
-        target_properties: List of property paths where action results are captured
-        target_stage: (Optional) Target stage for transition actions
-        gate_name: (Optional) Gate name for validation-related actions
-        default_value: (Optional) Suggested default value for provide_data actions
-        name: (Optional) Action identifier from YAML configuration
-        instructions: (Optional) List of guidelines from YAML configuration
+        instructions: Step-by-step guidelines (empty list if none)
+        related_properties: Properties that inform/influence this action (input)
+        target_properties: Properties where results are captured (output)
+        related_gates: Gates associated with this action (None if not applicable)
+        target_stage: Target stage for transitions (None if not applicable)
+        default_value: Suggested default value (None if not applicable)
 
     Examples:
         >>> # INCOMPLETE status - computed action for missing properties
         >>> Action(
+        ...     action_id="0:registration:provide_email",
+        ...     name="provide_email",
         ...     action_type=ActionType.PROVIDE_DATA,
         ...     source=ActionSource.COMPUTED,
         ...     description="Provide required property 'email'",
+        ...     instructions=[],
         ...     related_properties=[],
         ...     target_properties=["email"],
+        ...     related_gates=None,
+        ...     target_stage=None,
         ...     default_value=None
         ... )
 
         >>> # BLOCKED status - configured action from YAML
         >>> Action(
-        ...     action_type=ActionType.RESOLVE_VALIDATION,
+        ...     action_id="0:email_verification:send_verification_email",
+        ...     name="send_verification_email",
+        ...     action_type=ActionType.EXECUTE_ACTION,
         ...     source=ActionSource.CONFIGURED,
-        ...     description="Contact support for account verification",
-        ...     related_properties=["support_ticket"],
+        ...     description="Send verification email to user",
+        ...     instructions=["Check your inbox", "Click verification link"],
+        ...     related_properties=["email"],
         ...     target_properties=["verified"],
-        ...     name="contact_support",
-        ...     instructions=["Open a support ticket", "Provide account ID"]
+        ...     related_gates=None,
+        ...     target_stage=None,
+        ...     default_value=None
         ... )
 
         >>> # BLOCKED status - computed action from failed gate
         >>> Action(
+        ...     action_id="0:email_verification:resolve_email_verified",
+        ...     name="resolve_email_verified",
         ...     action_type=ActionType.RESOLVE_VALIDATION,
         ...     source=ActionSource.COMPUTED,
         ...     description="Email must be verified",
+        ...     instructions=[],
         ...     related_properties=[],
         ...     target_properties=["verified"],
-        ...     gate_name="verify_email"
+        ...     related_gates=["email_verified"],
+        ...     target_stage=None,
+        ...     default_value=None
         ... )
 
         >>> # READY status - computed transition action
         >>> Action(
+        ...     action_id="0:email_verification:transition_to_profile_setup",
+        ...     name="transition_to_profile_setup",
         ...     action_type=ActionType.TRANSITION,
         ...     source=ActionSource.COMPUTED,
-        ...     description="Ready to transition to 'active'",
-        ...     related_properties=[],
+        ...     description="Ready to transition to 'profile_setup'",
+        ...     instructions=[],
+        ...     related_properties=["email", "verified"],
         ...     target_properties=[],
-        ...     target_stage="active",
-        ...     gate_name="verify_email"
+        ...     related_gates=["email_verified"],
+        ...     target_stage="profile_setup",
+        ...     default_value=None
         ... )
     """
 
+    # Core Identity
+    action_id: str
+    name: str
     action_type: ActionType
     source: ActionSource
+
+    # Description & Guidance
     description: str
-    related_properties: list[str]  # Properties that inform the action
-    target_properties: list[str]  # Properties where results are captured
-    target_stage: NotRequired[str]
-    gate_name: NotRequired[str]
-    default_value: NotRequired[Any]
-    name: NotRequired[str]  # From YAML configuration
-    instructions: NotRequired[list[str]]  # From YAML configuration
+    instructions: list[str]
+
+    # Property Relationships
+    related_properties: list[str]
+    target_properties: list[str]
+
+    # Gate & Stage References
+    related_gates: list[str] | None
+    target_stage: str | None
+
+    # Defaults & Metadata
+    default_value: Any | None
 
 
 

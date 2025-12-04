@@ -467,17 +467,20 @@ class Process:
                         p for p in related_props if p != self.stage_prop
                     ]
 
+                # Create updated action with all fields (all required now)
                 updated_action: Action = {
+                    "action_id": action["action_id"],
+                    "name": action["name"],
                     "action_type": action["action_type"],
                     "source": action["source"],
                     "description": action["description"],
+                    "instructions": action["instructions"],
                     "related_properties": related_props,
                     "target_properties": action["target_properties"],
+                    "related_gates": action["related_gates"],
+                    "target_stage": action["target_stage"],
+                    "default_value": action["default_value"],
                 }
-                if "target_stage" in action:
-                    updated_action["target_stage"] = action["target_stage"]
-                if "gate_name" in action:
-                    updated_action["gate_name"] = action["gate_name"]
                 updated_actions.append(updated_action)
             else:
                 updated_actions.append(action)
