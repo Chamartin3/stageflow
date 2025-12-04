@@ -250,13 +250,14 @@ class TestSuggestedActionsBlocked:
         # Find the action from failed lock
         lock_actions = [
             a for a in result.actions
-            if a.get("gate_name") == "approval_gate"
+            if a["related_gates"] and "approval_gate" in a["related_gates"]
         ]
         assert len(lock_actions) == 1
         assert lock_actions[0]["action_type"] == ActionType.RESOLVE_VALIDATION
         assert lock_actions[0]["source"] == ActionSource.COMPUTED
         assert lock_actions[0]["target_properties"] == ["approved"]
         assert lock_actions[0]["related_properties"] == []
+        assert lock_actions[0]["related_gates"] == ["approval_gate"]
 
 
 class TestSuggestedActionsReady:
@@ -301,7 +302,7 @@ class TestSuggestedActionsReady:
         assert action["action_type"] == ActionType.TRANSITION
         assert action["source"] == ActionSource.COMPUTED
         assert action["target_stage"] == "finished"
-        assert action["gate_name"] == "complete_gate"
+        assert action["related_gates"] == ["complete_gate"]
         assert action["target_properties"] == []
 
     def test_ready_includes_validated_properties(self):
