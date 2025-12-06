@@ -192,3 +192,4 @@ config.local.*
 docs/tasks/
 docs/proposals/
 worktrees/
+docs/
