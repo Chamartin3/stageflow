@@ -82,7 +82,7 @@ print(result["regression"])               # Backward movement detected?
 | **Process Analysis** | Detect consistency issues (cycles, unreachable stages) |
 | **Registry Access** | Load processes by name with `@name` syntax |
 
-See [docs/lib/LIBRARY_REFERENCE.md](docs/lib/LIBRARY_REFERENCE.md) for complete API documentation.
+See [LIBRARY_REFERENCE.md](LIBRARY_REFERENCE.md) for complete API documentation.
 
 ---
 
@@ -181,6 +181,18 @@ process:
     active:
       fields: [email, name]
 ```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICKSTART.md](QUICKSTART.md) | Getting started guide |
+| [CLI_REFERENCE.md](CLI_REFERENCE.md) | Complete CLI command documentation |
+| [LIBRARY_REFERENCE.md](LIBRARY_REFERENCE.md) | Python API documentation |
+| [PROCESS_DESIGN_GUIDE.md](PROCESS_DESIGN_GUIDE.md) | Best practices for process design |
+| [PROCESS_SCHEMA_REFERENCE.md](PROCESS_SCHEMA_REFERENCE.md) | Process YAML/JSON schema reference |
 
 ---
 
