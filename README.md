@@ -1,8 +1,40 @@
 # StageFlow
 
-A declarative, data-centric state machine.  Manages workflow defining and validating multi-stage processes. 
+A declarative, data-centric state machine.  Manages workflow defining and validating multi-stage processes.
 
 Define workflows as YAML/JSON schemas, evaluate where data stands within them, and get actionable feedback for progression.
+
+## Installation
+
+### Quick Setup
+
+Add the `bin` folder to your PATH:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export PATH="/path/to/stageflow/bin:$PATH"
+```
+
+Then reload your shell:
+
+```bash
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+Now you can run `stageflow` from anywhere:
+
+```bash
+stageflow --help
+```
+
+### Requirements
+
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) package manager
+
+Dependencies are managed automatically via `uv` when running the CLI.
+
+---
 
 ## Key Concepts
 

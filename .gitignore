@@ -193,3 +193,8 @@ docs/tasks/
 docs/proposals/
 worktrees/
 docs/
+# Coverage
+.coverage
+coverage/
+htmlcov/
+*.cover
